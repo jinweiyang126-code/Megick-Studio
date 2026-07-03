@@ -2,6 +2,12 @@ import type {
   GeneratedItem,
   GeneratedOutputPersistence,
 } from "./generation-provider.types";
+import {
+  buildBasicRouterImagePayload,
+  parseBasicRouterImageResponse,
+  resolveBasicRouterEndpoint,
+  usesBasicRouterImageApi,
+} from "./basicrouter.adapters";
 
 export const DIRECT_TEXT2IMAGE_ORIGINS_ENV =
   "GENERATION_DIRECT_TEXT2IMAGE_ORIGINS";
@@ -861,6 +867,10 @@ const IMAGE_CONTROL_PARAMS = new Set([
   "wait_for_result",
   "waitForResult",
   "preserveReferenceImageUrls",
+  "count",
+  "videoType",
+  "video_type",
+  "text",
 ]);
 
 const SEEDREAM_CONTROL_PARAMS = new Set([
@@ -1410,6 +1420,27 @@ const aliyunText2ImageAdapter: Text2ImageAdapter = {
     parseOpenAiCompatibleResponse(payload, input, "project-oss"),
 };
 
+const basicRouterText2ImageAdapter: Text2ImageAdapter = {
+  name: "basicrouter-image",
+  matches: (input) => usesBasicRouterImageApi(input),
+  resolveUrl: (input) =>
+    resolveBasicRouterEndpoint(input.baseUrl, input.params, "/ai/createImage"),
+  buildPayload: (input) =>
+    buildBasicRouterImagePayload(input, extraImageProviderParams(input.params)),
+  debugPayload: (payload) => ({
+    model: stringParam(payload.model),
+    textLength: stringParam(payload.text)?.length ?? 0,
+    count: payload.count,
+    ratio: payload.ratio,
+    resolution: payload.resolution,
+    referenceImageCount: Array.isArray(payload.imageUrls)
+      ? payload.imageUrls.length
+      : 0,
+  }),
+  parseResponse: (payload, input) =>
+    parseBasicRouterImageResponse(payload, resolveImageUrl, input),
+};
+
 const openAiCompatibleAdapter: Text2ImageAdapter = {
   name: "openai-compatible-project-oss",
   matches: () => true,
@@ -1425,6 +1456,7 @@ const text2ImageAdapters = [
   volcengineSeedreamAdapter,
   magickApiText2ImageAdapter,
   aliyunText2ImageAdapter,
+  basicRouterText2ImageAdapter,
   dpiChatCompletionsAdapter,
   directHostedImageAdapter,
   openAiCompatibleAdapter,

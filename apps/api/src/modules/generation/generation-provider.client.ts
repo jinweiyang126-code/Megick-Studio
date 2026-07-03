@@ -12,6 +12,13 @@ import type {
   VideoTaskResult,
 } from "./generation-provider.types";
 import {
+  basicRouterEnvelopeError,
+  buildBasicRouterVideoPayload,
+  resolveBasicRouterEndpoint,
+  resolveBasicRouterVideoStatusUrl,
+  usesBasicRouterVideoApi,
+} from "./basicrouter.adapters";
+import {
   DIRECT_TEXT2IMAGE_ORIGINS_ENV,
   parseDirectText2ImageOrigins,
   selectText2ImageAdapter,
@@ -126,7 +133,7 @@ function resolveChatCompletionsUrl(baseUrl: string) {
 }
 
 function isFullVideoCreateEndpoint(baseUrl: string) {
-  return /(\/video\/generations|\/videos\/generations|\/videos|\/generate|\/jobs\/createTask|fal\.run\/.+)$/i.test(
+  return /(\/video\/generations|\/videos\/generations|\/videos|\/generate|\/jobs\/createTask|\/ai\/createVideo|fal\.run\/.+)$/i.test(
     baseUrl.trim(),
   );
 }
@@ -208,6 +215,12 @@ function inferVideoApiStyle(
     if (normalized === "volcengine" || normalized === "volcengine-video") {
       return "volcengine-video";
     }
+    if (normalized === "basicrouter" || normalized === "basicrouter-video") {
+      return "basicrouter-video";
+    }
+  }
+  if (usesBasicRouterVideoApi(baseUrl, params)) {
+    return "basicrouter-video";
   }
   const configuredEndpoint = stringParam(
     params.createUrl ?? params.endpoint ?? params.endpointPath,
@@ -281,6 +294,9 @@ function resolveVideoCreateUrl(
   if (apiStyle === "seedance-task")
     return appendPath(baseUrl, "/api/v1/jobs/createTask");
   if (apiStyle === "seedance-v2") return appendPath(baseUrl, "/generate");
+  if (apiStyle === "basicrouter-video") {
+    return resolveBasicRouterEndpoint(baseUrl, params, "/ai/createVideo");
+  }
   return appendPath(baseUrl, "/videos/generations");
 }
 
@@ -406,6 +422,13 @@ function resolveVideoStatusUrl(
     );
   }
 
+  if (
+    apiStyle === "basicrouter-video" ||
+    /\/ai\/createVideo\/?$/i.test(createUrl)
+  ) {
+    return resolveBasicRouterVideoStatusUrl(createUrl, params, taskId);
+  }
+
   return undefined;
 }
 
@@ -493,6 +516,11 @@ const CONTROL_PARAMS = new Set([
   "referenceImageUrl",
   "referenceVideoUrl",
   "hasReferenceImage",
+  "videoType",
+  "video_type",
+  "count",
+  "text",
+  "urls",
 ]);
 
 function extraProviderParams(params: Record<string, unknown>) {
@@ -851,6 +879,16 @@ function buildVideoPayload(
       ...(videoReferences.length === 1 ? { video: videoReferences[0] } : {}),
       ...(videoReferences.length ? { videos: videoReferences } : {}),
     };
+  }
+
+  if (apiStyle === "basicrouter-video") {
+    return buildBasicRouterVideoPayload({
+      modelName: input.modelName,
+      prompt: input.prompt,
+      params,
+      imageUrls: [...imageReferences, ...videoReferences],
+      extra,
+    });
   }
 
   return {
@@ -2375,6 +2413,10 @@ export class GenerationProviderClient {
       const streamPayload = streamResult
         ? responseFromStreamPayloads(streamResult.payloads)
         : res.data;
+      const envelopeError = basicRouterEnvelopeError(streamPayload);
+      if (envelopeError) {
+        throw new Error(envelopeError);
+      }
       const immediateUrls = extractVideoUrls(streamPayload);
       if (immediateUrls.length)
         return immediateUrls.map((url) => ({
