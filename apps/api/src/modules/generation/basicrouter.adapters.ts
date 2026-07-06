@@ -273,33 +273,6 @@ export function buildBasicRouterVideoPayload(input: {
   };
 }
 
-/** BasicRouter may not fetch private OSS URLs; inline reference images as data URLs. */
-export async function prepareBasicRouterVideoUrls(urls: string[]) {
-  const prepared: string[] = [];
-  for (const raw of urls) {
-    const url = raw.trim();
-    if (!url) continue;
-    if (url.startsWith("data:")) {
-      prepared.push(url);
-      continue;
-    }
-    const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
-    if (!res.ok) {
-      throw new Error(`Failed to fetch reference image (${res.status})`);
-    }
-    const buffer = Buffer.from(await res.arrayBuffer());
-    if (!buffer.length) {
-      throw new Error("Reference image download returned empty body");
-    }
-    const contentType =
-      res.headers.get("content-type")?.split(";")[0]?.trim() || "image/png";
-    prepared.push(
-      `data:${contentType};base64,${buffer.toString("base64")}`,
-    );
-  }
-  return prepared;
-}
-
 export function parseBasicRouterImageResponse(
   payload: unknown,
   resolveUrl: (url: string, baseUrl: string) => string | undefined,
