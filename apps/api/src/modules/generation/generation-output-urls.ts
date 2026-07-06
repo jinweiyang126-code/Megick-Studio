@@ -1,6 +1,9 @@
 import type { OssAsset } from "@prisma/client";
 
 export const FREE_IMAGE_WATERMARK_PROCESS = "style/megick";
+/** Inline text watermark when the named OSS image style is not configured. */
+export const FREE_IMAGE_WATERMARK_FALLBACK_PROCESS =
+  "image/watermark,text_TWVnaWNr,size_36,color_FFFFFF,t_60,g_se,x_16,y_16";
 
 export interface RawGenerationOutput {
   asset?: OssAsset;

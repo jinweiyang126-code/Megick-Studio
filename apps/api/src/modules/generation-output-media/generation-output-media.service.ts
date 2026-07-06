@@ -1,9 +1,10 @@
-import { BadGatewayException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadGatewayException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "nestjs-prisma";
 import { randomId } from "@/common/random-id";
 import { AdvancedAccessService } from "@/common/services/advanced-access.service";
 import { OssService } from "../oss/oss.service";
 import {
+  FREE_IMAGE_WATERMARK_FALLBACK_PROCESS,
   FREE_IMAGE_WATERMARK_PROCESS,
   mediaOutputProxyUrl,
 } from "../generation/generation-output-urls";
@@ -39,6 +40,8 @@ function nullableJson(value: Prisma.JsonValue | null | undefined) {
 
 @Injectable()
 export class GenerationOutputMediaService {
+  private readonly logger = new Logger(GenerationOutputMediaService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly oss: OssService,
@@ -126,10 +129,10 @@ export class GenerationOutputMediaService {
       const hasAdvancedAccess = await this.advancedAccess.hasAdvancedAccess(userId);
       if (item.requiresWatermark && !hasAdvancedAccess) {
         const process = item.watermarkProcess ?? FREE_IMAGE_WATERMARK_PROCESS;
-        const content = await this.oss.getAuthorizedAssetContent(
+        const content = await this.getWatermarkedOutputContent(
           item.ossKey,
-          { id: userId },
-          { process },
+          userId,
+          process,
         );
         const expiresAt = new Date(Date.now() + 3600 * 1000);
         const watermarkedUrl = await this.oss.signGet(item.ossKey, 3600, {
@@ -162,6 +165,49 @@ export class GenerationOutputMediaService {
     }
 
     throw new NotFoundException("REFERENCE_MEDIA_NOT_FOUND");
+  }
+
+  private isOssImageStyleUnavailable(error: unknown) {
+    if (!(error instanceof BadGatewayException)) return false;
+    return error.message.includes("OSS_IMAGE_STYLE_UNAVAILABLE");
+  }
+
+  private async getWatermarkedOutputContent(
+    ossKey: string,
+    userId: string,
+    process: string,
+  ) {
+    try {
+      return await this.oss.getAuthorizedAssetContent(
+        ossKey,
+        { id: userId },
+        { process },
+      );
+    } catch (error) {
+      if (!this.isOssImageStyleUnavailable(error)) throw error;
+      this.logger.warn(
+        `OSS image style unavailable (${process}); trying inline watermark for ${ossKey}`,
+      );
+    }
+
+    try {
+      return await this.oss.getAuthorizedAssetContent(
+        ossKey,
+        { id: userId },
+        { process: FREE_IMAGE_WATERMARK_FALLBACK_PROCESS },
+      );
+    } catch (error) {
+      if (!this.isOssImageStyleUnavailable(error)) throw error;
+      this.logger.warn(
+        `Inline OSS watermark unavailable; serving original bytes for ${ossKey}`,
+      );
+    }
+
+    return this.oss.getAuthorizedAssetContent(
+      ossKey,
+      { id: userId },
+      { allowGeneratedImageDelivery: true },
+    );
   }
 
   thumbnailUrl(mediaId: string | null | undefined) {

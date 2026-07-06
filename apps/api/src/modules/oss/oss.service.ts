@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  BadGatewayException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -270,7 +271,7 @@ export class OssService {
   async getAuthorizedAssetContent(
     keyOrUrl: string,
     user: { id: string; isSuperAdmin?: boolean },
-    opts: { process?: string } = {},
+    opts: { process?: string; allowGeneratedImageDelivery?: boolean } = {},
   ) {
     const key = this.assetKeyFromUrl(keyOrUrl);
     if (!key) throw new BadRequestException("INVALID_ASSET_KEY");
@@ -522,12 +523,13 @@ export class OssService {
   private async assertDirectAssetAccessAllowed(
     assetId: string,
     user: { id: string; isSuperAdmin?: boolean },
-    opts: { process?: string } = {},
+    opts: { process?: string; allowGeneratedImageDelivery?: boolean } = {},
   ) {
     if (user.isSuperAdmin) return;
     if (await this.advancedAccess.hasAdvancedAccess(user.id)) return;
     // Watermark/thumbnail proxy reads are processed OSS objects, not raw downloads.
     if (opts.process) return;
+    if (opts.allowGeneratedImageDelivery) return;
 
     const generatedImage = await this.prisma.generationOutputMedia.findFirst({
       where: {
@@ -560,9 +562,11 @@ export class OssService {
           ? result.content
           : Buffer.from(result.content);
       } catch (err) {
-        this.logger.error(
-          `OSS get failed for ${key}: ${(err as Error).message}`,
-        );
+        const message = (err as Error).message ?? String(err);
+        this.logger.error(`OSS get failed for ${key}: ${message}`);
+        if (/no such image style/i.test(message)) {
+          throw new BadGatewayException("OSS_IMAGE_STYLE_UNAVAILABLE");
+        }
         throw new NotFoundException();
       }
     }
