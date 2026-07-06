@@ -111,27 +111,44 @@ export class GenerationOutputMediaService {
     });
     if (item) {
       if (input.variant === "thumbnail" && item.kind === "IMAGE") {
-        const url = await this.oss.signGet(item.ossKey, 3600, {
-          process: GENERATED_IMAGE_THUMBNAIL_PROCESS,
-        });
-        if (!url) throw new BadGatewayException("THUMBNAIL_URL_UNAVAILABLE");
-        return this.fetchExternalOutputContent(url, "TEXT2IMAGE");
+        const content = await this.oss.getAuthorizedAssetContent(
+          item.ossKey,
+          { id: userId },
+          { process: GENERATED_IMAGE_THUMBNAIL_PROCESS },
+        );
+        return {
+          content: content.content,
+          contentType: content.contentType,
+          sizeBytes: content.sizeBytes,
+        };
       }
 
       const hasAdvancedAccess = await this.advancedAccess.hasAdvancedAccess(userId);
       if (item.requiresWatermark && !hasAdvancedAccess) {
-        const url = await this.oss.signGet(item.ossKey, 3600, {
-          process: item.watermarkProcess ?? FREE_IMAGE_WATERMARK_PROCESS,
+        const process = item.watermarkProcess ?? FREE_IMAGE_WATERMARK_PROCESS;
+        const content = await this.oss.getAuthorizedAssetContent(
+          item.ossKey,
+          { id: userId },
+          { process },
+        );
+        const expiresAt = new Date(Date.now() + 3600 * 1000);
+        const watermarkedUrl = await this.oss.signGet(item.ossKey, 3600, {
+          process,
         });
-        if (!url) throw new BadGatewayException("WATERMARK_URL_UNAVAILABLE");
-        await this.prisma.mediaCenterItem.update({
-          where: { id: item.id },
-          data: {
-            watermarkedUrl: url,
-            watermarkedUrlExpiresAt: new Date(Date.now() + 3600 * 1000),
-          },
-        });
-        return this.fetchExternalOutputContent(url, item.kind === "VIDEO" ? "IMAGE2VIDEO" : "TEXT2IMAGE");
+        if (watermarkedUrl) {
+          await this.prisma.mediaCenterItem.update({
+            where: { id: item.id },
+            data: {
+              watermarkedUrl,
+              watermarkedUrlExpiresAt: expiresAt,
+            },
+          });
+        }
+        return {
+          content: content.content,
+          contentType: content.contentType,
+          sizeBytes: content.sizeBytes,
+        };
       }
 
       const content = await this.oss.getAuthorizedAssetContent(item.ossKey, {
@@ -282,26 +299,5 @@ export class GenerationOutputMediaService {
         createdAt: job?.finishedAt ?? job?.createdAt ?? asset.createdAt,
       },
     });
-  }
-
-  private async fetchExternalOutputContent(
-    url: string,
-    type: GenerationJobTypeEnum,
-  ) {
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(120_000),
-    });
-    if (!res.ok) {
-      throw new BadGatewayException(`UPSTREAM_OUTPUT_FETCH_FAILED:${res.status}`);
-    }
-    const content = Buffer.from(await res.arrayBuffer());
-    if (!content.length) throw new BadGatewayException("EMPTY_OUTPUT");
-    return {
-      content,
-      contentType:
-        res.headers.get("content-type") ??
-        (type === "IMAGE2VIDEO" ? "video/mp4" : "image/png"),
-      sizeBytes: content.length,
-    };
   }
 }

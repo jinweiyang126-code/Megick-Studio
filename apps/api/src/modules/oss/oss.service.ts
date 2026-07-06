@@ -15,7 +15,10 @@ import { CloudOssService, type ResolvedOssConfig } from "../cloud-resources/clou
 
 interface OssClient {
   put(key: string, body: Buffer, opts?: unknown): Promise<{ url: string }>;
-  get(key: string): Promise<{ content: Buffer | Uint8Array | string }>;
+  get(
+    key: string,
+    opts?: { process?: string },
+  ): Promise<{ content: Buffer | Uint8Array | string }>;
   signatureUrl(key: string, opts?: { expires: number; process?: string }): string;
 }
 
@@ -267,6 +270,7 @@ export class OssService {
   async getAuthorizedAssetContent(
     keyOrUrl: string,
     user: { id: string; isSuperAdmin?: boolean },
+    opts: { process?: string } = {},
   ) {
     const key = this.assetKeyFromUrl(keyOrUrl);
     if (!key) throw new BadRequestException("INVALID_ASSET_KEY");
@@ -276,7 +280,7 @@ export class OssService {
       if (!this.isDirectUploadKeyForUser(key, user.id)) {
         throw new NotFoundException();
       }
-      const content = await this.getObjectBuffer(key);
+      const content = await this.getObjectBuffer(key, opts.process);
       return {
         key,
         content,
@@ -293,12 +297,14 @@ export class OssService {
     }
     await this.assertDirectAssetAccessAllowed(asset.id, user);
 
-    const content = await this.getObjectBuffer(key);
+    const content = await this.getObjectBuffer(key, opts.process);
     return {
       key,
       content,
-      contentType: asset.contentType,
-      sizeBytes: asset.sizeBytes,
+      contentType: opts.process?.includes("/format,webp")
+        ? "image/webp"
+        : asset.contentType,
+      sizeBytes: content.length,
     };
   }
 
@@ -539,11 +545,14 @@ export class OssService {
     if (legacyGeneratedImage) throw new ForbiddenException();
   }
 
-  private async getObjectBuffer(key: string) {
+  private async getObjectBuffer(key: string, process?: string) {
     const client = await this.client();
     if (client) {
       try {
-        const result = await client.get(key);
+        const result = await client.get(
+          key,
+          process ? { process } : undefined,
+        );
         return Buffer.isBuffer(result.content)
           ? result.content
           : Buffer.from(result.content);
@@ -557,7 +566,10 @@ export class OssService {
 
     const base = await this.getPublicBaseUrl();
     if (!base) throw new NotFoundException();
-    const res = await fetch(`${base}/${key}`);
+    const url = process
+      ? `${base}/${key}?x-oss-process=${encodeURIComponent(process)}`
+      : `${base}/${key}`;
+    const res = await fetch(url);
     if (!res.ok) throw new NotFoundException();
     return Buffer.from(await res.arrayBuffer());
   }
