@@ -1277,6 +1277,7 @@ export const zhTWMessages = {
   "chats.badge.video": "影片",
   "chats.pinnedBadge": "固定",
   "chats.stats": "{messages} 訊息、{jobs} 作業",
+  "chats.pagination.showing": "顯示 {count} / {total} 個對話",
   "chats.rename": "重新命名",
   "chats.pin": "腳位至頂部",
   "chats.unpin": "取消固定",

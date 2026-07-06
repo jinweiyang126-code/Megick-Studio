@@ -320,6 +320,7 @@ model GenerationJob {
   @@index([userId, createdAt])
   @@index([status])
   @@index([chatSessionId])
+  @@index([chatSessionId, createdAt])
   @@index([providerIdSnapshot])
   @@map("generation_jobs")
 }
@@ -339,6 +340,7 @@ model ChatSession {
   promptTemplates PromptTemplate[]
 
   @@index([userId])
+  @@index([userId, archived, updatedAt])
   @@map("chat_sessions")
 }
 

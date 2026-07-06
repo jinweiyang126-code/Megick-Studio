@@ -53,6 +53,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { api, apiGet, apiPatch, apiPost } from "@/lib/api-client";
+import { fetchChatSessions } from "@/lib/chat-sessions";
 import { DEFAULT_CHAT_TITLE, displayChatTitle, persistedChatTitle } from "@/lib/chat-title";
 import { uploadDirectOssAsset } from "@/lib/oss-upload";
 import { cn } from "@/lib/utils";
@@ -1300,15 +1301,29 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
       setSessionLoading(true);
       const restoreLastSession = async () => {
         try {
-          const chats = await queryClient.fetchQuery({
-            queryKey: ["dashboard", "chats"],
-            queryFn: () => apiGet<ChatSession[]>("/api/chats"),
+          const chatsPage = await queryClient.fetchQuery({
+            queryKey: ["dashboard", "chats", 1, 30],
+            queryFn: () => fetchChatSessions({ page: 1, pageSize: 30 }),
           });
           if (cancelled) return;
+          const chats = chatsPage.items;
           const rememberedId = readLastStudioSessionId(userId, routeMode);
-          const rememberedSession = rememberedId
+          let rememberedSession = rememberedId
             ? chats.find((chat) => chat.id === rememberedId)
             : null;
+
+          if (!rememberedSession && rememberedId) {
+            try {
+              const detail = await apiGet<ChatSessionDetail>(
+                `/api/chats/${rememberedId}?limit=1`,
+              );
+              if (detail?.id) {
+                rememberedSession = detail;
+              }
+            } catch {
+              rememberedSession = null;
+            }
+          }
 
           if (rememberedSession && modeForChatSession(rememberedSession) === routeMode) {
             rememberLastStudioSessionId(rememberedSession.id, userId, routeMode);

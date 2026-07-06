@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { apiGet, apiPatch } from "@/lib/api-client";
+import { apiPatch } from "@/lib/api-client";
+import { fetchChatSessions } from "@/lib/chat-sessions";
 import { displayChatTitle, persistedChatTitle } from "@/lib/chat-title";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useQueryClient } from "@tanstack/react-query";
@@ -29,16 +30,47 @@ export const Route = createFileRoute("/dashboard/chats")({
 
 function ChatsRoute() {
   const { user } = useAuth();
+  const [page, setPage] = useState(1);
+  const pageSize = 30;
   const chatsQ = useQuery({
-    queryKey: ["dashboard", "chats"],
-    queryFn: () => apiGet<ChatSession[]>("/api/chats"),
+    queryKey: ["dashboard", "chats", page, pageSize],
+    queryFn: () => fetchChatSessions({ page, pageSize }),
     enabled: !!user,
   });
 
-  return <ChatsPanel chats={chatsQ.data ?? []} loading={chatsQ.isLoading} />;
+  return (
+    <ChatsPanel
+      chats={chatsQ.data?.items ?? []}
+      loading={chatsQ.isLoading}
+      page={page}
+      pageSize={pageSize}
+      total={chatsQ.data?.total ?? 0}
+      hasPreviousPage={chatsQ.data?.hasPreviousPage ?? page > 1}
+      hasNextPage={chatsQ.data?.hasNextPage ?? false}
+      onPageChange={setPage}
+    />
+  );
 }
 
-function ChatsPanel({ chats, loading }: { chats: ChatSession[]; loading: boolean }) {
+function ChatsPanel({
+  chats,
+  loading,
+  page,
+  pageSize,
+  total,
+  hasPreviousPage,
+  hasNextPage,
+  onPageChange,
+}: {
+  chats: ChatSession[];
+  loading: boolean;
+  page: number;
+  pageSize: number;
+  total: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+  onPageChange: (page: number) => void;
+}) {
   const { t, locale } = useI18n();
   const queryClient = useQueryClient();
   const [typeFilter, setTypeFilter] = useState<ChatTypeFilter>("all");
@@ -171,6 +203,34 @@ function ChatsPanel({ chats, loading }: { chats: ChatSession[]; loading: boolean
                 })}
               </div>
             )}
+            {total > pageSize ? (
+              <div className="flex flex-col items-stretch justify-between gap-3 border-t border-border pt-4 sm:flex-row sm:items-center">
+                <span className="text-sm text-muted-foreground">
+                  {t("chats.pagination.showing", {
+                    count: filteredChats.length,
+                    total,
+                  })}
+                </span>
+                <div className="grid grid-cols-2 gap-2 sm:flex">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!hasPreviousPage}
+                    onClick={() => onPageChange(page - 1)}
+                  >
+                    {t("common.previous")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!hasNextPage}
+                    onClick={() => onPageChange(page + 1)}
+                  >
+                    {t("common.next")}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
       </div>

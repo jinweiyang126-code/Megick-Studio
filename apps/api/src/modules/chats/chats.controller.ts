@@ -174,18 +174,24 @@ export class ChatsController {
   constructor(private readonly chats: ChatsService) {}
 
   @Get()
+  @ApiPaginationQueries({ defaultPageSize: 30, maxPageSize: 100 })
   @ApiOperation(
     documentedOperation(
       "List chat sessions",
-      "Returns the current user's non-archived chat sessions sorted by pinned state and recent activity.",
+      "Returns a paginated list of the current user's non-archived chat sessions sorted by pinned state and recent activity.",
     ),
   )
-  @ApiOkArrayResponse(
+  @ApiOkPaginatedResponse(
     ChatSessionDto,
     "Chat sessions loaded successfully.",
   )
-  list(@CurrentUser() user: AuthUserContext) {
-    return this.chats.list(user.id);
+  async list(@CurrentUser() user: AuthUserContext, @Query() query: PaginationQuery) {
+    const pagination = parsePagination(query, {
+      defaultPageSize: 30,
+      maxPageSize: 100,
+    });
+    const { items, total } = await this.chats.list(user.id, pagination);
+    return paginated(items, total, pagination);
   }
 
   @Post()

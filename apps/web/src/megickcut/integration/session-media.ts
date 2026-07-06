@@ -1,6 +1,7 @@
 import type { ChatSession, ChatSessionDetail, StudioResult } from "@/routes/-dashboard-types";
 import { studioMessageFromRecord } from "@/routes/-dashboard-types";
 import { api, apiGet } from "@/lib/api-client";
+import { fetchAllChatSessions } from "@/lib/chat-sessions";
 import { processMediaAssets } from "@/megickcut/media/processing";
 import type { MediaAsset } from "@/megickcut/media/types";
 import { buildElementFromMedia } from "@/megickcut/timeline/element-utils";
@@ -30,7 +31,8 @@ export function studioMediaSourceKey({
 }
 
 export async function listStudioSessions() {
-  return apiGet<ChatSession[]>("/api/chats");
+  const result = await fetchAllChatSessions();
+  return result.items;
 }
 
 export async function getStudioSession({ sessionId }: { sessionId: string }) {

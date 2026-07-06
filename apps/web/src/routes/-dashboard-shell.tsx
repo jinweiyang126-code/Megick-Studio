@@ -40,6 +40,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuthGate } from "@/hooks/useAuthGate";
 import { apiGet } from "@/lib/api-client";
+import { fetchChatSessions } from "@/lib/chat-sessions";
 import { useVideoGenerationEnabled } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
@@ -245,8 +246,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     enabled: shouldLoadPrivateChrome,
   });
   const chatsQ = useQuery({
-    queryKey: ["dashboard", "chats"],
-    queryFn: () => apiGet<ChatSession[]>("/api/chats"),
+    queryKey: ["dashboard", "chats", 1, 30],
+    queryFn: () => fetchChatSessions({ page: 1, pageSize: 30 }),
     enabled: shouldLoadPrivateChrome,
     staleTime: 30000,
   });
@@ -400,10 +401,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const storedSessionForMode = (mode: StudioMode) => {
     const stored = storedStudioSessionIds[mode];
     if (!stored) return undefined;
-    if (chatsQ.data) {
-      const storedChat = chatsQ.data.find((chat) => chat.id === stored);
-      if (!storedChat || modeForChatSession(storedChat) !== mode) return undefined;
-    }
+    const storedChat = chatsQ.data?.items.find((chat) => chat.id === stored);
+    if (storedChat && modeForChatSession(storedChat) !== mode) return undefined;
     return stored;
   };
   const studioNavSearchFor = (mode: StudioMode) => {

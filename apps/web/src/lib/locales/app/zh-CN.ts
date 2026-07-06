@@ -1299,6 +1299,7 @@ export const zhCNMessages = {
   "chats.badge.video": "视频",
   "chats.pinnedBadge": "已置顶",
   "chats.stats": "{messages} 条消息，{jobs} 个任务",
+  "chats.pagination.showing": "显示 {count} / {total} 个对话",
   "chats.rename": "重命名",
   "chats.pin": "置顶",
   "chats.unpin": "取消置顶",

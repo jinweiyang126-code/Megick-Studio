@@ -1,0 +1,4 @@
+export const CHAT_LIST_DEFAULT_PAGE_SIZE = 30;
+export const CHAT_LIST_MAX_PAGE_SIZE = 100;
+export const CHAT_LIST_MODE_JOB_TAKE = 5;
+export const CHAT_LIST_MODE_MESSAGE_TAKE = 8;

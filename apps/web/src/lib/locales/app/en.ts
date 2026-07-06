@@ -1370,6 +1370,7 @@ export const enMessages = {
   "chats.badge.video": "Video",
   "chats.pinnedBadge": "Pinned",
   "chats.stats": "{messages} messages, {jobs} jobs",
+  "chats.pagination.showing": "Showing {count} of {total} conversations",
   "chats.rename": "Rename",
   "chats.pin": "Pin to top",
   "chats.unpin": "Unpin",

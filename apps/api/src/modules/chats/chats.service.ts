@@ -21,6 +21,11 @@ import {
 import {
   normalizeMessageLimit,
 } from "./chat-message-query";
+import {
+  CHAT_LIST_MODE_JOB_TAKE,
+  CHAT_LIST_MODE_MESSAGE_TAKE,
+} from "./chat-list-query";
+import type { ParsedPagination } from "@/common/pagination";
 
 type MessageWithJob = Prisma.ChatMessageGetPayload<{
   include: { generationJob: true };
@@ -103,27 +108,35 @@ export class ChatsService {
     private readonly outputMedia: GenerationOutputMediaService,
   ) {}
 
-  async list(userId: string) {
-    const sessions = await this.prisma.chatSession.findMany({
-      where: { userId, archived: false },
-      orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
-      include: {
-        jobs: {
-          orderBy: { createdAt: "desc" },
-          select: { id: true, type: true, createdAt: true },
+  async list(userId: string, pagination: ParsedPagination) {
+    const where = { userId, archived: false };
+    const [sessions, total] = await Promise.all([
+      this.prisma.chatSession.findMany({
+        where,
+        orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
+        skip: pagination.skip,
+        take: pagination.take,
+        include: {
+          jobs: {
+            orderBy: { createdAt: "desc" },
+            take: CHAT_LIST_MODE_JOB_TAKE,
+            select: { id: true, type: true, createdAt: true },
+          },
+          messages: {
+            orderBy: { createdAt: "desc" },
+            take: CHAT_LIST_MODE_MESSAGE_TAKE,
+            select: { metadata: true },
+          },
+          _count: { select: { messages: true, jobs: true } },
         },
-        messages: {
-          orderBy: { createdAt: "asc" },
-          select: { metadata: true },
-          take: 8,
-        },
-        _count: { select: { messages: true, jobs: true } },
-      },
-    });
-    return sessions.map(({ messages, ...session }) => ({
+      }),
+      this.prisma.chatSession.count({ where }),
+    ]);
+    const items = sessions.map(({ messages, ...session }) => ({
       ...session,
       mode: modeForSession({ jobs: session.jobs, messages }),
     }));
+    return { items, total };
   }
 
   async listAdmin(query: {

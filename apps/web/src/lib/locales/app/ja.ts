@@ -1348,6 +1348,7 @@ export const jaMessages = {
   "chats.badge.video": "ビデオ",
   "chats.pinnedBadge": "固定された",
   "chats.stats": "{messages} メッセージ、{jobs} ジョブ",
+  "chats.pagination.showing": "{total} 件中 {count} 件の会話を表示",
   "chats.rename": "Rename",
   "chats.pin": "先頭にピンを付ける",
   "chats.unpin": "固定を解除",

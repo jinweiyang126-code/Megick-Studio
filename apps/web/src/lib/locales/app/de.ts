@@ -1385,6 +1385,7 @@ export const deMessages = {
   "chats.badge.video": "Video",
   "chats.pinnedBadge": "Angepinnt",
   "chats.stats": "{messages} Nachrichten, {jobs} Jobs",
+  "chats.pagination.showing": "{count} von {total} Gesprächen angezeigt",
   "chats.rename": "Rename",
   "chats.pin": "An die Oberseite anheften",
   "chats.unpin": "Unpin",

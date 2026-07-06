@@ -1375,6 +1375,7 @@ export const frMessages = {
   "chats.badge.video": "Video",
   "chats.pinnedBadge": "épinglé",
   "chats.stats": "Messages {messages}, tâches {jobs}",
+  "chats.pagination.showing": "Affichage de {count} sur {total} conversations",
   "chats.rename": "Rename",
   "chats.pin": "Épingler en haut",
   "chats.unpin": "Supprimer l'épinglage de",
