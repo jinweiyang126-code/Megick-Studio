@@ -14,6 +14,8 @@ import type {
 import {
   basicRouterEnvelopeError,
   buildBasicRouterVideoPayload,
+  isBasicRouterEnvelope,
+  parseBasicRouterVideoPollResult,
   resolveBasicRouterEndpoint,
   resolveBasicRouterVideoStatusUrl,
   usesBasicRouterVideoApi,
@@ -1168,6 +1170,10 @@ function extractTaskId(payload: unknown) {
 
 function extractStatus(payload: unknown) {
   const record = asRecord(payload);
+  if (isBasicRouterEnvelope(payload)) {
+    const dataStatus = normalizeStatus(asRecord(record.data).status);
+    if (dataStatus) return dataStatus;
+  }
   const candidates = [
     record.status,
     record.state,
@@ -1290,8 +1296,31 @@ function normalizeProgress(progress: number | undefined) {
   return Math.min(100, Math.max(0, Math.round(progress)));
 }
 
+function isGenericProviderSuccessMessage(message: string) {
+  const normalized = message.trim().toLowerCase();
+  return (
+    normalized === "success" ||
+    normalized === "ok" ||
+    normalized === "successful"
+  );
+}
+
 function extractProviderError(payload: unknown) {
   const record = asRecord(payload);
+  const data = asRecord(record.data);
+  const dataStatus = normalizeStatus(data.status);
+  const dataMessage = stringParam(data.message);
+  if (
+    isBasicRouterEnvelope(payload) &&
+    dataStatus &&
+    isFailureStatus(dataStatus)
+  ) {
+    if (dataMessage && !isGenericProviderSuccessMessage(dataMessage)) {
+      return dataMessage;
+    }
+    return `Video generation failed with status ${dataStatus}`;
+  }
+
   const values = [
     record.error,
     record.error_message,
@@ -2502,7 +2531,10 @@ export class GenerationProviderClient {
         headers: videoPollHeaders(apiKey),
         timeout: 30_000,
       });
-      const task = parseVideoTaskResult(res.data, taskId);
+      const task =
+        apiStyle === "basicrouter-video"
+          ? parseBasicRouterVideoPollResult(res.data, taskId)
+          : parseVideoTaskResult(res.data, taskId);
       const status = task.status;
       const progress = normalizeProgress(
         extractProgress(res.data) ?? progressForStatus(status),

@@ -1,4 +1,7 @@
-import type { GeneratedItem } from "./generation-provider.types";
+import type {
+  GeneratedItem,
+  VideoTaskResult,
+} from "./generation-provider.types";
 
 export interface BasicRouterImageInput {
   baseUrl: string;
@@ -194,15 +197,93 @@ export function basicRouterVideoType(
   return imageUrls.length > 0 ? 2 : 1;
 }
 
+export function isBasicRouterEnvelope(payload: unknown) {
+  const record = asRecord(payload);
+  return Number.isFinite(Number(record.code)) && record.data != null;
+}
+
+function isBasicRouterGenericMessage(message: string) {
+  const normalized = message.trim().toLowerCase();
+  return (
+    normalized === "success" ||
+    normalized === "ok" ||
+    normalized === "successful"
+  );
+}
+
 export function basicRouterEnvelopeError(payload: unknown) {
   const record = asRecord(payload);
   const code = Number(record.code);
   if (!Number.isFinite(code) || code === 200) return undefined;
+  const dataMessage = stringParam(asRecord(record.data).message);
+  const envelopeMessage = stringParam(record.message);
   return (
-    stringParam(record.message) ??
-    stringParam(asRecord(record.data).message) ??
+    (dataMessage && !isBasicRouterGenericMessage(dataMessage)
+      ? dataMessage
+      : undefined) ??
+    (envelopeMessage && !isBasicRouterGenericMessage(envelopeMessage)
+      ? envelopeMessage
+      : undefined) ??
     `BasicRouter request failed with code ${code}`
   );
+}
+
+/** Parse `/ai/getVideoByTaskId` poll payloads from BasicRouter's `{ code, message, data }` envelope. */
+export function parseBasicRouterVideoPollResult(
+  payload: unknown,
+  fallbackTaskId?: string,
+): VideoTaskResult {
+  const envelope = asRecord(payload);
+  const code = Number(envelope.code);
+  if (Number.isFinite(code) && code !== 200) {
+    return {
+      providerJobId: fallbackTaskId?.trim() ?? "",
+      status: "failed",
+      items: [],
+      error:
+        basicRouterEnvelopeError(payload) ??
+        `BasicRouter request failed with code ${code}`,
+      raw: payload,
+    };
+  }
+
+  const data = asRecord(envelope.data);
+  const status = stringParam(data.status);
+  const videoUrl = stringParam(data.videoUrl ?? data.video_url);
+  const taskMessage = stringParam(data.message);
+  const providerJobId =
+    stringParam(data.taskId ?? data.task_id) ?? fallbackTaskId?.trim() ?? "";
+
+  const items: GeneratedItem[] = videoUrl
+    ? [
+        {
+          url: videoUrl,
+          contentType: "video/mp4",
+          providerJobId: providerJobId || undefined,
+        },
+      ]
+    : [];
+
+  const normalizedStatus = status?.trim().toLowerCase();
+  const failed =
+    normalizedStatus === "failed" ||
+    normalizedStatus === "failure" ||
+    normalizedStatus === "error";
+  let error: string | undefined;
+  if (failed) {
+    error =
+      taskMessage && !isBasicRouterGenericMessage(taskMessage)
+        ? taskMessage
+        : "BasicRouter video generation failed";
+  }
+
+  return {
+    providerJobId,
+    status: status ?? undefined,
+    items,
+    error,
+    raw: payload,
+  };
 }
 
 export function buildBasicRouterImagePayload(
