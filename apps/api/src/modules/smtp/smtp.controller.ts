@@ -1,7 +1,10 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
+import { Body, Controller, Get, Post, Req } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiOperation, ApiProperty, ApiTags } from "@nestjs/swagger";
 import { IsBoolean, IsEmail, IsInt, IsOptional, IsString, Min } from "class-validator";
 import { Roles } from "@/common/decorators/roles.decorator";
+import type { AuthUserContext } from "@/common/decorators/current-user.decorator";
+import { adminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import {
   ApiOkResponseModel,
   ApiSessionCookieAuth,
@@ -93,8 +96,8 @@ export class SmtpController {
     SmtpConfigSummaryDto,
     "SMTP configuration saved successfully.",
   )
-  upsert(@Body() dto: UpsertSmtpDto) {
-    return this.smtp.upsert(dto, dto.isActive ?? false);
+  upsert(@Body() dto: UpsertSmtpDto, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.smtp.upsert(dto, dto.isActive ?? false, adminAuditRequestContext(req));
   }
 
   @Post("test")

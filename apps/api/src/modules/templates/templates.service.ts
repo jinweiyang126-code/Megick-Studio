@@ -17,6 +17,8 @@ import type {
 } from "@prisma/client";
 import { OssService } from "../oss/oss.service";
 import { SiteSettingsService } from "../site-settings/site-settings.service";
+import type { AdminAuditRequestContext } from "@/common/utils/admin-audit-context";
+import { AdminAuditService } from "@/modules/admin/admin-audit.service";
 import {
   DIRECT_TEXT2IMAGE_ORIGINS_ENV,
   isDirectText2ImageProviderBaseUrl,
@@ -112,6 +114,7 @@ export class TemplatesService {
     private readonly oss: OssService,
     private readonly config: ConfigService,
     private readonly settings: SiteSettingsService,
+    private readonly audit: AdminAuditService,
   ) {}
 
   async listPublic(query: {
@@ -273,7 +276,18 @@ export class TemplatesService {
     return this.toPublicTemplate(item);
   }
 
-  async upsertAdmin(adminId: string, input: UpsertTemplateInput) {
+  async upsertAdmin(
+    adminId: string,
+    input: UpsertTemplateInput,
+    auditCtx?: AdminAuditRequestContext,
+  ) {
+    const beforeRow = input.id
+      ? await this.prisma.promptTemplate.findUnique({
+          where: { id: input.id },
+          include: templateWithCategoriesInclude,
+        })
+      : null;
+    const before = beforeRow ? await this.toPublicTemplate(beforeRow) : undefined;
     const title = input.title?.trim();
     const textPrompt = input.textPrompt?.trim();
     if (!title || !textPrompt)
@@ -345,7 +359,15 @@ export class TemplatesService {
         });
       });
       if (!updated) throw new NotFoundException();
-      return this.toPublicTemplate(updated);
+      const result = await this.toPublicTemplate(updated);
+      await this.audit.logExplicit(auditCtx, {
+        action: "UPDATE",
+        targetType: "prompt_template",
+        targetId: result.id,
+        before,
+        after: result,
+      });
+      return result;
     }
 
     const created = await this.prisma.$transaction(async (tx) => {
@@ -364,20 +386,40 @@ export class TemplatesService {
       });
     });
     if (!created) throw new NotFoundException();
-    return this.toPublicTemplate(created);
+    const result = await this.toPublicTemplate(created);
+    await this.audit.logExplicit(auditCtx, {
+      action: "CREATE",
+      targetType: "prompt_template",
+      targetId: result.id,
+      before,
+      after: result,
+    });
+    return result;
   }
 
-  async deleteAdmin(id: string) {
+  async deleteAdmin(id: string, auditCtx?: AdminAuditRequestContext) {
     const existing = await this.prisma.promptTemplate.findUnique({
       where: { id },
       include: templateWithCategoriesInclude,
     });
     if (!existing) throw new NotFoundException();
     await this.prisma.promptTemplate.delete({ where: { id } });
-    return this.toPublicTemplate(existing);
+    const result = await this.toPublicTemplate(existing);
+    await this.audit.logExplicit(auditCtx, {
+      action: "DELETE",
+      targetType: "prompt_template",
+      targetId: id,
+      before: result,
+      after: result,
+    });
+    return result;
   }
 
-  async extractFromChat(adminId: string, input: ExtractTemplateInput) {
+  async extractFromChat(
+    adminId: string,
+    input: ExtractTemplateInput,
+    auditCtx?: AdminAuditRequestContext,
+  ) {
     const session = await this.prisma.chatSession.findUnique({
       where: { id: input.sessionId },
       include: {
@@ -518,10 +560,10 @@ export class TemplatesService {
       sourceChatSessionId: session.id,
       sourceGenerationJobId: sourceJob?.id ?? null,
       sourceMessageId: sourceMessage.id,
-    });
+    }, auditCtx);
   }
 
-  async upsertCategoryAdmin(input: CategoryInput) {
+  async upsertCategoryAdmin(input: CategoryInput, auditCtx?: AdminAuditRequestContext) {
     const name = input.name?.trim();
     if (!name) throw new BadRequestException("TEMPLATE_CATEGORY_NAME_REQUIRED");
 
@@ -543,21 +585,45 @@ export class TemplatesService {
         where: { id: input.id },
       });
       if (!existing) throw new NotFoundException();
-      return this.prisma.promptTemplateCategory.update({
+      const row = await this.prisma.promptTemplateCategory.update({
         where: { id: input.id },
         data,
       });
+      await this.audit.logExplicit(auditCtx, {
+        action: "UPDATE",
+        targetType: "template_category",
+        targetId: row.id,
+        before: existing,
+        after: row,
+      });
+      return row;
     }
 
-    return this.prisma.promptTemplateCategory.create({ data });
+    const row = await this.prisma.promptTemplateCategory.create({ data });
+    await this.audit.logExplicit(auditCtx, {
+      action: "CREATE",
+      targetType: "template_category",
+      targetId: row.id,
+      before: undefined,
+      after: row,
+    });
+    return row;
   }
 
-  async deleteCategoryAdmin(id: string) {
+  async deleteCategoryAdmin(id: string, auditCtx?: AdminAuditRequestContext) {
     const existing = await this.prisma.promptTemplateCategory.findUnique({
       where: { id },
     });
     if (!existing) throw new NotFoundException();
-    return this.prisma.promptTemplateCategory.delete({ where: { id } });
+    const row = await this.prisma.promptTemplateCategory.delete({ where: { id } });
+    await this.audit.logExplicit(auditCtx, {
+      action: "DELETE",
+      targetType: "template_category",
+      targetId: id,
+      before: existing,
+      after: row,
+    });
+    return row;
   }
 
   private templateWhere(query: {

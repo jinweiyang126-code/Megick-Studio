@@ -3,6 +3,8 @@ import { ConfigService } from "@nestjs/config";
 import { DesktopPlatform, Prisma } from "@prisma/client";
 import { PrismaService } from "nestjs-prisma";
 import semver from "semver";
+import type { AdminAuditRequestContext } from "@/common/utils/admin-audit-context";
+import { AdminAuditService } from "@/modules/admin/admin-audit.service";
 import { CloudR2Service } from "../cloud-resources/cloud-r2.service";
 import type {
   CreateDesktopReleaseDto,
@@ -16,6 +18,7 @@ export class DesktopReleasesService {
     private readonly prisma: PrismaService,
     private readonly r2: CloudR2Service,
     private readonly config: ConfigService,
+    private readonly audit: AdminAuditService,
   ) {}
 
   async list(platform?: DesktopPlatformValue) {
@@ -26,7 +29,7 @@ export class DesktopReleasesService {
     return rows.map((row) => this.serialize(row));
   }
 
-  async create(input: CreateDesktopReleaseDto) {
+  async create(input: CreateDesktopReleaseDto, auditCtx?: AdminAuditRequestContext) {
     const row = await this.prisma.desktopRelease.create({
       data: {
         platform: input.platform as DesktopPlatform,
@@ -44,13 +47,24 @@ export class DesktopReleasesService {
       },
     });
 
-    if (input.isLatest) return this.setLatest(row.id);
-    return this.serialize(row);
+    const result = input.isLatest
+      ? await this.setLatest(row.id, auditCtx)
+      : this.serialize(row);
+    if (!input.isLatest) {
+      await this.audit.logExplicit(auditCtx, {
+        action: "CREATE",
+        targetType: "desktop_release",
+        targetId: row.id,
+        after: result,
+      });
+    }
+    return result;
   }
 
-  async update(id: string, input: UpdateDesktopReleaseDto) {
+  async update(id: string, input: UpdateDesktopReleaseDto, auditCtx?: AdminAuditRequestContext) {
     const existing = await this.prisma.desktopRelease.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Desktop release not found");
+    const before = this.serialize(existing);
 
     const platform = input.platform ?? existing.platform;
     const r2ObjectKey = input.r2ObjectKey === undefined ? existing.r2ObjectKey : input.r2ObjectKey;
@@ -74,17 +88,36 @@ export class DesktopReleasesService {
         publishedAt: input.isActive === false ? null : undefined,
       },
     });
-    return this.serialize(row);
+    const result = this.serialize(row);
+    await this.audit.logExplicit(auditCtx, {
+      action: "UPDATE",
+      targetType: "desktop_release",
+      targetId: id,
+      before,
+      after: result,
+    });
+    return result;
   }
 
-  async remove(id: string) {
+  async remove(id: string, auditCtx?: AdminAuditRequestContext) {
+    const existing = await this.prisma.desktopRelease.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException("Desktop release not found");
+    const before = this.serialize(existing);
     await this.prisma.desktopRelease.delete({ where: { id } });
+    await this.audit.logExplicit(auditCtx, {
+      action: "DELETE",
+      targetType: "desktop_release",
+      targetId: id,
+      before,
+      after: { ok: true },
+    });
     return { ok: true };
   }
 
-  async setLatest(id: string) {
+  async setLatest(id: string, auditCtx?: AdminAuditRequestContext) {
     const existing = await this.prisma.desktopRelease.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Desktop release not found");
+    const before = this.serialize(existing);
 
     const row = await this.prisma.$transaction(async (tx) => {
       await tx.desktopRelease.updateMany({
@@ -100,7 +133,15 @@ export class DesktopReleasesService {
         },
       });
     });
-    return this.serialize(row);
+    const result = this.serialize(row);
+    await this.audit.logExplicit(auditCtx, {
+      action: "UPDATE",
+      targetType: "desktop_release",
+      targetId: id,
+      before,
+      after: result,
+    });
+    return result;
   }
 
   async download(platform: DesktopPlatformValue) {

@@ -1,7 +1,9 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from "@nestjs/common";
-import type { Response } from "express";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res } from "@nestjs/common";
+import type { Request, Response } from "express";
 import { Public } from "@/common/decorators/public.decorator";
 import { Roles } from "@/common/decorators/roles.decorator";
+import type { AuthUserContext } from "@/common/decorators/current-user.decorator";
+import { adminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import { DesktopReleasesService } from "./desktop-releases.service";
 import {
   CreateDesktopReleaseDto,
@@ -22,26 +24,30 @@ export class DesktopReleasesController {
 
   @Roles("SUPER_ADMIN")
   @Post("api/admin/desktop-updates/releases")
-  create(@Body() body: CreateDesktopReleaseDto) {
-    return this.releases.create(body);
+  create(@Body() body: CreateDesktopReleaseDto, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.releases.create(body, adminAuditRequestContext(req));
   }
 
   @Roles("SUPER_ADMIN")
   @Patch("api/admin/desktop-updates/releases/:id")
-  update(@Param("id") id: string, @Body() body: UpdateDesktopReleaseDto) {
-    return this.releases.update(id, body);
+  update(
+    @Param("id") id: string,
+    @Body() body: UpdateDesktopReleaseDto,
+    @Req() req: Request & { user?: AuthUserContext },
+  ) {
+    return this.releases.update(id, body, adminAuditRequestContext(req));
   }
 
   @Roles("SUPER_ADMIN")
   @Delete("api/admin/desktop-updates/releases/:id")
-  remove(@Param("id") id: string) {
-    return this.releases.remove(id);
+  remove(@Param("id") id: string, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.releases.remove(id, adminAuditRequestContext(req));
   }
 
   @Roles("SUPER_ADMIN")
   @Post("api/admin/desktop-updates/releases/:id/set-latest")
-  setLatest(@Param("id") id: string) {
-    return this.releases.setLatest(id);
+  setLatest(@Param("id") id: string, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.releases.setLatest(id, adminAuditRequestContext(req));
   }
 
   @Public()

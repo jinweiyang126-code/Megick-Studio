@@ -1,8 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Query, Req } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiOperation, ApiParam, ApiProperty, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { IsOptional, IsString } from "class-validator";
 import { Public } from "@/common/decorators/public.decorator";
 import { Roles } from "@/common/decorators/roles.decorator";
+import type { AuthUserContext } from "@/common/decorators/current-user.decorator";
+import { adminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import { SiteSettingsService } from "./site-settings.service";
 import {
   ApiOkArrayResponse,
@@ -101,8 +104,13 @@ export class AdminSiteSettingsController {
     SiteSettingDto,
     "Site setting saved successfully.",
   )
-  upsert(@Body() dto: UpsertSettingDto) {
-    return this.settings.upsert(dto.key, dto.value, dto.scope);
+  upsert(@Body() dto: UpsertSettingDto, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.settings.upsert(
+      dto.key,
+      dto.value,
+      dto.scope,
+      adminAuditRequestContext(req),
+    );
   }
 
   @Delete(":key")
@@ -121,7 +129,7 @@ export class AdminSiteSettingsController {
     SiteSettingDto,
     "Site setting deleted successfully.",
   )
-  remove(@Param("key") key: string) {
-    return this.settings.delete(key);
+  remove(@Param("key") key: string, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.settings.delete(key, adminAuditRequestContext(req));
   }
 }

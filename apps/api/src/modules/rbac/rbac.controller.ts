@@ -1,6 +1,9 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import { Roles } from "@/common/decorators/roles.decorator";
+import type { AuthUserContext } from "@/common/decorators/current-user.decorator";
+import { adminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import { RbacService } from "./rbac.service";
 import { CreateRoleDto, UpdateRoleDto } from "./rbac.dto";
 import {
@@ -62,11 +65,16 @@ export class RbacController {
     RoleWithPermissionsDto,
     "Role created successfully.",
   )
-  create(@Body() dto: CreateRoleDto) {
-    return this.rbac
-      .createRole({ ...dto, permissionCodes: dto.permissionCodes ?? [] })
-      .then(() => this.rbac.listRoles())
-      .then((roles) => roles.find((role) => role.code === dto.code));
+  async create(
+    @Body() dto: CreateRoleDto,
+    @Req() req: Request & { user?: AuthUserContext },
+  ) {
+    await this.rbac.createRole(
+      { ...dto, permissionCodes: dto.permissionCodes ?? [] },
+      adminAuditRequestContext(req),
+    );
+    const roles = await this.rbac.listRoles();
+    return roles.find((role) => role.code === dto.code);
   }
 
   @Patch("roles/:id")
@@ -85,10 +93,14 @@ export class RbacController {
     RoleWithPermissionsDto,
     "Role updated successfully.",
   )
-  update(@Param("id") id: string, @Body() dto: UpdateRoleDto) {
-    return this.rbac
-      .updateRole(id, dto)
-      .then((role) => this.rbac.listRoles().then((roles) => roles.find((item) => item.id === role.id)));
+  async update(
+    @Param("id") id: string,
+    @Body() dto: UpdateRoleDto,
+    @Req() req: Request & { user?: AuthUserContext },
+  ) {
+    await this.rbac.updateRole(id, dto, adminAuditRequestContext(req));
+    const roles = await this.rbac.listRoles();
+    return roles.find((item) => item.id === id);
   }
 
   @Delete("roles/:id")
@@ -107,12 +119,13 @@ export class RbacController {
     RoleWithPermissionsDto,
     "Role deleted successfully.",
   )
-  remove(@Param("id") id: string) {
-    return this.rbac
-      .listRoles()
-      .then((roles) => {
-        const snapshot = roles.find((role) => role.id === id);
-        return this.rbac.deleteRole(id).then(() => snapshot);
-      });
+  async remove(
+    @Param("id") id: string,
+    @Req() req: Request & { user?: AuthUserContext },
+  ) {
+    const roles = await this.rbac.listRoles();
+    const snapshot = roles.find((role) => role.id === id);
+    await this.rbac.deleteRole(id, adminAuditRequestContext(req));
+    return snapshot;
   }
 }

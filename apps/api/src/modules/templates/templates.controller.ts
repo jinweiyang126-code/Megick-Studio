@@ -6,7 +6,9 @@ import {
   Param,
   Post,
   Query,
+  Req,
 } from "@nestjs/common";
+import type { Request } from "express";
 import {
   ApiBody,
   ApiExtraModels,
@@ -33,6 +35,7 @@ import {
 } from "@/common/decorators/current-user.decorator";
 import { Public } from "@/common/decorators/public.decorator";
 import { Roles } from "@/common/decorators/roles.decorator";
+import { adminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import {
   paginated,
   parsePagination,
@@ -626,8 +629,8 @@ export class AdminTemplatesController {
     TemplateCategoryRecordDto,
     "Saved template category row.",
   )
-  upsertCategory(@Body() dto: TemplateCategoryDto) {
-    return this.templates.upsertCategoryAdmin(dto);
+  upsertCategory(@Body() dto: TemplateCategoryDto, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.templates.upsertCategoryAdmin(dto, adminAuditRequestContext(req));
   }
 
   @Delete("categories/:id")
@@ -646,8 +649,8 @@ export class AdminTemplatesController {
     TemplateCategoryRecordDto,
     "Deleted template category snapshot.",
   )
-  removeCategory(@Param("id") id: string) {
-    return this.templates.deleteCategoryAdmin(id);
+  removeCategory(@Param("id") id: string, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.templates.deleteCategoryAdmin(id, adminAuditRequestContext(req));
   }
 
   @Get(":id")
@@ -686,8 +689,8 @@ export class AdminTemplatesController {
     PromptTemplateDto,
     "Saved template payload after category expansion and signed asset URL resolution.",
   )
-  upsert(@Body() dto: TemplateDto, @CurrentUser() user: AuthUserContext) {
-    return this.templates.upsertAdmin(user.id, dto);
+  upsert(@Body() dto: TemplateDto, @CurrentUser() user: AuthUserContext, @Req() req: Request) {
+    return this.templates.upsertAdmin(user.id, dto, adminAuditRequestContext(req));
   }
 
   @Post("extract-from-chat")
@@ -709,8 +712,9 @@ export class AdminTemplatesController {
   extract(
     @Body() dto: ExtractTemplateDto,
     @CurrentUser() user: AuthUserContext,
+    @Req() req: Request,
   ) {
-    return this.templates.extractFromChat(user.id, dto);
+    return this.templates.extractFromChat(user.id, dto, adminAuditRequestContext(req));
   }
 
   @Delete(":id")
@@ -729,7 +733,7 @@ export class AdminTemplatesController {
     PromptTemplateDto,
     "Deleted template snapshot.",
   )
-  remove(@Param("id") id: string) {
-    return this.templates.deleteAdmin(id);
+  remove(@Param("id") id: string, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.templates.deleteAdmin(id, adminAuditRequestContext(req));
   }
 }

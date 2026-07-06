@@ -19,6 +19,8 @@ import type {
   AIModelCategory,
 } from "@prisma/client";
 import { getBuiltInDpiModels } from "./dpi-model-catalog";
+import type { AdminAuditRequestContext } from "@/common/utils/admin-audit-context";
+import { AdminAuditService } from "@/modules/admin/admin-audit.service";
 
 type VideoInputMode = "T2V" | "I2V" | "R2V" | "EDIT";
 type ImageInputMode = "T2I" | "I2I" | "EDIT";
@@ -128,6 +130,7 @@ export class AiModelsService implements OnModuleInit {
     private readonly crypto: CryptoService,
     private readonly settings: SiteSettingsService,
     private readonly providers: ModelProvidersService,
+    private readonly audit: AdminAuditService,
   ) {}
 
   onModuleInit() {
@@ -327,7 +330,34 @@ export class AiModelsService implements OnModuleInit {
     };
   }
 
-  async upsert(input: UpsertInput) {
+  async upsert(input: UpsertInput, auditCtx?: AdminAuditRequestContext) {
+    const modelInclude = {
+      provider: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          baseUrl: true,
+          apiStyle: true,
+          statusUrl: true,
+          maxPollDurationMs: true,
+          pollIntervalMs: true,
+          maxPollAttempts: true,
+          apiKeyEnc: true,
+          isActive: true,
+        },
+      },
+    } as const;
+    const existing = input.id
+      ? await this.prisma.aIModel.findUnique({
+          where: { id: input.id },
+          include: modelInclude,
+        })
+      : await this.prisma.aIModel.findUnique({
+          where: { code: input.code },
+          include: modelInclude,
+        });
+    const before = existing ? this.toAdminModel(existing) : undefined;
     const providerId = input.providerId || null;
     const apiKeyEnc =
       providerId
@@ -423,13 +453,32 @@ export class AiModelsService implements OnModuleInit {
         },
       },
     });
-    return this.toAdminModel(saved ?? model);
+    const result = this.toAdminModel(saved ?? model);
+    await this.audit.logExplicit(auditCtx, {
+      action: before ? "UPDATE" : "CREATE",
+      targetType: "ai_model",
+      targetId: result.code,
+      before,
+      after: result,
+    });
+    return result;
   }
 
-  async delete(code: string) {
+  async delete(code: string, auditCtx?: AdminAuditRequestContext) {
+    const existing = await this.prisma.aIModel.findUnique({ where: { code } });
+    if (!existing) throw new NotFoundException();
+    const before = this.toAdminModel(existing);
     try {
       const model = await this.prisma.aIModel.delete({ where: { code } });
-      return this.toAdminModel(model);
+      const result = this.toAdminModel(model);
+      await this.audit.logExplicit(auditCtx, {
+        action: "DELETE",
+        targetType: "ai_model",
+        targetId: code,
+        before,
+        after: result,
+      });
+      return result;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&

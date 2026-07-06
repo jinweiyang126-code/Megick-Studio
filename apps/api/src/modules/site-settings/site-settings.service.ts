@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "nestjs-prisma";
+import type { AdminAuditRequestContext } from "@/common/utils/admin-audit-context";
+import { AdminAuditService } from "@/modules/admin/admin-audit.service";
 
 export const AUTH_DEFAULT_REGISTRATION_CREDITS_KEY = "auth.defaultRegistrationCredits";
 export const AUTH_SETTINGS_SCOPE = "auth";
@@ -23,7 +25,10 @@ export function readDefaultRegistrationCredits(value: unknown) {
 
 @Injectable()
 export class SiteSettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AdminAuditService,
+  ) {}
 
   list(scope?: string) {
     return this.prisma.siteSetting.findMany({
@@ -47,37 +52,60 @@ export class SiteSettingsService {
     return this.readBoolean(row?.value);
   }
 
-  async upsert(key: string, value: unknown, scope?: string) {
+  async upsert(
+    key: string,
+    value: unknown,
+    scope?: string,
+    auditCtx?: AdminAuditRequestContext,
+  ) {
+    const before = await this.byKey(key);
+    let row;
     if (key === AUTH_DEFAULT_REGISTRATION_CREDITS_KEY) {
       const credits = readDefaultRegistrationCredits(value);
       if (credits == null) {
         throw new BadRequestException("Default registration credits must be a non-negative integer");
       }
-      return this.prisma.siteSetting.upsert({
+      row = await this.prisma.siteSetting.upsert({
         where: { key },
         update: { value: credits, scope: scope ?? AUTH_SETTINGS_SCOPE },
         create: { key, value: credits, scope: scope ?? AUTH_SETTINGS_SCOPE },
       });
-    }
-
-    if (key === FEATURE_VIDEO_GENERATION_ENABLED_KEY) {
+    } else if (key === FEATURE_VIDEO_GENERATION_ENABLED_KEY) {
       const enabled = this.readBoolean(value);
-      return this.prisma.siteSetting.upsert({
+      row = await this.prisma.siteSetting.upsert({
         where: { key },
         update: { value: enabled, scope: scope ?? FEATURE_SETTINGS_SCOPE },
         create: { key, value: enabled, scope: scope ?? FEATURE_SETTINGS_SCOPE },
       });
+    } else {
+      row = await this.prisma.siteSetting.upsert({
+        where: { key },
+        update: { value: this.asJson(value), scope },
+        create: { key, value: this.asJson(value), scope },
+      });
     }
 
-    return this.prisma.siteSetting.upsert({
-      where: { key },
-      update: { value: this.asJson(value), scope },
-      create: { key, value: this.asJson(value), scope },
+    await this.audit.logExplicit(auditCtx, {
+      action: before ? "UPDATE" : "CREATE",
+      targetType: "site_setting",
+      targetId: key,
+      before,
+      after: row,
     });
+    return row;
   }
 
-  delete(key: string) {
-    return this.prisma.siteSetting.delete({ where: { key } });
+  async delete(key: string, auditCtx?: AdminAuditRequestContext) {
+    const before = await this.byKey(key);
+    const row = await this.prisma.siteSetting.delete({ where: { key } });
+    await this.audit.logExplicit(auditCtx, {
+      action: "DELETE",
+      targetType: "site_setting",
+      targetId: key,
+      before,
+      after: row,
+    });
+    return row;
   }
 
   private readBoolean(value: unknown) {

@@ -11,6 +11,8 @@ import {
   normalizeUrlBase,
   sanitizeInstallerFileName,
 } from "./cloud-resources.dto";
+import type { AdminAuditRequestContext } from "@/common/utils/admin-audit-context";
+import { AdminAuditService } from "@/modules/admin/admin-audit.service";
 
 const DEFAULT_CONFIG_NAME = "default";
 const DEFAULT_KEY_PREFIX = "desktop-installers";
@@ -37,6 +39,7 @@ export class CloudR2Service {
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
     private readonly config: ConfigService,
+    private readonly audit: AdminAuditService,
   ) {}
 
   async getAdminConfig() {
@@ -80,7 +83,8 @@ export class CloudR2Service {
     };
   }
 
-  async upsertConfig(input: UpsertCloudR2ConfigDto) {
+  async upsertConfig(input: UpsertCloudR2ConfigDto, auditCtx?: AdminAuditRequestContext) {
+    const before = await this.getAdminConfig();
     const existing = await this.prisma.cloudR2Config.findUnique({ where: { name: DEFAULT_CONFIG_NAME } });
     const previousSecret = existing ? this.crypto.decrypt(existing.secretAccessKeyEnc) : "";
     const secretAccessKey = input.secretAccessKey === KEEP_EXISTING_SECRET ? previousSecret : input.secretAccessKey;
@@ -115,7 +119,7 @@ export class CloudR2Service {
       },
     });
 
-    return {
+    const result = {
       id: row.id,
       source: "DB" as const,
       isActive: row.isActive,
@@ -131,6 +135,14 @@ export class CloudR2Service {
       presignExpiresSeconds: row.presignExpiresSeconds,
       missingKeys: this.missingKeys(this.decryptRow(row)),
     };
+    await this.audit.logExplicit(auditCtx, {
+      action: before.source === "DB" ? "UPDATE" : "CREATE",
+      targetType: "r2_config",
+      targetId: row.id,
+      before,
+      after: result,
+    });
+    return result;
   }
 
   async testConfig() {

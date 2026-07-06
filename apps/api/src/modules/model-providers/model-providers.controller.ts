@@ -1,8 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Req } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiOperation, ApiParam, ApiProperty, ApiTags } from "@nestjs/swagger";
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString } from "class-validator";
 import { Public } from "@/common/decorators/public.decorator";
 import { Roles } from "@/common/decorators/roles.decorator";
+import type { AuthUserContext } from "@/common/decorators/current-user.decorator";
+import { adminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import { ModelProvidersService } from "./model-providers.service";
 
 class ModelProviderDto {
@@ -61,14 +64,14 @@ export class ModelProvidersController {
 
   @Post()
   @ApiOperation({ summary: "Create or update a model provider config" })
-  upsert(@Body() dto: ModelProviderDto) {
-    return this.providers.upsert(dto);
+  upsert(@Body() dto: ModelProviderDto, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.providers.upsert(dto, adminAuditRequestContext(req));
   }
 
   @Delete(":code")
   @ApiParam({ name: "code", example: "magickapi" })
   @ApiOperation({ summary: "Delete a model provider config" })
-  remove(@Param("code") code: string) {
-    return this.providers.delete(code);
+  remove(@Param("code") code: string, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.providers.delete(code, adminAuditRequestContext(req));
   }
 }

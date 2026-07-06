@@ -1,8 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Req } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiOperation, ApiParam, ApiProperty, ApiTags } from "@nestjs/swagger";
 import { IsBoolean, IsInt, IsOptional, IsString } from "class-validator";
 import { Public } from "@/common/decorators/public.decorator";
 import { Roles } from "@/common/decorators/roles.decorator";
+import type { AuthUserContext } from "@/common/decorators/current-user.decorator";
+import { adminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import { AiImageEditModesService } from "./ai-image-edit-modes.service";
 
 class AiImageEditModeDto {
@@ -57,14 +60,14 @@ export class AdminAiImageEditModesController {
 
   @Post()
   @ApiOperation({ summary: "Create or update an AI image edit mode" })
-  upsert(@Body() dto: AiImageEditModeDto) {
-    return this.modes.upsert(dto);
+  upsert(@Body() dto: AiImageEditModeDto, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.modes.upsert(dto, adminAuditRequestContext(req));
   }
 
   @Delete(":code")
   @ApiParam({ name: "code", example: "smart-erase" })
   @ApiOperation({ summary: "Delete an AI image edit mode" })
-  remove(@Param("code") code: string) {
-    return this.modes.delete(code);
+  remove(@Param("code") code: string, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.modes.delete(code, adminAuditRequestContext(req));
   }
 }

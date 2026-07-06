@@ -1,5 +1,8 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
+import { Body, Controller, Get, Post, Req } from "@nestjs/common";
+import type { Request } from "express";
 import { Roles } from "@/common/decorators/roles.decorator";
+import type { AuthUserContext } from "@/common/decorators/current-user.decorator";
+import { adminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import { CloudOssService } from "./cloud-oss.service";
 import { UpsertCloudOssConfigDto } from "./cloud-resources.dto";
 
@@ -14,8 +17,11 @@ export class CloudOssController {
   }
 
   @Post()
-  upsertConfig(@Body() body: UpsertCloudOssConfigDto) {
-    return this.oss.upsertConfig(body);
+  upsertConfig(
+    @Body() body: UpsertCloudOssConfigDto,
+    @Req() req: Request & { user?: AuthUserContext },
+  ) {
+    return this.oss.upsertConfig(body, adminAuditRequestContext(req));
   }
 
   @Post("test")

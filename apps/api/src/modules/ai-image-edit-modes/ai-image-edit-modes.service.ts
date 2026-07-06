@@ -10,6 +10,8 @@ import {
   ModelProvidersService,
   type ResolvedModelProvider,
 } from "../model-providers/model-providers.service";
+import type { AdminAuditRequestContext } from "@/common/utils/admin-audit-context";
+import { AdminAuditService } from "@/modules/admin/admin-audit.service";
 
 export interface ImageEditModeUpsertInput {
   id?: string;
@@ -230,6 +232,7 @@ export class AiImageEditModesService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly providers: ModelProvidersService,
+    private readonly audit: AdminAuditService,
   ) {}
 
   onModuleInit() {
@@ -286,8 +289,20 @@ export class AiImageEditModesService implements OnModuleInit {
     }));
   }
 
-  async upsert(input: ImageEditModeUpsertInput) {
+  async upsert(input: ImageEditModeUpsertInput, auditCtx?: AdminAuditRequestContext) {
     await this.ensureDefaults();
+    const existing = input.id
+      ? await this.prisma.aIImageEditMode.findUnique({
+          where: { id: input.id },
+          include: { provider: true },
+        })
+      : await this.prisma.aIImageEditMode.findUnique({
+          where: { code: input.code.trim() },
+          include: { provider: true },
+        });
+    const before = existing
+      ? { ...existing, defaultParams: asRecord(existing.defaultParams) }
+      : undefined;
     const data = {
       code: input.code.trim(),
       name: input.name.trim(),
@@ -312,18 +327,41 @@ export class AiImageEditModesService implements OnModuleInit {
           create: data,
           include: { provider: true },
         });
-    return {
+    const result = {
       ...mode,
       defaultParams: asRecord(mode.defaultParams),
     };
+    await this.audit.logExplicit(auditCtx, {
+      action: before ? "UPDATE" : "CREATE",
+      targetType: "ai_image_edit_mode",
+      targetId: result.code,
+      before,
+      after: result,
+    });
+    return result;
   }
 
-  async delete(code: string) {
+  async delete(code: string, auditCtx?: AdminAuditRequestContext) {
+    const existing = await this.prisma.aIImageEditMode.findUnique({
+      where: { code },
+      include: { provider: true },
+    });
+    const before = existing
+      ? { ...existing, defaultParams: asRecord(existing.defaultParams) }
+      : undefined;
     const mode = await this.prisma.aIImageEditMode.delete({ where: { code } });
-    return {
+    const result = {
       ...mode,
       defaultParams: asRecord(mode.defaultParams),
     };
+    await this.audit.logExplicit(auditCtx, {
+      action: "DELETE",
+      targetType: "ai_image_edit_mode",
+      targetId: code,
+      before,
+      after: result,
+    });
+    return result;
   }
 
   async resolve(code: string): Promise<ResolvedImageEditMode> {

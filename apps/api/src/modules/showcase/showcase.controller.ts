@@ -1,8 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Query, Req } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiOperation, ApiParam, ApiProperty, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { IsBoolean, IsInt, IsOptional, IsString } from "class-validator";
 import { Public } from "@/common/decorators/public.decorator";
 import { Roles } from "@/common/decorators/roles.decorator";
+import type { AuthUserContext } from "@/common/decorators/current-user.decorator";
+import { adminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import { ShowcaseService } from "./showcase.service";
 import type { ShowcaseTypeEnum } from "@prisma/client";
 import {
@@ -140,8 +143,8 @@ export class AdminShowcaseController {
     ShowcaseAdminDto,
     "Showcase item saved successfully.",
   )
-  upsert(@Body() dto: ShowcaseDto) {
-    return this.showcase.upsert(dto);
+  upsert(@Body() dto: ShowcaseDto, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.showcase.upsert(dto, adminAuditRequestContext(req));
   }
 
   @Delete(":id")
@@ -160,7 +163,7 @@ export class AdminShowcaseController {
     ShowcaseAdminDto,
     "Showcase item deleted successfully.",
   )
-  remove(@Param("id") id: string) {
-    return this.showcase.delete(id);
+  remove(@Param("id") id: string, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.showcase.delete(id, adminAuditRequestContext(req));
   }
 }

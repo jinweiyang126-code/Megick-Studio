@@ -3,7 +3,9 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "nestjs-prisma";
 import * as nodemailer from "nodemailer";
 import { CryptoService } from "@/common/services/crypto.service";
+import type { AdminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import { DEFAULT_LOCALE, FALLBACK_LOCALE, type AppLocale } from "@/common/locale";
+import { AdminAuditService } from "@/modules/admin/admin-audit.service";
 
 const SMTP_CONFIG_NAME = "default";
 const KEEP_EXISTING = "__KEEP_EXISTING__";
@@ -184,6 +186,7 @@ export class SmtpService {
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
     private readonly config: ConfigService,
+    private readonly audit: AdminAuditService,
   ) {}
 
   async getSummary() {
@@ -205,7 +208,8 @@ export class SmtpService {
     return summary.isActive && summary.hasConfig;
   }
 
-  async upsert(input: SmtpConfigInput, isActive = false) {
+  async upsert(input: SmtpConfigInput, isActive = false, auditCtx?: AdminAuditRequestContext) {
+    const before = await this.getSummary();
     const existing = await this.prisma.smtpConfig.findUnique({ where: { name: SMTP_CONFIG_NAME } });
     const previous = existing?.configEnc ? this.decryptConfig(existing.configEnc) : {};
     const normalized = this.normalizeConfig(input, previous);
@@ -219,7 +223,15 @@ export class SmtpService {
       update: { configEnc, isActive },
       create: { name: SMTP_CONFIG_NAME, configEnc, isActive },
     });
-    return this.getSummary();
+    const after = await this.getSummary();
+    await this.audit.logExplicit(auditCtx, {
+      action: existing ? "UPDATE" : "CREATE",
+      targetType: "smtp_config",
+      targetId: after.id,
+      before,
+      after,
+    });
+    return after;
   }
 
   async sendTestEmail(to: string) {

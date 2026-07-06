@@ -7,6 +7,8 @@ import {
   type UpsertCloudOssConfigDto,
   normalizeUrlBase,
 } from "./cloud-resources.dto";
+import type { AdminAuditRequestContext } from "@/common/utils/admin-audit-context";
+import { AdminAuditService } from "@/modules/admin/admin-audit.service";
 
 const DEFAULT_CONFIG_NAME = "default";
 
@@ -32,6 +34,7 @@ export class CloudOssService {
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
     private readonly config: ConfigService,
+    private readonly audit: AdminAuditService,
   ) {}
 
   getVersion() {
@@ -73,7 +76,8 @@ export class CloudOssService {
     };
   }
 
-  async upsertConfig(input: UpsertCloudOssConfigDto) {
+  async upsertConfig(input: UpsertCloudOssConfigDto, auditCtx?: AdminAuditRequestContext) {
+    const before = await this.getAdminConfig();
     const existing = await this.prisma.ossConfig.findUnique({ where: { name: DEFAULT_CONFIG_NAME } });
     const previousSecret = existing ? this.crypto.decrypt(existing.accessKeySecretEnc) : "";
     const accessKeySecret = input.accessKeySecret === KEEP_EXISTING_SECRET ? previousSecret : input.accessKeySecret;
@@ -105,7 +109,7 @@ export class CloudOssService {
     });
     this.version += 1;
 
-    return {
+    const result = {
       id: row.id,
       source: "DB" as const,
       isActive: row.isActive,
@@ -119,6 +123,14 @@ export class CloudOssService {
       publicBaseUrl: row.publicBaseUrl ?? "",
       missingKeys: this.missingKeys(this.decryptRow(row)),
     };
+    await this.audit.logExplicit(auditCtx, {
+      action: before.source === "DB" ? "UPDATE" : "CREATE",
+      targetType: "oss_config",
+      targetId: row.id,
+      before,
+      after: result,
+    });
+    return result;
   }
 
   async testConfig() {

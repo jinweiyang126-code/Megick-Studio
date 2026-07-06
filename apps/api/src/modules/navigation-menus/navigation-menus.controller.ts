@@ -1,8 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Query, Req } from "@nestjs/common";
+import type { Request } from "express";
 import { NavigationMenuArea } from "@prisma/client";
 import { ApiOperation, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { Public } from "@/common/decorators/public.decorator";
 import { Roles } from "@/common/decorators/roles.decorator";
+import type { AuthUserContext } from "@/common/decorators/current-user.decorator";
+import { adminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import {
   ApiOkArrayResponse,
   ApiOkResponseModel,
@@ -61,15 +64,15 @@ export class AdminNavigationMenusController {
     ),
   )
   @ApiOkResponseModel(NavigationMenuItemDto, "Navigation menu item saved.")
-  upsert(@Body() dto: NavigationMenuItemDto) {
-    return this.menus.upsert(dto);
+  upsert(@Body() dto: NavigationMenuItemDto, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.menus.upsert(dto, adminAuditRequestContext(req));
   }
 
   @Delete(":id")
   @ApiParam({ name: "id" })
   @ApiOperation(documentedOperation("Delete a navigation menu item", "Deletes the row by id."))
   @ApiOkResponseModel(NavigationMenuItemDto, "Navigation menu item deleted.")
-  remove(@Param("id") id: string) {
-    return this.menus.delete(id);
+  remove(@Param("id") id: string, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.menus.delete(id, adminAuditRequestContext(req));
   }
 }

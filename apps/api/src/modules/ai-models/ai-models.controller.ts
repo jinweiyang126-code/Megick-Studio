@@ -1,8 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Query, Req } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiOperation, ApiParam, ApiProperty, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { IsArray, IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString } from "class-validator";
 import { Public } from "@/common/decorators/public.decorator";
 import { Roles } from "@/common/decorators/roles.decorator";
+import type { AuthUserContext } from "@/common/decorators/current-user.decorator";
+import { adminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import { AiModelsService } from "./ai-models.service";
 import { AIModelAccessLevel, type AIModelCategory } from "@prisma/client";
 import {
@@ -229,8 +232,8 @@ export class AdminAiModelsController {
     AIModelAdminDto,
     "AI model saved successfully.",
   )
-  upsert(@Body() dto: AiModelDto) {
-    return this.models.upsert(dto);
+  upsert(@Body() dto: AiModelDto, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.models.upsert(dto, adminAuditRequestContext(req));
   }
 
   @Delete(":code")
@@ -249,7 +252,7 @@ export class AdminAiModelsController {
     AIModelAdminDto,
     "AI model deleted successfully.",
   )
-  remove(@Param("code") code: string) {
-    return this.models.delete(code);
+  remove(@Param("code") code: string, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.models.delete(code, adminAuditRequestContext(req));
   }
 }

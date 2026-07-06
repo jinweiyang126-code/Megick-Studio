@@ -2,6 +2,8 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "nestjs-prisma";
 import { CryptoService } from "@/common/services/crypto.service";
 import type { Prisma } from "@prisma/client";
+import type { AdminAuditRequestContext } from "@/common/utils/admin-audit-context";
+import { AdminAuditService } from "@/modules/admin/admin-audit.service";
 
 export type ModelProviderApiStyle = "OPENAI" | "ALIYUN" | "VOLCENGINE";
 export type Text2ImageProviderApiStyle = ModelProviderApiStyle;
@@ -100,6 +102,7 @@ export class ModelProvidersService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly audit: AdminAuditService,
   ) {}
 
   onModuleInit() {
@@ -136,8 +139,12 @@ export class ModelProvidersService implements OnModuleInit {
     return providers;
   }
 
-  async upsert(input: ModelProviderUpsertInput) {
+  async upsert(input: ModelProviderUpsertInput, auditCtx?: AdminAuditRequestContext) {
     await this.ensureDefaults();
+    const existing = input.id
+      ? await this.prisma.modelProviderConfig.findUnique({ where: { id: input.id } })
+      : await this.prisma.modelProviderConfig.findUnique({ where: { code: input.code.trim() } });
+    const before = existing ? this.toSafeProvider(existing) : undefined;
     const apiKeyEnc =
       input.apiKey !== undefined
         ? this.crypto.encrypt(normalizeProviderApiKey(input.apiKey))
@@ -186,14 +193,32 @@ export class ModelProvidersService implements OnModuleInit {
           },
         });
 
-    return this.toSafeProvider(provider);
+    const result = this.toSafeProvider(provider);
+    await this.audit.logExplicit(auditCtx, {
+      action: before ? "UPDATE" : "CREATE",
+      targetType: "model_provider",
+      targetId: result.code,
+      before,
+      after: result,
+    });
+    return result;
   }
 
-  async delete(code: string) {
+  async delete(code: string, auditCtx?: AdminAuditRequestContext) {
+    const existing = await this.prisma.modelProviderConfig.findUnique({ where: { code } });
+    const before = existing ? this.toSafeProvider(existing) : undefined;
     const provider = await this.prisma.modelProviderConfig.delete({
       where: { code },
     });
-    return this.toSafeProvider(provider);
+    const result = this.toSafeProvider(provider);
+    await this.audit.logExplicit(auditCtx, {
+      action: "DELETE",
+      targetType: "model_provider",
+      targetId: code,
+      before,
+      after: result,
+    });
+    return result;
   }
 
   async resolve(id: string | null | undefined): Promise<ResolvedModelProvider | null> {

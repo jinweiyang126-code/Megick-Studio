@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "nestjs-prisma";
 import type { ShowcaseTypeEnum } from "@prisma/client";
+import type { AdminAuditRequestContext } from "@/common/utils/admin-audit-context";
+import { AdminAuditService } from "@/modules/admin/admin-audit.service";
 import { OssService } from "../oss/oss.service";
 
 @Injectable()
@@ -8,6 +10,7 @@ export class ShowcaseService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly oss: OssService,
+    private readonly audit: AdminAuditService,
   ) {}
 
   async listPublic(type?: ShowcaseTypeEnum) {
@@ -40,18 +43,24 @@ export class ShowcaseService {
     return this.prisma.showcaseItem.findFirst({ where: { source } });
   }
 
-  upsert(input: {
-    id?: string;
-    type: ShowcaseTypeEnum;
-    title: string;
-    prompt: string;
-    beforeAssetKey?: string | null;
-    afterAssetKey: string;
-    durationMs?: number | null;
-    source?: string | null;
-    sortOrder?: number;
-    isActive?: boolean;
-  }) {
+  async upsert(
+    input: {
+      id?: string;
+      type: ShowcaseTypeEnum;
+      title: string;
+      prompt: string;
+      beforeAssetKey?: string | null;
+      afterAssetKey: string;
+      durationMs?: number | null;
+      source?: string | null;
+      sortOrder?: number;
+      isActive?: boolean;
+    },
+    auditCtx?: AdminAuditRequestContext,
+  ) {
+    const before = input.id
+      ? await this.prisma.showcaseItem.findUnique({ where: { id: input.id } })
+      : null;
     const data = {
       type: input.type,
       title: input.title.trim(),
@@ -64,17 +73,34 @@ export class ShowcaseService {
       isActive: input.isActive ?? true,
     };
 
-    if (input.id) {
-      return this.prisma.showcaseItem.update({
-        where: { id: input.id },
-        data,
-      });
-    }
-    return this.prisma.showcaseItem.create({ data });
+    const row = input.id
+      ? await this.prisma.showcaseItem.update({
+          where: { id: input.id },
+          data,
+        })
+      : await this.prisma.showcaseItem.create({ data });
+
+    await this.audit.logExplicit(auditCtx, {
+      action: before ? "UPDATE" : "CREATE",
+      targetType: "showcase",
+      targetId: row.id,
+      before,
+      after: row,
+    });
+    return row;
   }
 
-  delete(id: string) {
-    return this.prisma.showcaseItem.delete({ where: { id } });
+  async delete(id: string, auditCtx?: AdminAuditRequestContext) {
+    const before = await this.prisma.showcaseItem.findUnique({ where: { id } });
+    const row = await this.prisma.showcaseItem.delete({ where: { id } });
+    await this.audit.logExplicit(auditCtx, {
+      action: "DELETE",
+      targetType: "showcase",
+      targetId: id,
+      before,
+      after: row,
+    });
+    return row;
   }
 
   private async resolveShowcaseAsset(value?: string | null) {

@@ -1,7 +1,10 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
+import { Body, Controller, Get, Post, Req } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiOperation, ApiProperty, ApiTags } from "@nestjs/swagger";
 import { IsArray, IsBoolean, IsOptional, IsString } from "class-validator";
 import { Roles } from "@/common/decorators/roles.decorator";
+import type { AuthUserContext } from "@/common/decorators/current-user.decorator";
+import { adminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import { OAuthProvidersService } from "./oauth-providers.service";
 import type { OAuthProviderEnum } from "@prisma/client";
 import {
@@ -96,10 +99,7 @@ export class OAuthProvidersController {
     OAuthProviderSafeDto,
     "OAuth provider config saved successfully.",
   )
-  upsert(@Body() dto: UpsertOAuthDto) {
-    return this.providers
-      .upsert(dto)
-      .then(() => this.providers.safeList())
-      .then((rows) => rows.find((row) => row.provider === dto.provider));
+  upsert(@Body() dto: UpsertOAuthDto, @Req() req: Request & { user?: AuthUserContext }) {
+    return this.providers.upsert(dto, adminAuditRequestContext(req));
   }
 }

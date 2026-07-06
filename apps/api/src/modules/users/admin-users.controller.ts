@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiOperation, ApiParam, ApiProperty, ApiQuery, ApiTags } from "@nestjs/swagger";
 import {
   ArrayMaxSize,
@@ -17,6 +18,7 @@ import {
   type PaginationQuery,
 } from "@/common/pagination";
 import { UsersService } from "./users.service";
+import { adminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import {
   AdminUserDashboardDto,
   AdminUserRowDto,
@@ -229,8 +231,12 @@ export class AdminUsersController {
     ),
   )
   @ApiOkResponseModel(UserRecordStatusResponseDto, "User status updated successfully.")
-  status(@Param("id") id: string, @Body() dto: StatusDto) {
-    return this.users.setStatus(id, dto.status);
+  status(
+    @Param("id") id: string,
+    @Body() dto: StatusDto,
+    @Req() req: Request & { user?: AuthUserContext },
+  ) {
+    return this.users.setStatus(id, dto.status, adminAuditRequestContext(req));
   }
 
   @Post(":id/credits/adjust")
@@ -246,8 +252,20 @@ export class AdminUsersController {
     ),
   )
   @ApiOkResponseModel(AdminCreditBalanceDto, "Credit balance adjusted successfully.")
-  adjust(@Param("id") id: string, @Body() dto: CreditAdjustmentDto, @CurrentUser() admin: AuthUserContext) {
-    return this.users.adjustCredits(id, dto.delta, dto.reason, admin.id, dto.notifyUser ?? false);
+  adjust(
+    @Param("id") id: string,
+    @Body() dto: CreditAdjustmentDto,
+    @CurrentUser() admin: AuthUserContext,
+    @Req() req: Request & { user?: AuthUserContext },
+  ) {
+    return this.users.adjustCredits(
+      id,
+      dto.delta,
+      dto.reason,
+      admin.id,
+      dto.notifyUser ?? false,
+      adminAuditRequestContext(req),
+    );
   }
 
   @Post("credits/adjust-bulk")
@@ -258,13 +276,14 @@ export class AdminUsersController {
     ),
   )
   @ApiOkResponseModel(AdminBulkCreditAdjustmentResponseDto, "Bulk credit adjustment completed successfully.")
-  adjustBulk(@Body() dto: BulkCreditAdjustmentDto, @CurrentUser() admin: AuthUserContext) {
+  adjustBulk(@Body() dto: BulkCreditAdjustmentDto, @CurrentUser() admin: AuthUserContext, @Req() req: Request & { user?: AuthUserContext }) {
     return this.users.adjustCreditsMany(
       dto.userIds,
       dto.delta,
       dto.reason,
       admin.id,
       dto.notifyUser ?? false,
+      adminAuditRequestContext(req),
     );
   }
 }

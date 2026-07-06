@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "nestjs-prisma";
 import { CryptoService } from "@/common/services/crypto.service";
+import type { AdminAuditRequestContext } from "@/common/utils/admin-audit-context";
+import { AdminAuditService } from "@/modules/admin/admin-audit.service";
 import type { OAuthProviderEnum, Prisma } from "@prisma/client";
 
 interface UpsertInput {
@@ -18,6 +20,7 @@ export class OAuthProvidersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly audit: AdminAuditService,
   ) {}
 
   list() {
@@ -26,7 +29,20 @@ export class OAuthProvidersService {
 
   async safeList() {
     const rows = await this.list();
-    return rows.map((r) => ({
+    return rows.map((r) => this.toSafeProvider(r));
+  }
+
+  private toSafeProvider(r: {
+    id: string;
+    provider: OAuthProviderEnum;
+    clientId: string;
+    redirectUri: string;
+    scopes: Prisma.JsonValue;
+    extra: Prisma.JsonValue;
+    isActive: boolean;
+    clientSecretEnc: string;
+  }) {
+    return {
       id: r.id,
       provider: r.provider,
       clientId: r.clientId,
@@ -35,12 +51,19 @@ export class OAuthProvidersService {
       extra: r.extra,
       isActive: r.isActive,
       hasSecret: !!r.clientSecretEnc,
-    }));
+    };
   }
 
-  upsert(input: UpsertInput) {
-    const enc = input.clientSecret !== undefined ? this.crypto.encrypt(input.clientSecret) : undefined;
-    return this.prisma.oAuthProviderConfig.upsert({
+  async upsert(input: UpsertInput, auditCtx?: AdminAuditRequestContext) {
+    const beforeRow = await this.prisma.oAuthProviderConfig.findUnique({
+      where: { provider: input.provider },
+    });
+    const before = beforeRow ? this.toSafeProvider(beforeRow) : undefined;
+    const enc =
+      input.clientSecret !== undefined
+        ? this.crypto.encrypt(input.clientSecret)
+        : undefined;
+    const row = await this.prisma.oAuthProviderConfig.upsert({
       where: { provider: input.provider },
       update: {
         clientId: input.clientId,
@@ -60,5 +83,14 @@ export class OAuthProvidersService {
         isActive: input.isActive ?? true,
       },
     });
+    const after = this.toSafeProvider(row);
+    await this.audit.logExplicit(auditCtx, {
+      action: before ? "UPDATE" : "CREATE",
+      targetType: "oauth_provider",
+      targetId: row.provider,
+      before,
+      after,
+    });
+    return after;
   }
 }

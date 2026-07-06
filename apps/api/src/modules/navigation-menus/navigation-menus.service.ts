@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { NavigationMenuArea, Prisma } from "@prisma/client";
 import { PrismaService } from "nestjs-prisma";
+import type { AdminAuditRequestContext } from "@/common/utils/admin-audit-context";
+import { AdminAuditService } from "@/modules/admin/admin-audit.service";
 import type { NavigationMenuItemDto } from "./navigation-menus.dto";
 
 type PublicMenuItem = {
@@ -96,7 +98,10 @@ function isRemovedAboutMenuItem(item: Pick<PublicMenuItem, "area" | "code" | "hr
 
 @Injectable()
 export class NavigationMenusService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AdminAuditService,
+  ) {}
 
   async listPublic(area: NavigationMenuArea) {
     if (!Object.values(NavigationMenuArea).includes(area)) {
@@ -118,19 +123,39 @@ export class NavigationMenusService {
     return rows.filter((item) => !isRemovedAboutMenuItem(item));
   }
 
-  async upsert(input: NavigationMenuItemDto) {
+  async upsert(input: NavigationMenuItemDto, auditCtx?: AdminAuditRequestContext) {
+    const before = input.id
+      ? await this.prisma.navigationMenuItem.findUnique({ where: { id: input.id } })
+      : null;
     const data = this.inputToData(input);
-    if (input.id) {
-      return this.prisma.navigationMenuItem.update({
-        where: { id: input.id },
-        data,
-      });
-    }
-    return this.prisma.navigationMenuItem.create({ data });
+    const row = input.id
+      ? await this.prisma.navigationMenuItem.update({
+          where: { id: input.id },
+          data,
+        })
+      : await this.prisma.navigationMenuItem.create({ data });
+
+    await this.audit.logExplicit(auditCtx, {
+      action: before ? "UPDATE" : "CREATE",
+      targetType: "navigation_menu",
+      targetId: row.id,
+      before,
+      after: row,
+    });
+    return row;
   }
 
-  delete(id: string) {
-    return this.prisma.navigationMenuItem.delete({ where: { id } });
+  async delete(id: string, auditCtx?: AdminAuditRequestContext) {
+    const before = await this.prisma.navigationMenuItem.findUnique({ where: { id } });
+    const row = await this.prisma.navigationMenuItem.delete({ where: { id } });
+    await this.audit.logExplicit(auditCtx, {
+      action: "DELETE",
+      targetType: "navigation_menu",
+      targetId: id,
+      before,
+      after: row,
+    });
+    return row;
   }
 
   private inputToData(input: NavigationMenuItemDto) {

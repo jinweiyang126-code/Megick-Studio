@@ -10,6 +10,8 @@ import {
   type CreditNotificationJobData,
 } from "./users.constants";
 import { AdvancedAccessService } from "@/common/services/advanced-access.service";
+import type { AdminAuditRequestContext } from "@/common/utils/admin-audit-context";
+import { AdminAuditService } from "@/modules/admin/admin-audit.service";
 
 const AVATAR_CONTENT_TYPES = new Set(["image/png", "image/jpeg"]);
 const AVATAR_MAX_SIZE_BYTES = 2 * 1024 * 1024;
@@ -19,6 +21,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly advancedAccess: AdvancedAccessService,
+    private readonly audit: AdminAuditService,
     @InjectQueue(ADMIN_CREDIT_NOTIFICATIONS_QUEUE)
     private readonly creditNotificationQueue: Queue<CreditNotificationJobData>,
   ) {}
@@ -260,8 +263,28 @@ export class UsersService {
     };
   }
 
-  async setStatus(userId: string, status: "ACTIVE" | "DISABLED" | "PENDING") {
-    return this.prisma.user.update({ where: { id: userId }, data: { status } });
+  async setStatus(
+    userId: string,
+    status: "ACTIVE" | "DISABLED" | "PENDING",
+    auditCtx?: AdminAuditRequestContext,
+  ) {
+    const before = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, status: true },
+    });
+    if (!before) throw new NotFoundException();
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { status },
+    });
+    await this.audit.logExplicit(auditCtx, {
+      action: "UPDATE",
+      targetType: "user",
+      targetId: userId,
+      before: { email: before.email, status: before.status },
+      after: { status: updated.status },
+    });
+    return updated;
   }
 
   async adjustCredits(
@@ -270,6 +293,7 @@ export class UsersService {
     reason: string,
     adminId: string,
     notifyUser = false,
+    auditCtx?: AdminAuditRequestContext,
   ) {
     const normalized = this.normalizeCreditAdjustment(delta, reason);
     const user = await this.prisma.user.findUnique({
@@ -311,6 +335,19 @@ export class UsersService {
       ]);
     }
 
+    await this.audit.logExplicit(auditCtx, {
+      action: "EXEC",
+      targetType: "credit_ledger",
+      targetId: userId,
+      before: { credits: user.profile.credits },
+      after: {
+        credits: next,
+        delta: normalized.delta,
+        reason: normalized.reason,
+        notificationQueued: notifyUser,
+      },
+    });
+
     return { credits: next, notificationQueued: notifyUser };
   }
 
@@ -320,6 +357,7 @@ export class UsersService {
     reason: string,
     adminId: string,
     notifyUsers = false,
+    auditCtx?: AdminAuditRequestContext,
   ) {
     const normalized = this.normalizeCreditAdjustment(delta, reason);
     const ids = [...new Set(userIds.map((id) => id.trim()).filter(Boolean))];
@@ -381,11 +419,32 @@ export class UsersService {
       );
     }
 
-    return {
+    const result = {
       adjusted: adjustments.length,
       notificationQueued: notifyUsers,
       notificationCount: notifyUsers ? adjustments.length : 0,
     };
+
+    await this.audit.logExplicit(auditCtx, {
+      action: "EXEC",
+      targetType: "credit_ledger",
+      before: {
+        userIds: ids,
+        userCount: ids.length,
+      },
+      after: {
+        delta: normalized.delta,
+        reason: normalized.reason,
+        ...result,
+        balances: adjustments.map(({ user, balanceAfter }) => ({
+          userId: user.id,
+          creditsBefore: user.profile?.credits ?? 0,
+          creditsAfter: balanceAfter,
+        })),
+      },
+    });
+
+    return result;
   }
 
   private normalizeCreditAdjustment(delta: number, reason: string) {
