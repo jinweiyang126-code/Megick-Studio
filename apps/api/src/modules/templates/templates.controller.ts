@@ -689,7 +689,11 @@ export class AdminTemplatesController {
     PromptTemplateDto,
     "Saved template payload after category expansion and signed asset URL resolution.",
   )
-  upsert(@Body() dto: TemplateDto, @CurrentUser() user: AuthUserContext, @Req() req: Request) {
+  upsert(
+    @Body() dto: TemplateDto,
+    @CurrentUser() user: AuthUserContext,
+    @Req() req: Request & { user?: AuthUserContext },
+  ) {
     return this.templates.upsertAdmin(user.id, dto, adminAuditRequestContext(req));
   }
 
@@ -712,7 +716,7 @@ export class AdminTemplatesController {
   extract(
     @Body() dto: ExtractTemplateDto,
     @CurrentUser() user: AuthUserContext,
-    @Req() req: Request,
+    @Req() req: Request & { user?: AuthUserContext },
   ) {
     return this.templates.extractFromChat(user.id, dto, adminAuditRequestContext(req));
   }
