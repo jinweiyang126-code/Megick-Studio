@@ -21,10 +21,7 @@ import {
 import {
   normalizeMessageLimit,
 } from "./chat-message-query";
-import {
-  CHAT_LIST_MODE_JOB_TAKE,
-  CHAT_LIST_MODE_MESSAGE_TAKE,
-} from "./chat-list-query";
+import { loadChatListModeHints } from "./chat-list-mode-hints";
 import type { ParsedPagination } from "@/common/pagination";
 
 type MessageWithJob = Prisma.ChatMessageGetPayload<{
@@ -116,26 +113,35 @@ export class ChatsService {
         orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
         skip: pagination.skip,
         take: pagination.take,
-        include: {
-          jobs: {
-            orderBy: { createdAt: "desc" },
-            take: CHAT_LIST_MODE_JOB_TAKE,
-            select: { id: true, type: true, createdAt: true },
-          },
-          messages: {
-            orderBy: { createdAt: "desc" },
-            take: CHAT_LIST_MODE_MESSAGE_TAKE,
-            select: { metadata: true },
-          },
+        select: {
+          id: true,
+          userId: true,
+          title: true,
+          pinned: true,
+          archived: true,
+          createdAt: true,
+          updatedAt: true,
           _count: { select: { messages: true, jobs: true } },
         },
       }),
       this.prisma.chatSession.count({ where }),
     ]);
-    const items = sessions.map(({ messages, ...session }) => ({
-      ...session,
-      mode: modeForSession({ jobs: session.jobs, messages }),
-    }));
+
+    const modeHints = await loadChatListModeHints(
+      this.prisma,
+      sessions.map((session) => session.id),
+    );
+
+    const items = sessions.map((session) => {
+      const hints = modeHints.get(session.id);
+      const jobs = hints?.jobs ?? [];
+      const messages = hints?.messages ?? [];
+      return {
+        ...session,
+        jobs,
+        mode: modeForSession({ jobs, messages }),
+      };
+    });
     return { items, total };
   }
 
