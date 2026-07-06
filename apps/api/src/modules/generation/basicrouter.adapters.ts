@@ -202,53 +202,66 @@ function normalizeBasicRouterAspectRatio(ratio: string | undefined) {
   return ratio.replace(/\s+/g, "").replace(/：/g, ":");
 }
 
+/** Wan / BasicRouter video models only accept these width*height presets. */
+const BASIC_ROUTER_WAN_VIDEO_SIZES = new Set([
+  "1280*720",
+  "720*1280",
+  "960*960",
+  "1088*832",
+  "832*1088",
+  "1920*1080",
+  "1080*1920",
+  "1440*1440",
+  "1632*1248",
+  "1248*1632",
+]);
+
+const BASIC_ROUTER_VIDEO_PIXELS: Record<string, Record<string, string>> = {
+  "16:9": {
+    "720": "1280*720",
+    "1080": "1920*1080",
+  },
+  "9:16": {
+    "720": "720*1280",
+    "1080": "1080*1920",
+  },
+  "4:3": {
+    "720": "1088*832",
+    "1080": "1632*1248",
+  },
+  "3:4": {
+    "720": "832*1088",
+    "1080": "1248*1632",
+  },
+  "1:1": {
+    "720": "960*960",
+    "1080": "1440*1440",
+  },
+};
+
+function normalizeBasicRouterVideoSizeToken(value: string) {
+  return value.replace(/\s*[x*×]\s*/gi, "*");
+}
+
 function detectBasicRouterResolutionTier(resolution: string | undefined) {
   const normalized = resolution?.trim().toLowerCase().replace(/\s/g, "") ?? "";
   if (!normalized) return "720";
   if (normalized.includes("1080") || normalized === "2k" || normalized === "fhd") {
     return "1080";
   }
-  if (normalized.includes("480") || normalized === "sd") return "480";
-  if (normalized.includes("720") || normalized === "hd") return "720";
+  // Wan only exposes 720P / 1080P tiers; map SD/480 labels to 720P presets.
   return "720";
 }
 
-const BASIC_ROUTER_VIDEO_PIXELS: Record<string, Record<string, string>> = {
-  "16:9": {
-    "480": "854x480",
-    "720": "1280x720",
-    "1080": "1920x1080",
-  },
-  "9:16": {
-    "480": "480x832",
-    "720": "720x1280",
-    "1080": "1080x1920",
-  },
-  "4:3": {
-    "480": "640x480",
-    "720": "960x720",
-    "1080": "1440x1080",
-  },
-  "3:4": {
-    "480": "480x640",
-    "720": "720x960",
-    "1080": "1080x1440",
-  },
-  "1:1": {
-    "480": "480x480",
-    "720": "720x720",
-    "1080": "1080x1080",
-  },
-};
-
-/** BasicRouter wan video models expect pixel sizes like `1280x720`, not labels like `720P`. */
+/** BasicRouter wan video models expect preset sizes like `1280*720`, not labels like `720P`. */
 export function normalizeBasicRouterVideoResolution(
   resolution: string | undefined,
   ratio: string | undefined,
 ) {
   const res = resolution?.trim();
   if (res && /^\d+\s*[x*×]\s*\d+$/i.test(res)) {
-    return res.replace(/\s*[x*×]\s*/gi, "x");
+    const normalized = normalizeBasicRouterVideoSizeToken(res);
+    if (BASIC_ROUTER_WAN_VIDEO_SIZES.has(normalized)) return normalized;
   }
 
   const aspect = normalizeBasicRouterAspectRatio(ratio);
@@ -256,8 +269,14 @@ export function normalizeBasicRouterVideoResolution(
   return (
     BASIC_ROUTER_VIDEO_PIXELS[aspect]?.[tier] ??
     BASIC_ROUTER_VIDEO_PIXELS["16:9"]?.[tier] ??
-    "1280x720"
+    "1280*720"
   );
+}
+
+function normalizeBasicRouterVideoDuration(duration: number) {
+  if (duration <= 5) return 5;
+  if (duration <= 10) return 10;
+  return 10;
 }
 
 export function isBasicRouterEnvelope(payload: unknown) {
@@ -398,7 +417,9 @@ export function buildBasicRouterVideoPayload(input: {
 }) {
   const params = input.params;
   const imageUrls = (input.imageUrls ?? []).filter(Boolean);
-  const duration = Math.max(1, Math.round(numberParam(params.duration, 5)));
+  const duration = normalizeBasicRouterVideoDuration(
+    Math.max(1, Math.round(numberParam(params.duration, 5))),
+  );
   const ratio = normalizeBasicRouterAspectRatio(
     stringParam(params.ratio ?? params.aspect_ratio ?? params.aspectRatio),
   );
