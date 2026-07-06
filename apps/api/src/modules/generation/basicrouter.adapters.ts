@@ -197,6 +197,69 @@ export function basicRouterVideoType(
   return imageUrls.length > 0 ? 2 : 1;
 }
 
+function normalizeBasicRouterAspectRatio(ratio: string | undefined) {
+  if (!ratio) return "16:9";
+  return ratio.replace(/\s+/g, "").replace(/：/g, ":");
+}
+
+function detectBasicRouterResolutionTier(resolution: string | undefined) {
+  const normalized = resolution?.trim().toLowerCase().replace(/\s/g, "") ?? "";
+  if (!normalized) return "720";
+  if (normalized.includes("1080") || normalized === "2k" || normalized === "fhd") {
+    return "1080";
+  }
+  if (normalized.includes("480") || normalized === "sd") return "480";
+  if (normalized.includes("720") || normalized === "hd") return "720";
+  return "720";
+}
+
+const BASIC_ROUTER_VIDEO_PIXELS: Record<string, Record<string, string>> = {
+  "16:9": {
+    "480": "854x480",
+    "720": "1280x720",
+    "1080": "1920x1080",
+  },
+  "9:16": {
+    "480": "480x832",
+    "720": "720x1280",
+    "1080": "1080x1920",
+  },
+  "4:3": {
+    "480": "640x480",
+    "720": "960x720",
+    "1080": "1440x1080",
+  },
+  "3:4": {
+    "480": "480x640",
+    "720": "720x960",
+    "1080": "1080x1440",
+  },
+  "1:1": {
+    "480": "480x480",
+    "720": "720x720",
+    "1080": "1080x1080",
+  },
+};
+
+/** BasicRouter wan video models expect pixel sizes like `1280x720`, not labels like `720P`. */
+export function normalizeBasicRouterVideoResolution(
+  resolution: string | undefined,
+  ratio: string | undefined,
+) {
+  const res = resolution?.trim();
+  if (res && /^\d+\s*[x*×]\s*\d+$/i.test(res)) {
+    return res.replace(/\s*[x*×]\s*/gi, "x");
+  }
+
+  const aspect = normalizeBasicRouterAspectRatio(ratio);
+  const tier = detectBasicRouterResolutionTier(res);
+  return (
+    BASIC_ROUTER_VIDEO_PIXELS[aspect]?.[tier] ??
+    BASIC_ROUTER_VIDEO_PIXELS["16:9"]?.[tier] ??
+    "1280x720"
+  );
+}
+
 export function isBasicRouterEnvelope(payload: unknown) {
   const record = asRecord(payload);
   return Number.isFinite(Number(record.code)) && record.data != null;
@@ -336,10 +399,13 @@ export function buildBasicRouterVideoPayload(input: {
   const params = input.params;
   const imageUrls = (input.imageUrls ?? []).filter(Boolean);
   const duration = Math.max(1, Math.round(numberParam(params.duration, 5)));
-  const ratio = stringParam(
-    params.ratio ?? params.aspect_ratio ?? params.aspectRatio,
+  const ratio = normalizeBasicRouterAspectRatio(
+    stringParam(params.ratio ?? params.aspect_ratio ?? params.aspectRatio),
   );
-  const resolution = stringParam(params.resolution);
+  const resolution = normalizeBasicRouterVideoResolution(
+    stringParam(params.resolution),
+    ratio,
+  );
   const videoType = basicRouterVideoType(params, input.modelName, imageUrls);
 
   return {
