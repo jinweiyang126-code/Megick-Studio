@@ -53,7 +53,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { api, apiGet, apiPatch, apiPost } from "@/lib/api-client";
-import { fetchChatSessions } from "@/lib/chat-sessions";
 import { DEFAULT_CHAT_TITLE, displayChatTitle, persistedChatTitle } from "@/lib/chat-title";
 import { uploadDirectOssAsset } from "@/lib/oss-upload";
 import { cn } from "@/lib/utils";
@@ -1301,42 +1300,20 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
       setSessionLoading(true);
       const restoreLastSession = async () => {
         try {
-          const chatsPage = await queryClient.fetchQuery({
-            queryKey: ["dashboard", "chats", 1, 30],
-            queryFn: () => fetchChatSessions({ page: 1, pageSize: 30 }),
-          });
-          if (cancelled) return;
-          const chats = chatsPage.items;
           const rememberedId = readLastStudioSessionId(userId, routeMode);
-          let rememberedSession = rememberedId
-            ? chats.find((chat) => chat.id === rememberedId)
-            : null;
-
-          if (!rememberedSession && rememberedId) {
-            try {
-              const detail = await apiGet<ChatSessionDetail>(
-                `/api/chats/${rememberedId}?limit=1`,
-              );
-              if (detail?.id) {
-                rememberedSession = detail;
-              }
-            } catch {
-              rememberedSession = null;
-            }
-          }
-
-          if (rememberedSession && modeForChatSession(rememberedSession) === routeMode) {
-            rememberLastStudioSessionId(rememberedSession.id, userId, routeMode);
+          if (rememberedId) {
+            if (cancelled) return;
+            rememberLastStudioSessionId(rememberedId, userId, routeMode);
             if (embedded) {
-              activeSessionIdRef.current = rememberedSession.id;
-              setActiveSessionId(rememberedSession.id);
-              void loadSessionDetail(rememberedSession.id);
+              activeSessionIdRef.current = rememberedId;
+              setActiveSessionId(rememberedId);
+              void loadSessionDetail(rememberedId);
               return;
             }
             navigate({
               to: studioPathForMode(routeMode),
               search: {
-                sessionId: rememberedSession.id,
+                sessionId: rememberedId,
                 templateId,
                 handoffId,
                 sourceImage,
@@ -1346,9 +1323,7 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
             });
             return;
           }
-          if (rememberedSession) {
-            rememberLastStudioSessionId(null, userId, routeMode);
-          }
+          if (cancelled) return;
           await createNewSession(undefined, routeMode);
         } catch {
           if (!cancelled) {
@@ -1386,7 +1361,6 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
     templateId,
     embedded,
     navigate,
-    queryClient,
     userId,
     loadSessionDetail,
     createNewSession,
