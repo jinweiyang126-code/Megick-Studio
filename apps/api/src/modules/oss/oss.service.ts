@@ -295,7 +295,7 @@ export class OssService {
     ) {
       throw new ForbiddenException();
     }
-    await this.assertDirectAssetAccessAllowed(asset.id, user);
+    await this.assertDirectAssetAccessAllowed(asset.id, user, opts);
 
     const content = await this.getObjectBuffer(key, opts.process);
     return {
@@ -522,9 +522,12 @@ export class OssService {
   private async assertDirectAssetAccessAllowed(
     assetId: string,
     user: { id: string; isSuperAdmin?: boolean },
+    opts: { process?: string } = {},
   ) {
     if (user.isSuperAdmin) return;
     if (await this.advancedAccess.hasAdvancedAccess(user.id)) return;
+    // Watermark/thumbnail proxy reads are processed OSS objects, not raw downloads.
+    if (opts.process) return;
 
     const generatedImage = await this.prisma.generationOutputMedia.findFirst({
       where: {
