@@ -1,11 +1,11 @@
-import type { GenerationJobType, PrismaClient } from "@prisma/client";
+import type { GenerationJobTypeEnum, PrismaClient } from "@prisma/client";
 import {
   CHAT_LIST_MODE_JOB_TAKE,
   CHAT_LIST_MODE_MESSAGE_TAKE,
 } from "./chat-list-query";
 
 export type ChatListModeHints = {
-  jobs: Array<{ id: string; type: GenerationJobType; createdAt: Date }>;
+  jobs: Array<{ id: string; type: GenerationJobTypeEnum; createdAt: Date }>;
   messages: Array<{ metadata: unknown }>;
 };
 
