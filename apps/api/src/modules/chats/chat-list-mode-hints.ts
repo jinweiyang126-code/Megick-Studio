@@ -22,11 +22,14 @@ type RankedMessageRow = {
   sessionId: string;
 };
 
-function emptyHintsMap(sessionIds: string[]) {
+function emptyHintsMap(sessionIds: string[]): Map<string, ChatListModeHints> {
   return new Map(
     sessionIds.map((sessionId) => [
       sessionId,
-      { jobs: [], messages: [] } satisfies ChatListModeHints,
+      {
+        jobs: [] as ChatListModeHints["jobs"],
+        messages: [] as ChatListModeHints["messages"],
+      },
     ]),
   );
 }
