@@ -319,6 +319,7 @@ model GenerationJob {
   @@index([userId])
   @@index([userId, createdAt])
   @@index([status])
+  @@index([createdAt])
   @@index([chatSessionId])
   @@index([chatSessionId, createdAt])
   @@index([providerIdSnapshot])

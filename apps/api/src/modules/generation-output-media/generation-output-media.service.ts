@@ -292,6 +292,9 @@ export class GenerationOutputMediaService {
       signal: AbortSignal.timeout(120_000),
     });
     if (!res.ok) {
+      if (res.status === 404) {
+        throw new NotFoundException("UPSTREAM_OUTPUT_NOT_FOUND");
+      }
       throw new BadGatewayException(`UPSTREAM_OUTPUT_FETCH_FAILED:${res.status}`);
     }
     const content = Buffer.from(await res.arrayBuffer());

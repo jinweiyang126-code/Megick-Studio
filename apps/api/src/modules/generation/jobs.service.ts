@@ -1312,6 +1312,9 @@ export class JobsService {
         signal: AbortSignal.timeout(120_000),
       });
       if (!res.ok) {
+        if (res.status === 404) {
+          throw new NotFoundException("UPSTREAM_OUTPUT_NOT_FOUND");
+        }
         throw new BadGatewayException(`UPSTREAM_OUTPUT_FETCH_FAILED:${res.status}`);
       }
       const content = Buffer.from(await res.arrayBuffer());
@@ -1371,18 +1374,34 @@ export class JobsService {
       user: { select: { id: true, email: true } },
     } satisfies Prisma.GenerationJobInclude;
 
-    const [jobs, total] = await this.prisma.$transaction([
+    const take = Math.min(query.take ?? 50, 200);
+    const skip = query.skip ?? 0;
+
+    const [idRows, total] = await this.prisma.$transaction([
       this.prisma.generationJob.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        skip: query.skip ?? 0,
-        take: Math.min(query.take ?? 50, 200),
-        include,
+        skip,
+        take,
+        select: { id: true },
       }),
       this.prisma.generationJob.count({ where }),
     ]);
 
-    return { items: jobs, total };
+    if (!idRows.length) {
+      return { items: [], total };
+    }
+
+    const jobs = await this.prisma.generationJob.findMany({
+      where: { id: { in: idRows.map((row) => row.id) } },
+      include,
+    });
+    const jobsById = new Map(jobs.map((job) => [job.id, job]));
+    const items = idRows
+      .map((row) => jobsById.get(row.id))
+      .filter((job): job is (typeof jobs)[number] => Boolean(job));
+
+    return { items, total };
   }
 
   async reconcileText2ImageJob(

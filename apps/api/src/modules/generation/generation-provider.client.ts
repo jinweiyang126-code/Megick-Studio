@@ -14,6 +14,7 @@ import type {
 import {
   basicRouterEnvelopeError,
   buildBasicRouterVideoPayload,
+  prepareBasicRouterVideoUrls,
   resolveBasicRouterEndpoint,
   resolveBasicRouterVideoStatusUrl,
   usesBasicRouterVideoApi,
@@ -521,6 +522,10 @@ const CONTROL_PARAMS = new Set([
   "count",
   "text",
   "urls",
+  "image_url",
+  "image_urls",
+  "video_url",
+  "video_urls",
 ]);
 
 function extraProviderParams(params: Record<string, unknown>) {
@@ -2385,7 +2390,23 @@ export class GenerationProviderClient {
     const params = input.params ?? {};
     const apiStyle = inferVideoApiStyle(input.baseUrl, params);
     const createUrl = resolveVideoCreateUrl(input.baseUrl, params, apiStyle);
-    const payload = buildVideoPayload(input, apiStyle);
+    let payload = buildVideoPayload(input, apiStyle);
+    if (apiStyle === "basicrouter-video") {
+      const videoType = Number(
+        (payload as Record<string, unknown>).videoType ?? 1,
+      );
+      if (videoType !== 1 && Array.isArray(payload.urls)) {
+        payload = {
+          ...payload,
+          urls: await prepareBasicRouterVideoUrls(
+            payload.urls.filter(
+              (item): item is string =>
+                typeof item === "string" && item.trim().length > 0,
+            ),
+          ),
+        };
+      }
+    }
     const expectsStream = payload.stream === true;
     const existingProviderJobId = stringParam(input.existingProviderJobId);
 
