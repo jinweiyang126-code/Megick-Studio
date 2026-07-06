@@ -135,7 +135,7 @@ Chrome DevTools：
 
 | 优先级 | 项 | 说明 | 相关代码 |
 |--------|-----|------|----------|
-| P0 | 合并 chat list mode hints | ~~1～2 条 SQL（如 `ROW_NUMBER` 窗口函数）替代每会话 2 次查询~~ **已实现** | `chat-list-mode-hints.ts` |
+| P0 | 合并 chat list mode hints | 按 session 索引 `LIMIT`；有 job 类型时跳过 messages（避免 `ROW_NUMBER` 全局排序 1038） | `chat-list-mode-hints.ts` |
 | P0 | Studio 跳过列表恢复 | ~~有 localStorage `sessionId` 时直接 `loadSessionDetail`~~ **已实现** | `-studio-shared.tsx` |
 | P1 | Shell 降级 `chatsQ` | 侧边栏若仅需 `sessionId` 导航，可移除或延迟加载 chat list | `-dashboard-shell.tsx` |
 | P1 | 路由预加载 | 侧边栏 `Link` 增加 `preload="intent"` | `-dashboard-shell.tsx` |
@@ -170,4 +170,4 @@ Chrome DevTools：
 | 日期 | 说明 |
 |------|------|
 | 2026-07-06 | 初稿：侧边栏切换慢根因、与 chat list N+1 关联、优化 backlog |
-| 2026-07-06 | 实现 P0：合并 chat list mode hints SQL；Studio 跳过列表恢复 |
+| 2026-07-06 | 实现 P0：按 session 索引 LIMIT 加载 mode hints；Studio 跳过列表恢复 |
