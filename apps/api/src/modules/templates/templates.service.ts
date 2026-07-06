@@ -422,42 +422,44 @@ export class TemplatesService {
   ) {
     const session = await this.prisma.chatSession.findUnique({
       where: { id: input.sessionId },
-      include: {
-        messages: {
-          orderBy: { createdAt: "asc" },
-          include: { generationJob: true },
-        },
-      },
+      select: { id: true },
     });
     if (!session) throw new NotFoundException("CHAT_SESSION_NOT_FOUND");
 
-    let sourceMessage: MessageWithJob | undefined;
+    const messageInclude = { include: { generationJob: true } } as const;
+    let sourceMessage: MessageWithJob | null = null;
+
     if (input.messageId) {
-      sourceMessage = session.messages.find(
-        (message) => message.id === input.messageId,
-      );
+      sourceMessage = await this.prisma.chatMessage.findFirst({
+        where: { id: input.messageId, sessionId: input.sessionId },
+        ...messageInclude,
+      });
     }
     if (!sourceMessage && input.generationJobId) {
-      sourceMessage = session.messages.find(
-        (message) => message.generationJobId === input.generationJobId,
-      );
+      sourceMessage = await this.prisma.chatMessage.findFirst({
+        where: {
+          generationJobId: input.generationJobId,
+          sessionId: input.sessionId,
+        },
+        ...messageInclude,
+      });
     }
     if (!sourceMessage) {
-      sourceMessage = [...session.messages]
-        .reverse()
-        .find(
-          (message) =>
-            message.role === "assistant" && Boolean(message.generationJob),
-        );
+      sourceMessage = await this.prisma.chatMessage.findFirst({
+        where: {
+          sessionId: input.sessionId,
+          role: "assistant",
+          generationJobId: { not: null },
+        },
+        orderBy: { createdAt: "desc" },
+        ...messageInclude,
+      });
     }
     if (!sourceMessage) throw new NotFoundException("MESSAGE_NOT_FOUND");
 
-    const sourceIndex = session.messages.findIndex(
-      (message) => message.id === sourceMessage?.id,
-    );
-    const nearbyJobMessage = this.findNearbyJobMessage(
-      session.messages,
-      Math.max(sourceIndex, 0),
+    const nearbyJobMessage = await this.findNearbyJobMessageQuery(
+      input.sessionId,
+      sourceMessage.createdAt,
       input.type,
     );
     const sourceJob =
@@ -472,14 +474,23 @@ export class TemplatesService {
     const promptMessage =
       sourceMessage.role === "user"
         ? sourceMessage
-        : ([...session.messages.slice(0, Math.max(sourceIndex, 0))]
-            .reverse()
-            .find((message) => message.role === "user") ?? sourceMessage);
+        : ((await this.prisma.chatMessage.findFirst({
+            where: {
+              sessionId: input.sessionId,
+              role: "user",
+              createdAt: { lt: sourceMessage.createdAt },
+            },
+            orderBy: { createdAt: "desc" },
+          })) ?? sourceMessage);
     const promptMetadata = asRecord(promptMessage.metadata);
     const outputMessage = sourceJob
-      ? (session.messages.find(
-          (message) => message.generationJobId === sourceJob.id,
-        ) ?? sourceMessage)
+      ? ((await this.prisma.chatMessage.findFirst({
+          where: {
+            sessionId: input.sessionId,
+            generationJobId: sourceJob.id,
+          },
+          orderBy: { createdAt: "asc" },
+        })) ?? sourceMessage)
       : sourceMessage;
     const sourceMetadata = asRecord(outputMessage.metadata);
     const settings = asRecord(
@@ -766,22 +777,43 @@ export class TemplatesService {
     return raw.replace(/^\/+/, "");
   }
 
-  private findNearbyJobMessage(
-    messages: MessageWithJob[],
-    sourceIndex: number,
+  private async findNearbyJobMessageQuery(
+    sessionId: string,
+    anchorCreatedAt: Date,
     type?: GenerationJobTypeEnum,
   ) {
     const normalizedType = type ? normalizeType(type) : null;
-    const matches = (message: MessageWithJob) =>
-      Boolean(message.generationJob) &&
-      (!normalizedType || message.generationJob?.type === normalizedType);
+    const baseWhere: Prisma.ChatMessageWhereInput = {
+      sessionId,
+      generationJobId: { not: null },
+      ...(normalizedType ? { generationJob: { type: normalizedType } } : {}),
+    };
 
-    return (
-      messages.slice(sourceIndex).find(matches) ??
-      [...messages.slice(0, sourceIndex)].reverse().find(matches) ??
-      messages.find(matches) ??
-      null
-    );
+    const forward = await this.prisma.chatMessage.findFirst({
+      where: {
+        ...baseWhere,
+        createdAt: { gte: anchorCreatedAt },
+      },
+      orderBy: { createdAt: "asc" },
+      include: { generationJob: true },
+    });
+    if (forward) return forward;
+
+    const backward = await this.prisma.chatMessage.findFirst({
+      where: {
+        ...baseWhere,
+        createdAt: { lt: anchorCreatedAt },
+      },
+      orderBy: { createdAt: "desc" },
+      include: { generationJob: true },
+    });
+    if (backward) return backward;
+
+    return this.prisma.chatMessage.findFirst({
+      where: baseWhere,
+      orderBy: { createdAt: "desc" },
+      include: { generationJob: true },
+    });
   }
 
   private firstResultOssAssetFromMetadata(

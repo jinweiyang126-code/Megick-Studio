@@ -59,6 +59,11 @@ export interface ChatSessionDetail extends ChatSession {
     generationJob?: GenerationJobPublic | null;
     generationJobId?: string | null;
   }>;
+  messagePagination?: {
+    total: number;
+    hasMore: boolean;
+    oldestCursor?: string | null;
+  };
 }
 
 export type DashboardTab =

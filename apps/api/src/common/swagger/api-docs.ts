@@ -1210,9 +1210,33 @@ export class ChatMessageDto {
   generationJob?: GenerationJobPublicDto | null;
 }
 
+export class ChatMessagePaginationDto {
+  @ApiProperty({ description: "Total messages in the session.", example: 128 })
+  total!: number;
+
+  @ApiProperty({
+    description: "Whether older messages exist before the returned window.",
+    example: true,
+  })
+  hasMore!: boolean;
+
+  @ApiPropertyOptional({
+    description: "ISO cursor for loading older messages via `before`.",
+    example: DATE_TIME_EXAMPLE,
+    nullable: true,
+  })
+  oldestCursor?: string | null;
+}
+
 export class ChatSessionDetailDto extends ChatSessionDto {
   @ApiProperty({ description: "Session messages in ascending creation order.", type: [ChatMessageDto] })
   messages!: ChatMessageDto[];
+
+  @ApiProperty({
+    description: "Pagination metadata for the returned message window.",
+    type: ChatMessagePaginationDto,
+  })
+  messagePagination!: ChatMessagePaginationDto;
 }
 
 export class AdminChatUserDto {
@@ -1278,6 +1302,12 @@ export class AdminChatMessageDto extends ChatMessageDto {
 export class AdminChatDetailDto extends AdminChatRowDto {
   @ApiProperty({ description: "Session messages in ascending creation order.", type: [AdminChatMessageDto] })
   messages!: AdminChatMessageDto[];
+
+  @ApiProperty({
+    description: "Pagination metadata for the returned message window.",
+    type: ChatMessagePaginationDto,
+  })
+  messagePagination!: ChatMessagePaginationDto;
 }
 
 export class TemplateCategoryDto {

@@ -30,6 +30,7 @@ import {
   type PaginationQuery,
 } from "@/common/pagination";
 import { ChatsService } from "./chats.service";
+import { parseMessageLimitQuery } from "./chat-message-query";
 import {
   AdminChatDetailDto,
   AdminChatRowDto,
@@ -211,9 +212,16 @@ export class ChatsController {
   @ApiOperation(
     documentedOperation(
       "Get one chat session",
-      "Returns one chat session owned by the current user with messages in ascending creation order and expanded generation results where available.",
+      "Returns one chat session owned by the current user with the most recent messages (default 50, max 100) in ascending creation order. Older messages are available via `GET /api/chats/:id/messages`.",
     ),
   )
+  @ApiQuery({
+    name: "limit",
+    required: false,
+    type: Number,
+    description: "Maximum number of recent messages to return. Defaults to 50.",
+    example: 10,
+  })
   @ApiOkResponseModel(
     ChatSessionDetailDto,
     "Chat session loaded successfully.",
@@ -223,8 +231,7 @@ export class ChatsController {
     @Query("limit") limit: string,
     @CurrentUser() user: AuthUserContext,
   ) {
-    const messageLimit = limit ? Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100) : undefined;
-    return this.chats.detail(user.id, id, messageLimit);
+    return this.chats.detail(user.id, id, parseMessageLimitQuery(limit));
   }
 
   @Get(":id/messages")
@@ -500,14 +507,35 @@ export class AdminChatsController {
   @ApiOperation(
     documentedOperation(
       "Get a full chat session with generated assets for admin review",
-      "Returns one chat session with user context, full messages, resolved metadata results, and expanded generation job details for admin review workflows.",
+      "Returns one chat session with user context and a window of recent messages (default 50, max 100). Use the `before` cursor to load older messages.",
     ),
   )
+  @ApiQuery({
+    name: "limit",
+    required: false,
+    type: Number,
+    description: "Maximum number of messages to return. Defaults to 50.",
+    example: 50,
+  })
+  @ApiQuery({
+    name: "before",
+    required: false,
+    type: String,
+    description: "ISO timestamp cursor from `messagePagination.oldestCursor` for loading older messages.",
+    example: "2026-05-15T08:00:00.000Z",
+  })
   @ApiOkResponseModel(
     AdminChatDetailDto,
     "Admin chat session detail loaded successfully.",
   )
-  detail(@Param("id") id: string) {
-    return this.chats.detailAdmin(id);
+  detail(
+    @Param("id") id: string,
+    @Query("limit") limit: string,
+    @Query("before") before: string,
+  ) {
+    return this.chats.detailAdmin(id, {
+      limit: parseMessageLimitQuery(limit),
+      before: before || undefined,
+    });
   }
 }

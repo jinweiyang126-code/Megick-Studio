@@ -18,6 +18,13 @@ import {
   buildPublicGenerationOutputItems,
   publicProviderOutputUrls,
 } from "../generation/generation-output-urls";
+import {
+  normalizeMessageLimit,
+} from "./chat-message-query";
+
+type MessageWithJob = Prisma.ChatMessageGetPayload<{
+  include: { generationJob: true };
+}>;
 
 type UploadedMedia = {
   buffer?: Buffer;
@@ -204,66 +211,32 @@ export class ChatsService {
   }
 
   async detail(userId: string, sessionId: string, messageLimit?: number) {
-    let skip: number | undefined;
-    let take: number | undefined;
-    if (messageLimit) {
-      const total = await this.prisma.chatMessage.count({ where: { sessionId } });
-      skip = Math.max(0, total - messageLimit);
-      take = messageLimit;
-    }
+    const limit = normalizeMessageLimit(messageLimit);
     const session = await this.prisma.chatSession.findFirst({
       where: { id: sessionId, userId },
-      include: {
-        messages: {
-          orderBy: { createdAt: "asc" },
-          ...(messageLimit ? { skip, take } : {}),
-          include: { generationJob: true },
-        },
-      },
     });
     if (!session) throw new NotFoundException();
 
-    const jobs = session.messages
-      .map((m) => m.generationJob)
-      .filter((job): job is GenerationJob => Boolean(job));
-    const modelDisplayNames = await this.modelDisplayNames(jobs);
-    const publicJobs = new Map(
-      await Promise.all(
-        jobs.map(
-          async (job) =>
-            [
-              job.id,
-              await this.toPublicJob(
-                job,
-                modelDisplayNames.get(job.modelCode),
-              ),
-            ] as const,
-        ),
-      ),
-    );
-
-    const messages = await Promise.all(
-      session.messages.map(async (message) => ({
-        ...message,
-        metadata: message.generationJobId
-          ? this.resolveMetadataResultsFromPublicJob(
-              message.metadata,
-              publicJobs.get(message.generationJobId) ?? null,
-            )
-          : message.metadata,
-        generationJob: message.generationJobId
-          ? (publicJobs.get(message.generationJobId) ?? null)
-          : null,
-      })),
-    );
+    const [total, window] = await Promise.all([
+      this.prisma.chatMessage.count({ where: { sessionId } }),
+      this.loadMessageWindow(sessionId, limit),
+    ]);
+    const enrichedMessages = await this.enrichPublicMessages(window.messages);
 
     return {
       ...session,
       mode: modeForSession({
-        jobs,
-        messages: session.messages,
+        jobs: window.messages
+          .map((m) => m.generationJob)
+          .filter((job): job is GenerationJob => Boolean(job)),
+        messages: window.messages,
       }),
-      messages,
+      messages: enrichedMessages,
+      messagePagination: this.messagePaginationMeta(
+        total,
+        window.messages,
+        window.hasMore,
+      ),
     };
   }
 
@@ -279,53 +252,20 @@ export class ChatsService {
     });
     if (!session) throw new NotFoundException();
 
-    const where: any = { sessionId };
-    if (before) {
-      where.createdAt = { lt: new Date(before) };
-    }
-
-    const messages = await this.prisma.chatMessage.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: limit + 1,
-      include: { generationJob: true },
-    });
-
-    const hasMore = messages.length > limit;
-    const items = messages.slice(0, limit).reverse();
-
-    const jobs = items
-      .map((m) => m.generationJob)
-      .filter((job): job is GenerationJob => Boolean(job));
-    const modelDisplayNames = await this.modelDisplayNames(jobs);
-    const publicJobs = new Map(
-      await Promise.all(
-        jobs.map(
-          async (job) =>
-            [job.id, await this.toPublicJob(job, modelDisplayNames.get(job.modelCode))] as const,
-        ),
-      ),
+    const window = await this.loadMessageWindow(
+      sessionId,
+      normalizeMessageLimit(limit),
+      this.parseBeforeCursor(before),
     );
-
-    const enriched = await Promise.all(
-      items.map(async (message) => ({
-        ...message,
-        metadata: message.generationJobId
-          ? this.resolveMetadataResultsFromPublicJob(
-              message.metadata,
-              publicJobs.get(message.generationJobId) ?? null,
-            )
-          : message.metadata,
-        generationJob: message.generationJobId
-          ? (publicJobs.get(message.generationJobId) ?? null)
-          : null,
-      })),
-    );
-
-    return { messages: enriched, hasMore };
+    const enriched = await this.enrichPublicMessages(window.messages);
+    return { messages: enriched, hasMore: window.hasMore };
   }
 
-  async detailAdmin(sessionId: string) {
+  async detailAdmin(
+    sessionId: string,
+    options: { limit?: number; before?: string } = {},
+  ) {
+    const limit = normalizeMessageLimit(options.limit);
     const session = await this.prisma.chatSession.findUnique({
       where: { id: sessionId },
       include: {
@@ -336,43 +276,28 @@ export class ChatsService {
             profile: { select: { displayName: true } },
           },
         },
-        messages: {
-          orderBy: { createdAt: "asc" },
-          include: { generationJob: true },
-        },
       },
     });
     if (!session) throw new NotFoundException();
 
-    const jobs = session.messages
-      .map((m) => m.generationJob)
-      .filter((job): job is GenerationJob => Boolean(job));
-    const modelDisplayNames = await this.modelDisplayNames(jobs);
-    const publicJobs = new Map(
-      await Promise.all(
-        jobs.map(
-          async (job) =>
-            [
-              job.id,
-              await this.toAdminJob(job, modelDisplayNames.get(job.modelCode)),
-            ] as const,
-        ),
+    const [total, window] = await Promise.all([
+      this.prisma.chatMessage.count({ where: { sessionId } }),
+      this.loadMessageWindow(
+        sessionId,
+        limit,
+        this.parseBeforeCursor(options.before),
       ),
-    );
-
-    const messages = await Promise.all(
-      session.messages.map(async (message) => ({
-        ...message,
-        metadata: await this.resolveMetadataResults(message.metadata),
-        generationJob: message.generationJobId
-          ? (publicJobs.get(message.generationJobId) ?? null)
-          : null,
-      })),
-    );
+    ]);
+    const messages = await this.enrichAdminMessages(window.messages);
 
     return {
       ...session,
       messages,
+      messagePagination: this.messagePaginationMeta(
+        total,
+        window.messages,
+        window.hasMore,
+      ),
     };
   }
 
@@ -614,6 +539,115 @@ export class ChatsService {
       where: { id: sessionId, userId },
       data: { archived: true },
     });
+  }
+
+  private parseBeforeCursor(before?: string) {
+    if (!before?.trim()) return undefined;
+    const parsed = new Date(before);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new BadRequestException("INVALID_MESSAGE_CURSOR");
+    }
+    return parsed;
+  }
+
+  private messagePaginationMeta(
+    total: number,
+    messages: Array<{ createdAt: Date }>,
+    hasMore: boolean,
+  ) {
+    return {
+      total,
+      hasMore,
+      oldestCursor:
+        hasMore && messages.length > 0
+          ? messages[0].createdAt.toISOString()
+          : null,
+    };
+  }
+
+  private async loadMessageWindow(
+    sessionId: string,
+    limit: number,
+    before?: Date,
+  ) {
+    const rows = await this.prisma.chatMessage.findMany({
+      where: {
+        sessionId,
+        ...(before ? { createdAt: { lt: before } } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit + 1,
+      include: { generationJob: true },
+    });
+    const hasMore = rows.length > limit;
+    return {
+      messages: rows.slice(0, limit).reverse(),
+      hasMore,
+    };
+  }
+
+  private async enrichPublicMessages(messages: MessageWithJob[]) {
+    const jobs = messages
+      .map((m) => m.generationJob)
+      .filter((job): job is GenerationJob => Boolean(job));
+    const modelDisplayNames = await this.modelDisplayNames(jobs);
+    const publicJobs = new Map(
+      await Promise.all(
+        jobs.map(
+          async (job) =>
+            [
+              job.id,
+              await this.toPublicJob(
+                job,
+                modelDisplayNames.get(job.modelCode),
+              ),
+            ] as const,
+        ),
+      ),
+    );
+
+    return Promise.all(
+      messages.map(async (message) => ({
+        ...message,
+        metadata: message.generationJobId
+          ? this.resolveMetadataResultsFromPublicJob(
+              message.metadata,
+              publicJobs.get(message.generationJobId) ?? null,
+            )
+          : message.metadata,
+        generationJob: message.generationJobId
+          ? (publicJobs.get(message.generationJobId) ?? null)
+          : null,
+      })),
+    );
+  }
+
+  private async enrichAdminMessages(messages: MessageWithJob[]) {
+    const jobs = messages
+      .map((m) => m.generationJob)
+      .filter((job): job is GenerationJob => Boolean(job));
+    const modelDisplayNames = await this.modelDisplayNames(jobs);
+    const publicJobs = new Map(
+      await Promise.all(
+        jobs.map(
+          async (job) =>
+            [
+              job.id,
+              await this.toAdminJob(job, modelDisplayNames.get(job.modelCode)),
+            ] as const,
+        ),
+      ),
+    );
+
+    return Promise.all(
+      messages.map(async (message) => ({
+        ...message,
+        metadata: await this.resolveMetadataResults(message.metadata),
+        generationJob: message.generationJobId
+          ? (publicJobs.get(message.generationJobId) ?? null)
+          : null,
+      })),
+    );
   }
 
   private async modelDisplayNames(jobs: GenerationJob[]) {
