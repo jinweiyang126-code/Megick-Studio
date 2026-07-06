@@ -1,10 +1,10 @@
 import { Module } from "@nestjs/common";
-import { AdminModule } from "../admin/admin.module";
+import { AdminAuditModule } from "../admin/admin-audit.module";
 import { OAuthProvidersController } from "./oauth-providers.controller";
 import { OAuthProvidersService } from "./oauth-providers.service";
 
 @Module({
-  imports: [AdminModule],
+  imports: [AdminAuditModule],
   controllers: [OAuthProvidersController],
   providers: [OAuthProvidersService],
   exports: [OAuthProvidersService],

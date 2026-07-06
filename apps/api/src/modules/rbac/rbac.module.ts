@@ -1,10 +1,10 @@
 import { Module } from "@nestjs/common";
-import { AdminModule } from "../admin/admin.module";
+import { AdminAuditModule } from "../admin/admin-audit.module";
 import { RbacService } from "./rbac.service";
 import { RbacController } from "./rbac.controller";
 
 @Module({
-  imports: [AdminModule],
+  imports: [AdminAuditModule],
   providers: [RbacService],
   controllers: [RbacController],
   exports: [RbacService],

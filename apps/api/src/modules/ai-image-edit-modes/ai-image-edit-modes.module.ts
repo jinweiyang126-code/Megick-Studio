@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ModelProvidersModule } from "../model-providers/model-providers.module";
-import { AdminModule } from "../admin/admin.module";
+import { AdminAuditModule } from "../admin/admin-audit.module";
 import {
   AdminAiImageEditModesController,
   PublicAiImageEditModesController,
@@ -8,7 +8,7 @@ import {
 import { AiImageEditModesService } from "./ai-image-edit-modes.service";
 
 @Module({
-  imports: [AdminModule, ModelProvidersModule],
+  imports: [AdminAuditModule, ModelProvidersModule],
   controllers: [PublicAiImageEditModesController, AdminAiImageEditModesController],
   providers: [AiImageEditModesService],
   exports: [AiImageEditModesService],

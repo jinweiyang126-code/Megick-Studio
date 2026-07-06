@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { SmtpModule } from "../smtp/smtp.module";
-import { AdminModule } from "../admin/admin.module";
+import { AdminAuditModule } from "../admin/admin-audit.module";
 import { backgroundWorkersEnabled } from "../../runtime";
 import { UsersService } from "./users.service";
 import { UsersController } from "./users.controller";
@@ -15,7 +15,7 @@ const processorProviders = backgroundWorkersEnabled()
 
 @Module({
   imports: [
-    AdminModule,
+    AdminAuditModule,
     SmtpModule,
     BullModule.registerQueue({ name: ADMIN_CREDIT_NOTIFICATIONS_QUEUE }),
   ],

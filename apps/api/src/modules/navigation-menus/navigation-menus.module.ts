@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { AdminModule } from "../admin/admin.module";
+import { AdminAuditModule } from "../admin/admin-audit.module";
 import {
   AdminNavigationMenusController,
   NavigationMenusController,
@@ -7,7 +7,7 @@ import {
 import { NavigationMenusService } from "./navigation-menus.service";
 
 @Module({
-  imports: [AdminModule],
+  imports: [AdminAuditModule],
   controllers: [NavigationMenusController, AdminNavigationMenusController],
   providers: [NavigationMenusService],
   exports: [NavigationMenusService],

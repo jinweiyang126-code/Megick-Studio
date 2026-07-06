@@ -1,12 +1,12 @@
 import { Module } from "@nestjs/common";
 import { SiteSettingsModule } from "../site-settings/site-settings.module";
 import { ModelProvidersModule } from "../model-providers/model-providers.module";
-import { AdminModule } from "../admin/admin.module";
+import { AdminAuditModule } from "../admin/admin-audit.module";
 import { AiModelsService } from "./ai-models.service";
 import { AiModelsController, AdminAiModelsController } from "./ai-models.controller";
 
 @Module({
-  imports: [AdminModule, SiteSettingsModule, ModelProvidersModule],
+  imports: [AdminAuditModule, SiteSettingsModule, ModelProvidersModule],
   controllers: [AiModelsController, AdminAiModelsController],
   providers: [AiModelsService],
   exports: [AiModelsService],

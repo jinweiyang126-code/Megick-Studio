@@ -1,11 +1,11 @@
 import { Module } from "@nestjs/common";
-import { AdminModule } from "../admin/admin.module";
+import { AdminAuditModule } from "../admin/admin-audit.module";
 import { ShowcaseService } from "./showcase.service";
 import { ShowcaseController, AdminShowcaseController } from "./showcase.controller";
 import { OssModule } from "../oss/oss.module";
 
 @Module({
-  imports: [OssModule, AdminModule],
+  imports: [OssModule, AdminAuditModule],
   controllers: [ShowcaseController, AdminShowcaseController],
   providers: [ShowcaseService],
   exports: [ShowcaseService],

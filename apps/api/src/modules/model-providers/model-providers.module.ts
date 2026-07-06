@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { AdminModule } from "../admin/admin.module";
+import { AdminAuditModule } from "../admin/admin-audit.module";
 import {
   ModelProvidersController,
   PublicModelProvidersController,
@@ -7,7 +7,7 @@ import {
 import { ModelProvidersService } from "./model-providers.service";
 
 @Module({
-  imports: [AdminModule],
+  imports: [AdminAuditModule],
   controllers: [ModelProvidersController, PublicModelProvidersController],
   providers: [ModelProvidersService],
   exports: [ModelProvidersService],
