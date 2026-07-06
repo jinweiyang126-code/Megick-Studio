@@ -180,13 +180,23 @@ const EXPANDED_SIDEBAR_WIDTH = 210;
 const AUTO_COLLAPSE_CONTENT_MIN = 820;
 const AUTO_EXPAND_CONTENT_MIN = 980;
 
+function normalizeMenuHref(href: string) {
+  const trimmed = href.trim();
+  if (trimmed === "/") return "/";
+  return trimmed.replace(/\/+$/, "");
+}
+
 function isDashboardNavPath(value: string): value is DashboardNavPath {
-  return navItems.some((item) => item.to === value);
+  const href = normalizeMenuHref(value);
+  return navItems.some((item) => normalizeMenuHref(item.to) === href);
 }
 
 function dashboardNavItemFromMenu(item: NavigationMenuItem): DashboardNavItem | null {
-  if (!item.isActive || !isDashboardNavPath(item.href)) return null;
-  const fallback = navItems.find((navItem) => navItem.to === item.href);
+  const href = normalizeMenuHref(item.href);
+  if (!item.isActive || !isDashboardNavPath(href)) return null;
+  const fallback =
+    navItems.find((navItem) => navItem.value === item.code) ??
+    navItems.find((navItem) => normalizeMenuHref(navItem.to) === href);
   const studioMode =
     item.metadata?.studioMode === "video" || item.href.endsWith("/video")
       ? "video"
@@ -194,12 +204,12 @@ function dashboardNavItemFromMenu(item: NavigationMenuItem): DashboardNavItem | 
         ? "image"
         : fallback?.studioMode;
   return {
-    to: item.href,
+    to: href,
     studioMode,
     requiresAuth: item.requiresAuth,
     value: item.code || fallback?.value || item.href,
-    labelKey: "dashboard.nav.custom.label",
-    descriptionKey: "dashboard.nav.custom.description",
+    labelKey: fallback?.labelKey ?? "dashboard.nav.custom.label",
+    descriptionKey: fallback?.descriptionKey ?? "dashboard.nav.custom.description",
     icon:
       item.icon && item.icon in dashboardIconMap
         ? dashboardIconMap[item.icon as keyof typeof dashboardIconMap]
@@ -436,12 +446,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   );
   const activeNav = visibleNavItems.find(isNavActive) ?? visibleNavItems[0] ?? navItems[0];
   const navLabel = (item: DashboardNavItem) =>
-    item.menuItem && item.labelKey === "dashboard.nav.custom.label"
+    item.menuItem
       ? localizedMenuLabel(item.menuItem, locale, t)
       : t(item.labelKey);
   const navDescription = (item: DashboardNavItem) =>
-    item.menuItem && item.descriptionKey === "dashboard.nav.custom.description"
-      ? localizedMenuDescription(item.menuItem, locale)
+    item.menuItem
+      ? localizedMenuDescription(item.menuItem, locale, t)
       : t(item.descriptionKey);
   const isStudioWorkspace =
     location.pathname.startsWith("/dashboard/studio") ||

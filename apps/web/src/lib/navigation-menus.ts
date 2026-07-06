@@ -22,6 +22,24 @@ export interface NavigationMenuItem {
 const defaultNavigationLabelKeys: Record<string, TranslationKey> = {
   studio: "nav.aiStudio",
   templates: "nav.templates",
+  "image-studio": "dashboard.nav.imageStudio.label",
+  "video-studio": "dashboard.nav.videoStudio.label",
+  "video-editor": "dashboard.nav.videoEditor.label",
+  "media-center": "dashboard.nav.mediaCenter.label",
+  history: "dashboard.nav.history.label",
+  chats: "dashboard.nav.chats.label",
+  profile: "dashboard.nav.profile.label",
+};
+
+const defaultNavigationDescriptionKeys: Record<string, TranslationKey> = {
+  "image-studio": "dashboard.nav.imageStudio.description",
+  "video-studio": "dashboard.nav.videoStudio.description",
+  "video-editor": "dashboard.nav.videoEditor.description",
+  templates: "dashboard.nav.templates.description",
+  "media-center": "dashboard.nav.mediaCenter.description",
+  history: "dashboard.nav.history.description",
+  chats: "dashboard.nav.chats.description",
+  profile: "dashboard.nav.profile.description",
 };
 
 export const DEFAULT_HEADER_MENU_ITEMS: NavigationMenuItem[] = [
@@ -66,9 +84,12 @@ export function localizedMenuLabel(
 }
 
 export function localizedMenuDescription(
-  item: Pick<NavigationMenuItem, "description" | "descriptionEn">,
+  item: Pick<NavigationMenuItem, "code" | "description" | "descriptionEn">,
   locale: string,
+  translate?: (key: TranslationKey) => string,
 ) {
+  const defaultDescriptionKey = defaultNavigationDescriptionKeys[item.code];
+  if (translate && defaultDescriptionKey) return translate(defaultDescriptionKey);
   return !shouldUseChineseMenuText(locale) && item.descriptionEn
     ? item.descriptionEn
     : (item.description ?? "");
