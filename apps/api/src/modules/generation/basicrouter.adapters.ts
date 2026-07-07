@@ -265,19 +265,6 @@ export function normalizeBasicRouterVideoResolution(
   return detectBasicRouterResolutionTier(res) === "1080" ? "1080p" : "720p";
 }
 
-/** BasicRouter upstream model id, e.g. `wan2.6-r2v-flash` (not Megick model code). */
-export function resolveBasicRouterVideoModelName(
-  modelName: string,
-  params: Record<string, unknown>,
-) {
-  const explicit = stringParam(params.requestModelName ?? params.request_model_name);
-  if (explicit) return explicit;
-
-  const trimmed = modelName.trim();
-  const withoutPrefix = trimmed.replace(/^basicrouter[-_]/i, "");
-  return withoutPrefix || trimmed;
-}
-
 function normalizeBasicRouterVideoDuration(duration: number) {
   if (duration <= 5) return 5;
   if (duration <= 10) return 10;
@@ -436,7 +423,7 @@ export function buildBasicRouterVideoPayload(input: {
 
   return {
     ...(input.extra ?? {}),
-    model: resolveBasicRouterVideoModelName(input.modelName, params),
+    model: stringParam(params.requestModelName) ?? input.modelName,
     text: input.prompt,
     videoType,
     duration,
