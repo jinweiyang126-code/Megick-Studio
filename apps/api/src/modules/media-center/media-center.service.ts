@@ -3,12 +3,32 @@ import { PrismaService } from "nestjs-prisma";
 import { AdvancedAccessService } from "@/common/services/advanced-access.service";
 import { OssService } from "../oss/oss.service";
 import { mediaOutputProxyUrl } from "../generation/generation-output-urls";
+import type { Prisma } from "@prisma/client";
 import type {
-  MediaCenterItem,
   MediaCenterKindEnum,
   MediaCenterSourceEnum,
   MediaCenterStatusEnum,
 } from "@prisma/client";
+
+const MEDIA_CENTER_LIST_SELECT = {
+  id: true,
+  kind: true,
+  status: true,
+  requiresWatermark: true,
+  prompt: true,
+  createdAt: true,
+  source: true,
+  jobId: true,
+  chatSessionId: true,
+  sizeBytes: true,
+  width: true,
+  height: true,
+  durationMs: true,
+} as const satisfies Prisma.MediaCenterItemSelect;
+
+type MediaCenterListItem = Prisma.MediaCenterItemGetPayload<{
+  select: typeof MEDIA_CENTER_LIST_SELECT;
+}>;
 
 export type MediaCenterKind = "all" | "image" | "video";
 
@@ -61,24 +81,28 @@ export class MediaCenterService {
       ...(dbKind ? { kind: dbKind } : {}),
     };
 
-    const [items, total, allCount, imageCount, videoCount, hasAdvancedAccess] =
-      await Promise.all([
-        this.prisma.mediaCenterItem.findMany({
-          where,
-          orderBy: { createdAt: "desc" },
-          skip: offset,
-          take: limit,
-        }),
-        this.prisma.mediaCenterItem.count({ where }),
-        this.prisma.mediaCenterItem.count({ where: { userId, status: "READY" } }),
-        this.prisma.mediaCenterItem.count({
-          where: { userId, status: "READY", kind: "IMAGE" },
-        }),
-        this.prisma.mediaCenterItem.count({
-          where: { userId, status: "READY", kind: "VIDEO" },
-        }),
-        this.advancedAccess.hasAdvancedAccess(userId),
-      ]);
+    const [items, total, kindCountRows, hasAdvancedAccess] = await Promise.all([
+      this.prisma.mediaCenterItem.findMany({
+        where,
+        select: MEDIA_CENTER_LIST_SELECT,
+        orderBy: { createdAt: "desc" },
+        skip: offset,
+        take: limit,
+      }),
+      this.prisma.mediaCenterItem.count({ where }),
+      this.prisma.mediaCenterItem.groupBy({
+        by: ["kind"],
+        where: { userId, status: "READY" },
+        _count: { _all: true },
+      }),
+      this.advancedAccess.hasAdvancedAccess(userId),
+    ]);
+
+    const imageCount =
+      kindCountRows.find((row) => row.kind === "IMAGE")?._count._all ?? 0;
+    const videoCount =
+      kindCountRows.find((row) => row.kind === "VIDEO")?._count._all ?? 0;
+    const allCount = kindCountRows.reduce((sum, row) => sum + row._count._all, 0);
 
     return {
       items: await Promise.all(
@@ -118,7 +142,7 @@ export class MediaCenterService {
   }
 
   private async toPublicItem(
-    item: MediaCenterItem,
+    item: MediaCenterListItem,
     hasAdvancedAccess: boolean,
   ) {
     const kind = dbKindToApiKind(item.kind);

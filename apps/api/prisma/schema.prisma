@@ -607,6 +607,7 @@ model MediaCenterItem {
   job      GenerationJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
 
   @@unique([jobId, outputIndex])
+  @@index([userId, status, createdAt])
   @@index([userId, kind, status, createdAt])
   @@index([userId, source, createdAt])
   @@index([ossKey])
