@@ -266,7 +266,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     queryKey: ["dashboard", "notifications"],
     queryFn: () => apiGet<GenerationJobPublic[]>("/api/generation/jobs", { query: { limit: 12 } }),
     enabled: shouldLoadPrivateChrome,
-    refetchInterval: 15000,
+    staleTime: 30_000,
+    refetchInterval: (query) =>
+      query.state.data?.some(
+        (job) => job.status === "queued" || job.status === "running",
+      )
+        ? 10_000
+        : 60_000,
   });
   const dashboardMenusQ = useQuery({
     queryKey: ["navigation-menus", "dashboard-sidebar"],

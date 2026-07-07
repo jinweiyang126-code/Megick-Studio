@@ -39,7 +39,9 @@ import {
   publicGenerationErrorMessage,
 } from "./generation-errors";
 import {
+  buildListGenerationOutputItems,
   buildPublicGenerationOutputItems,
+  listGenerationOutputCount,
   publicProviderOutputUrls,
 } from "./generation-output-urls";
 import {
@@ -142,6 +144,20 @@ const UPSTREAM_FAILURE_STATUSES = new Set([
   "cancelled",
   "canceled",
   "rejected",
+]);
+
+const LIST_JOB_PARAM_KEYS = new Set([
+  "ratio",
+  "aspect_ratio",
+  "aspectRatio",
+  "resolution",
+  "duration",
+  "seconds",
+  "videoInputMode",
+  "n",
+  "count",
+  "mode",
+  "modeCode",
 ]);
 
 function isGenerationJobStatus(
@@ -1147,9 +1163,13 @@ export class JobsService {
       include: { model: { select: { displayName: true } } },
     });
     const settledJobs = await Promise.all(
-      jobs.map((job) => this.reconcileStaleActiveJob(job)),
+      jobs.map((job) =>
+        ACTIVE_JOB_STATUSES.has(job.status)
+          ? this.reconcileStaleActiveJob(job)
+          : Promise.resolve(job),
+      ),
     );
-    return Promise.all(settledJobs.map((j) => this.toPublicJob(j)));
+    return settledJobs.map((job) => this.toPublicJobListItem(job));
   }
 
   async deleteForUser(userId: string, jobId: string) {
@@ -2106,6 +2126,51 @@ export class JobsService {
       },
     });
     return { assetIds, providerOutputUrls, providerJobId };
+  }
+
+  private sanitizeJobParamsForList(params: Record<string, unknown>) {
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(params)) {
+      if (!LIST_JOB_PARAM_KEYS.has(key) || value === undefined) continue;
+      sanitized[key] = value;
+    }
+    return sanitized;
+  }
+
+  private toPublicJobListItem(
+    job: GenerationJob & { model?: { displayName: string } | null },
+    modelDisplayName?: string,
+  ) {
+    const outputCount =
+      job.status === "succeeded"
+        ? listGenerationOutputCount(job.outputAssetIds, job.providerOutputUrls)
+        : 0;
+    const outputItems = buildListGenerationOutputItems(
+      job.id,
+      job.type,
+      outputCount,
+    );
+
+    return {
+      id: job.id,
+      type: job.type,
+      status: job.status,
+      prompt: job.prompt,
+      modelCode: job.modelCode,
+      modelDisplayName: modelDisplayName ?? job.model?.displayName ?? null,
+      params: this.sanitizeJobParamsForList(asRecord(job.params)),
+      progress: job.progress,
+      costCredits: job.costCredits,
+      outputUrls: outputItems.map((item) => item.url),
+      providerOutputUrls: [],
+      providerJobId: job.providerJobId,
+      outputItems,
+      chatSessionId: job.chatSessionId,
+      errorMessage: publicGenerationErrorMessage(job.errorMessage, null),
+      createdAt: job.createdAt,
+      startedAt: job.startedAt,
+      finishedAt: job.finishedAt,
+    };
   }
 
   private async toPublicJob(

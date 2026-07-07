@@ -25,6 +25,51 @@ export function generationOutputProxyUrl(jobId: string, index: number) {
   return `/api/generation/jobs/${encodeURIComponent(jobId)}/output/${index}/content`;
 }
 
+function stringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (item): item is string =>
+      typeof item === "string" && item.trim().length > 0,
+  );
+}
+
+export function listGenerationOutputCount(
+  outputAssetIds: unknown,
+  providerOutputUrls: unknown,
+) {
+  const assetIds = Array.isArray(outputAssetIds)
+    ? outputAssetIds.filter(
+        (item): item is string =>
+          typeof item === "string" && item.trim().length > 0,
+      )
+    : [];
+  const providerUrls = stringArray(providerOutputUrls);
+  return Math.max(assetIds.length, providerUrls.length);
+}
+
+/** Lightweight list rows use API proxy URLs instead of signed OSS/provider links. */
+export function buildListGenerationOutputItems(
+  jobId: string,
+  type: string,
+  outputCount: number,
+): PublicGenerationOutput[] {
+  if (outputCount <= 0) return [];
+
+  const isImageOutput = type === "TEXT2IMAGE" || type === "IMAGE_EDIT";
+  return Array.from({ length: outputCount }, (_, index) => {
+    const url = generationOutputProxyUrl(jobId, index);
+    return {
+      url,
+      thumbnailUrl: isImageOutput ? `${url}?variant=thumbnail` : null,
+      fallbackUrl: null,
+      sourceUrl: null,
+      mediaId: null,
+      assetId: null,
+      assetKey: null,
+    };
+  });
+}
+
 export function mediaOutputProxyUrl(mediaId: string, variant?: "thumbnail") {
   const base = `/api/generation/jobs/provider-output/${encodeURIComponent(mediaId)}/content`;
   return variant ? `${base}?variant=${variant}` : base;

@@ -148,6 +148,7 @@ export function HistoryPage({ search }: { search: HistorySearch }) {
         },
       }),
     enabled: !!user,
+    staleTime: 15_000,
     refetchInterval: (q) =>
       q.state.data?.some((job) => job.status === "queued" || job.status === "running")
         ? 3000
@@ -756,17 +757,26 @@ function JobDetailDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { t, formatNumber, locale } = useI18n();
+  const detailJobQ = useQuery({
+    queryKey: ["jobs", entry?.job.id, "detail"],
+    queryFn: () => apiGet<GenerationJobPublic>(`/api/generation/jobs/${entry!.job.id}`),
+    enabled: open && Boolean(entry?.job.id),
+    staleTime: 30_000,
+  });
   if (!entry) return null;
-  const title = entryTitle(entry, t);
-  const outputCount = entryOutputCount(entry);
-  const failureMessages = entryFailureMessages(entry, t);
+
+  const detailJob = detailJobQ.data ?? entry.job;
+  const detailEntry: HistoryEntry = { ...entry, job: detailJob, jobs: [detailJob] };
+  const title = entryTitle(detailEntry, t);
+  const outputCount = entryOutputCount(detailEntry);
+  const failureMessages = entryFailureMessages(detailEntry, t);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2 pr-8">
-            {jobOutputKind(entry.job) === "video" ? (
+            {jobOutputKind(detailEntry.job) === "video" ? (
               <Video className="h-5 w-5" />
             ) : (
               <ImageIcon className="h-5 w-5" />
@@ -774,7 +784,7 @@ function JobDetailDialog({
             {title}
           </DialogTitle>
           <DialogDescription>
-            {`${historyModelLabel(entry.job, t("history.unknownModel"), t)} · ${entry.job.type} · ${t("history.outputCount", { count: outputCount })}`}
+            {`${historyModelLabel(detailEntry.job, t("history.unknownModel"), t)} · ${detailEntry.job.type} · ${t("history.outputCount", { count: outputCount })}`}
           </DialogDescription>
         </DialogHeader>
 
@@ -782,35 +792,35 @@ function JobDetailDialog({
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <DetailStat
               label={t("common.status")}
-              value={t(`common.status.${entryStatus(entry)}`)}
+              value={t(`common.status.${entryStatus(detailEntry)}`)}
             />
             <DetailStat
               label={t("common.model")}
-              value={historyModelLabel(entry.job, t("history.unknownModel"), t)}
+              value={historyModelLabel(detailEntry.job, t("history.unknownModel"), t)}
             />
             <DetailStat
               label={t("common.cost")}
-              value={`${formatNumber(entryCostCredits(entry))} ${t("common.credits")}`}
+              value={`${formatNumber(entryCostCredits(detailEntry))} ${t("common.credits")}`}
             />
             <DetailStat
               label={t("common.created")}
-              value={formatDateTime(entry.job.createdAt, locale)}
+              value={formatDateTime(detailEntry.job.createdAt, locale)}
             />
           </div>
 
           <div className="space-y-3">
             <p className="text-sm font-medium">{t("history.promptTitle")}</p>
-            {entry.jobs.map((job, index) => (
+            {detailEntry.jobs.map((job, index) => (
               <CollapsiblePrompt
                 key={job.id}
-                title={entry.jobs.length > 1 ? t("history.imageIndex", { index: index + 1 }) : t("history.generationPrompt")}
+                title={detailEntry.jobs.length > 1 ? t("history.imageIndex", { index: index + 1 }) : t("history.generationPrompt")}
                 prompt={job.prompt}
                 defaultOpen={index === 0}
               />
             ))}
           </div>
 
-          <ParamsPanel jobs={entry.jobs} />
+          <ParamsPanel jobs={detailEntry.jobs} />
 
           {failureMessages.length ? (
             <div className="space-y-2">
@@ -829,7 +839,14 @@ function JobDetailDialog({
 
           <div className="space-y-3">
             <p className="text-sm font-medium">{t("history.results")}</p>
-            <JobResultPreview job={entry.job} />
+            {detailJobQ.isLoading ? (
+              <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
+                {t("common.loading")}
+              </div>
+            ) : (
+              <JobResultPreview job={detailEntry.job} />
+            )}
           </div>
         </div>
       </DialogContent>

@@ -258,7 +258,7 @@ export class JobsController {
   @ApiOperation(
     documentedOperation(
       "List my recent generation jobs",
-      "Returns the current user's generation jobs in reverse chronological order with signed output URLs when available. Supports lightweight filtering for web and mobile history pages.",
+      "Returns a lightweight summary for each generation job. Output URLs point at the Megick API proxy endpoints; use GET /api/generation/jobs/{id} for full signed URLs and complete params.",
     ),
   )
   @ApiOkArrayResponse(

@@ -690,7 +690,13 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
       apiGet<GenerationJobPublic[]>("/api/generation/jobs", {
         query: { mine: true, limit: STUDIO_JOB_HISTORY_LIMIT, type: activeJobType },
       }),
-    refetchInterval: 30000,
+    staleTime: 30_000,
+    refetchInterval: (query) =>
+      query.state.data?.some(
+        (job) => job.status === "queued" || job.status === "running",
+      )
+        ? 5_000
+        : 60_000,
   });
 
   const studioJobs = useMemo(() => {
@@ -817,13 +823,20 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
         setSelectedId(null);
         return;
       }
-      const mode = job.type === "IMAGE2VIDEO" ? "video" : "image";
-      const items = resultsFromJob(job, job.prompt, mode);
-      if (!items.length) return;
-      setResults((prev) =>
-        [...items, ...prev.filter((item) => item.jobId !== job.id)].slice(0, 24),
-      );
-      setSelectedId(items[0]?.id ?? null);
+      void (async () => {
+        const detailed =
+          job.outputItems?.some((item) => item.mediaId || item.sourceUrl) ||
+          (job.providerOutputUrls?.length ?? 0) > 0
+            ? job
+            : await apiGet<GenerationJobPublic>(`/api/generation/jobs/${job.id}`);
+        const mode = detailed.type === "IMAGE2VIDEO" ? "video" : "image";
+        const items = resultsFromJob(detailed, detailed.prompt, mode);
+        if (!items.length) return;
+        setResults((prev) =>
+          [...items, ...prev.filter((item) => item.jobId !== detailed.id)].slice(0, 24),
+        );
+        setSelectedId(items[0]?.id ?? null);
+      })();
     },
     [resultsFromJob],
   );

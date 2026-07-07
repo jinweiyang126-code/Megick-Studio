@@ -35,6 +35,7 @@ function OverviewRoute() {
     queryFn: () =>
       apiGet<GenerationJobPublic[]>("/api/generation/jobs", { query: { mine: true, limit: 24 } }),
     enabled: !!user,
+    staleTime: 30_000,
   });
 
   const overview = overviewQ.data;
