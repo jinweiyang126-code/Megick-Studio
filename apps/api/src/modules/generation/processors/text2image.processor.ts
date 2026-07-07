@@ -734,12 +734,13 @@ export class Text2ImageProcessor extends WorkerHost {
     });
   }
 
-  private async imageEditReferenceBuffer(value: string) {
+  private async imageEditReferenceBuffer(userId: string, value: string) {
     const inline = dataUrlToBuffer(value);
     if (inline) return inline.buffer;
 
-    const key = this.oss.assetKeyFromUrl(value);
-    const url = key ? (await this.oss.signGet(key, 24 * 3600)) ?? value : value;
+    let url = await this.outputMedia.resolveProviderReferenceUrl(userId, value);
+    const key = this.oss.assetKeyFromUrl(url);
+    url = key ? ((await this.oss.signGet(key, 24 * 3600)) ?? url) : url;
     if (!/^https?:\/\//i.test(url)) {
       throw new Error("IMAGE_EDIT_BASE64_SOURCE_REQUIRED");
     }
@@ -763,8 +764,8 @@ export class Text2ImageProcessor extends WorkerHost {
       typeof params.image === "string" &&
       typeof params.mask === "string"
     ) {
-      const imageInput = await this.imageEditReferenceBuffer(params.image);
-      const maskInput = await this.imageEditReferenceBuffer(params.mask);
+      const imageInput = await this.imageEditReferenceBuffer(userId, params.image);
+      const maskInput = await this.imageEditReferenceBuffer(userId, params.mask);
       const prepared = await prepareBflImageEditPair({
         image: imageInput,
         mask: maskInput,
@@ -817,6 +818,15 @@ export class Text2ImageProcessor extends WorkerHost {
       const mediaId = referenceMediaIds[index]?.trim();
       if (type === "TEXT2IMAGE" && mediaId) {
         resolved.push(await this.outputMedia.publicObjectUrlForMediaId(mediaId, userId));
+        continue;
+      }
+
+      const providerUrl = await this.outputMedia.resolveProviderReferenceUrl(
+        userId,
+        item,
+      );
+      if (providerUrl !== item.trim()) {
+        resolved.push(providerUrl);
         continue;
       }
 

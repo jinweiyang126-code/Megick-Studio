@@ -75,6 +75,48 @@ export function mediaOutputProxyUrl(mediaId: string, variant?: "thumbnail") {
   return variant ? `${base}?variant=${variant}` : base;
 }
 
+export type GenerationOutputProxyRef =
+  | { type: "job-output"; jobId: string; outputIndex: number }
+  | { type: "provider-output"; mediaId: string };
+
+/** Parse Megick API proxy URLs that are valid in the browser but not upstream providers. */
+export function parseGenerationOutputProxyUrl(
+  value: string,
+): GenerationOutputProxyRef | null {
+  const raw = value.trim();
+  if (!raw || raw.startsWith("data:")) return null;
+
+  try {
+    const url = /^https?:\/\//i.test(raw)
+      ? new URL(raw)
+      : new URL(raw.startsWith("/") ? raw : `/${raw}`, "http://local");
+    const jobMatch = url.pathname.match(
+      /^\/api\/generation\/jobs\/([^/]+)\/output\/(\d+)\/content$/i,
+    );
+    if (jobMatch) {
+      return {
+        type: "job-output",
+        jobId: decodeURIComponent(jobMatch[1]),
+        outputIndex: Number(jobMatch[2]),
+      };
+    }
+
+    const mediaMatch = url.pathname.match(
+      /^\/api\/generation\/jobs\/provider-output\/([^/]+)\/content$/i,
+    );
+    if (mediaMatch) {
+      return {
+        type: "provider-output",
+        mediaId: decodeURIComponent(mediaMatch[1]),
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 export function buildPublicGenerationOutputItems(
   jobId: string,
   type: string,

@@ -5,6 +5,7 @@ import { OssService } from "../../oss/oss.service";
 import { CreditsService } from "../../credits/credits.service";
 import { GenerationProviderClient } from "../generation-provider.client";
 import { JobsService } from "../jobs.service";
+import { GenerationOutputMediaService } from "../../generation-output-media/generation-output-media.service";
 import {
   generationErrorLogMessage,
   generationErrorLogStack,
@@ -105,6 +106,7 @@ export class Image2VideoProcessor {
     private readonly credits: CreditsService,
     private readonly provider: GenerationProviderClient,
     private readonly jobs: JobsService,
+    private readonly outputMedia: GenerationOutputMediaService,
   ) {}
 
   async process(job: Job<{ jobId: string }>): Promise<unknown> {
@@ -311,6 +313,14 @@ export class Image2VideoProcessor {
         { userId, visibility: "PRIVATE" },
       );
       return (await this.oss.signGet(key, 24 * 3600)) ?? item;
+    }
+
+    const providerUrl = await this.outputMedia.resolveProviderReferenceUrl(
+      userId,
+      item,
+    );
+    if (providerUrl !== item.trim()) {
+      return providerUrl;
     }
 
     const key = this.oss.assetKeyFromUrl(item);

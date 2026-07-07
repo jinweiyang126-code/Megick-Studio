@@ -1,4 +1,4 @@
-import { BadGatewayException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadGatewayException, BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "nestjs-prisma";
 import { randomId } from "@/common/random-id";
 import { AdvancedAccessService } from "@/common/services/advanced-access.service";
@@ -7,6 +7,7 @@ import {
   FREE_IMAGE_WATERMARK_FALLBACK_PROCESS,
   FREE_IMAGE_WATERMARK_PROCESS,
   mediaOutputProxyUrl,
+  parseGenerationOutputProxyUrl,
 } from "../generation/generation-output-urls";
 import type { GenerationJobTypeEnum, OssAsset, Prisma } from "@prisma/client";
 
@@ -225,8 +226,8 @@ export class GenerationOutputMediaService {
       select: { id: true, ossKey: true, originalOssUrl: true },
     });
     if (item) {
-      const original = item.originalOssUrl ?? await this.oss.publicObjectUrl(item.ossKey);
-      if (!original) throw new BadGatewayException("REFERENCE_MEDIA_PUBLIC_URL_UNAVAILABLE");
+      const original =
+        item.originalOssUrl ?? (await this.exportableOssUrl(item.ossKey));
       if (!item.originalOssUrl) {
         await this.prisma.mediaCenterItem.update({
           where: { id: item.id },
@@ -236,6 +237,60 @@ export class GenerationOutputMediaService {
       return original;
     }
     throw new NotFoundException("REFERENCE_MEDIA_NOT_FOUND");
+  }
+
+  async publicObjectUrlForJobOutput(
+    userId: string,
+    jobId: string,
+    outputIndex: number,
+  ) {
+    if (!Number.isInteger(outputIndex) || outputIndex < 0) {
+      throw new BadRequestException("INVALID_OUTPUT_INDEX");
+    }
+
+    const job = await this.prisma.generationJob.findFirst({
+      where: { id: jobId, userId },
+      select: { outputAssetIds: true },
+    });
+    if (!job) throw new NotFoundException("REFERENCE_MEDIA_NOT_FOUND");
+
+    const assetIds = (job.outputAssetIds as string[] | null) ?? [];
+    const assetId = assetIds[outputIndex];
+    if (!assetId) throw new NotFoundException("REFERENCE_MEDIA_NOT_FOUND");
+
+    const mediaId = await this.ensureForAsset({
+      userId,
+      jobId,
+      outputIndex,
+      assetId,
+    });
+    return this.publicObjectUrlForMediaId(mediaId, userId);
+  }
+
+  /** Turn browser-only Megick proxy URLs into provider-fetchable HTTPS links. */
+  async resolveProviderReferenceUrl(userId: string, reference: string) {
+    const proxy = parseGenerationOutputProxyUrl(reference);
+    if (proxy?.type === "provider-output") {
+      return this.publicObjectUrlForMediaId(proxy.mediaId, userId);
+    }
+    if (proxy?.type === "job-output") {
+      return this.publicObjectUrlForJobOutput(
+        userId,
+        proxy.jobId,
+        proxy.outputIndex,
+      );
+    }
+    return reference;
+  }
+
+  private async exportableOssUrl(ossKey: string) {
+    const publicUrl = await this.oss.publicObjectUrl(ossKey);
+    if (publicUrl) return publicUrl;
+    const signed = await this.oss.signGet(ossKey, 24 * 3600);
+    if (!signed) {
+      throw new BadGatewayException("REFERENCE_MEDIA_PUBLIC_URL_UNAVAILABLE");
+    }
+    return signed;
   }
 
   private async ensureMediaCenterItem(input: {

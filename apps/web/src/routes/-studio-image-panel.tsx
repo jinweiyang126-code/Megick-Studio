@@ -111,6 +111,7 @@ import {
   saveBlob,
   psdBlobFromImageBlob,
   referenceSrcFromBlob,
+  referenceSrcFromResult,
   objectUrlFromBlob,
 } from "./-studio-shared";
 import { EmptyState } from "./-dashboard-components";
@@ -648,7 +649,10 @@ export function ImageStudioPanel({
     }
   };
 
-  const generateVideoFromResult = (result: StudioResult, videoInputMode: "I2V" | "R2V") => {
+  const generateVideoFromResult = async (
+    result: StudioResult,
+    videoInputMode: "I2V" | "R2V",
+  ) => {
     if (!videoGenerationEnabled) {
       toast.error(t("studio.videoUnavailable"));
       return;
@@ -658,8 +662,19 @@ export function ImageStudioPanel({
       return;
     }
     if (embedded) return;
+
+    let src = result.src;
+    try {
+      src = await referenceSrcFromResult(result);
+    } catch (err) {
+      toast.error(t("studio.referenceFileReadFailed"), {
+        description: err instanceof Error ? err.message : undefined,
+      });
+      return;
+    }
+
     const handoffId = writeStudioHandoff({
-      src: result.src,
+      src,
       name: t("studio.videoReference"),
       prompt: prompt.trim() || result.prompt,
       videoInputMode,
@@ -671,7 +686,7 @@ export function ImageStudioPanel({
         prompt: prompt.trim() || result.prompt,
         videoInputMode,
         handoffId: handoffId ?? undefined,
-        sourceImage: result.src,
+        sourceImage: src,
         sourceImageName: t("studio.videoReference"),
       },
     });
@@ -1714,7 +1729,7 @@ export function ImageStudioPanel({
                     onUseAsReference={() => void addAsReference(selected)}
                     editMenu={imageEditMenu(selected)}
                     onGenerateVideo={(videoInputMode) =>
-                      generateVideoFromResult(selected, videoInputMode)
+                      void generateVideoFromResult(selected, videoInputMode)
                     }
                     videoGenerationEnabled={videoGenerationEnabled}
                     resultActionLabel={resultActionLabel}
