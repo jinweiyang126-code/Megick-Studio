@@ -202,20 +202,7 @@ function normalizeBasicRouterAspectRatio(ratio: string | undefined) {
   return ratio.replace(/\s+/g, "").replace(/：/g, ":");
 }
 
-/** Wan / BasicRouter video models only accept these width*height presets. */
-const BASIC_ROUTER_WAN_VIDEO_SIZES = new Set([
-  "1280*720",
-  "720*1280",
-  "960*960",
-  "1088*832",
-  "832*1088",
-  "1920*1080",
-  "1080*1920",
-  "1440*1440",
-  "1632*1248",
-  "1248*1632",
-]);
-
+/** Wan pixel presets; used to infer 720p vs 1080p tier from explicit pixel inputs. */
 const BASIC_ROUTER_VIDEO_PIXELS: Record<string, Record<string, string>> = {
   "16:9": {
     "720": "1280*720",
@@ -249,28 +236,46 @@ function detectBasicRouterResolutionTier(resolution: string | undefined) {
   if (normalized.includes("1080") || normalized === "2k" || normalized === "fhd") {
     return "1080";
   }
-  // Wan only exposes 720P / 1080P tiers; map SD/480 labels to 720P presets.
   return "720";
 }
 
-/** BasicRouter wan video models expect preset sizes like `1280*720`, not labels like `720P`. */
+function isBasicRouter1080PixelPreset(value: string) {
+  return Object.values(BASIC_ROUTER_VIDEO_PIXELS).some(
+    (tiers) => tiers["1080"] === value,
+  );
+}
+
+/** BasicRouter `/ai/createVideo` expects tier labels like `720p`, not Wan pixel presets. */
 export function normalizeBasicRouterVideoResolution(
   resolution: string | undefined,
-  ratio: string | undefined,
+  _ratio?: string | undefined,
 ) {
   const res = resolution?.trim();
   if (res && /^\d+\s*[x*×]\s*\d+$/i.test(res)) {
     const normalized = normalizeBasicRouterVideoSizeToken(res);
-    if (BASIC_ROUTER_WAN_VIDEO_SIZES.has(normalized)) return normalized;
+    if (
+      isBasicRouter1080PixelPreset(normalized) ||
+      /1080|1920|1440|1632|1248/.test(normalized.replace(/\*/g, ""))
+    ) {
+      return "1080p";
+    }
+    return "720p";
   }
 
-  const aspect = normalizeBasicRouterAspectRatio(ratio);
-  const tier = detectBasicRouterResolutionTier(res);
-  return (
-    BASIC_ROUTER_VIDEO_PIXELS[aspect]?.[tier] ??
-    BASIC_ROUTER_VIDEO_PIXELS["16:9"]?.[tier] ??
-    "1280*720"
-  );
+  return detectBasicRouterResolutionTier(res) === "1080" ? "1080p" : "720p";
+}
+
+/** BasicRouter upstream model id, e.g. `wan2.6-r2v-flash` (not Megick model code). */
+export function resolveBasicRouterVideoModelName(
+  modelName: string,
+  params: Record<string, unknown>,
+) {
+  const explicit = stringParam(params.requestModelName ?? params.request_model_name);
+  if (explicit) return explicit;
+
+  const trimmed = modelName.trim();
+  const withoutPrefix = trimmed.replace(/^basicrouter[-_]/i, "");
+  return withoutPrefix || trimmed;
 }
 
 function normalizeBasicRouterVideoDuration(duration: number) {
@@ -431,7 +436,7 @@ export function buildBasicRouterVideoPayload(input: {
 
   return {
     ...(input.extra ?? {}),
-    model: input.modelName,
+    model: resolveBasicRouterVideoModelName(input.modelName, params),
     text: input.prompt,
     videoType,
     duration,
