@@ -107,6 +107,7 @@ import {
   downloadCandidates,
   estimatedGenerationCredits,
   extensionFromName,
+  fetchBlobFromUrl,
   handoffReferenceName,
   imageExtension,
   isTruthySearchFlag,
@@ -364,9 +365,7 @@ export async function fetchMediaBlob(item: StudioResult) {
   let lastError: unknown;
   for (const src of downloadCandidates(item)) {
     try {
-      const res = await fetch(src, { credentials: "include" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.blob();
+      return await fetchBlobFromUrl(src);
     } catch (err) {
       lastError = err;
     }
@@ -378,9 +377,7 @@ export async function fetchReferenceBlob(item: StudioResult) {
   let lastError: unknown;
   for (const src of referenceCandidates(item)) {
     try {
-      const res = await fetch(src, { credentials: "include" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.blob();
+      return await fetchBlobFromUrl(src);
     } catch (err) {
       lastError = err;
     }

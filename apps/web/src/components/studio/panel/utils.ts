@@ -510,21 +510,46 @@ export function jobOutputContentUrl(item: StudioResult, variant?: "thumbnail") {
   return variant ? `${base}?variant=${variant}` : base;
 }
 
+export function providerOutputContentUrl(item: StudioResult, variant?: "thumbnail") {
+  if (!item.mediaId) return null;
+  const base = `/api/generation/jobs/provider-output/${encodeURIComponent(item.mediaId)}/content`;
+  return variant ? `${base}?variant=${variant}` : base;
+}
+
+/** Cross-origin OSS/provider URLs must not send cookies — CORS rejects `*` with credentials. */
+export function fetchCredentialsForUrl(src: string): RequestCredentials {
+  if (typeof window === "undefined") return "include";
+  try {
+    const url = new URL(src, window.location.origin);
+    return url.origin === window.location.origin ? "include" : "omit";
+  } catch {
+    return src.startsWith("/") ? "include" : "omit";
+  }
+}
+
+export async function fetchBlobFromUrl(src: string) {
+  const res = await fetch(src, { credentials: fetchCredentialsForUrl(src) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.blob();
+}
+
 export function referenceCandidates(item: StudioResult) {
   return [
+    jobOutputContentUrl(item),
+    providerOutputContentUrl(item),
     assetContentUrl(item.src),
     item.src,
     assetContentUrl(item.fallbackSrc),
     item.fallbackSrc,
     assetContentUrl(item.sourceSrc),
     item.sourceSrc,
-    jobOutputContentUrl(item),
   ].filter((src, index, items): src is string => Boolean(src) && items.indexOf(src) === index);
 }
 
 export function downloadCandidates(item: StudioResult) {
   return [
     jobOutputContentUrl(item),
+    providerOutputContentUrl(item),
     assetContentUrl(item.src),
     item.src,
     assetContentUrl(item.fallbackSrc),

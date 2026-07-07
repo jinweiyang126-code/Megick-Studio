@@ -2,6 +2,7 @@ import type { ChatSession, ChatSessionDetail, StudioResult } from "@/routes/-das
 import { studioMessageFromRecord } from "@/routes/-dashboard-types";
 import { api, apiGet } from "@/lib/api-client";
 import { fetchAllChatSessions } from "@/lib/chat-sessions";
+import { downloadCandidates, fetchBlobFromUrl } from "@/components/studio/panel/utils";
 import { processMediaAssets } from "@/megickcut/media/processing";
 import type { MediaAsset } from "@/megickcut/media/types";
 import { buildElementFromMedia } from "@/megickcut/timeline/element-utils";
@@ -259,58 +260,12 @@ async function fetchMediaBlob(item: SessionMediaItem) {
   let lastError: unknown;
   for (const url of downloadCandidates(item)) {
     try {
-      const response = await fetch(url, { credentials: "include" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.blob();
+      return await fetchBlobFromUrl(url);
     } catch (error) {
       lastError = error;
     }
   }
   throw lastError instanceof Error ? lastError : new Error("Unable to download media");
-}
-
-function downloadCandidates(item: SessionMediaItem) {
-  return [
-    item.jobId != null && Number.isInteger(item.outputIndex)
-      ? `/api/generation/jobs/${encodeURIComponent(item.jobId)}/output/${item.outputIndex}/content`
-      : null,
-    assetContentUrl(item.src),
-    item.src,
-    assetContentUrl(item.fallbackSrc),
-    item.fallbackSrc,
-    assetContentUrl(item.sourceSrc),
-    item.sourceSrc,
-  ].filter((url, index, urls): url is string => Boolean(url) && urls.indexOf(url) === index);
-}
-
-function assetContentUrl(raw: string | undefined) {
-  if (!raw) return null;
-  try {
-    const url = new URL(raw, window.location.origin);
-    if (url.pathname === "/api/oss/assets/content" || url.pathname === "/api/oss/sign") {
-      const key = normalizeKey(url.searchParams.get("key"));
-      return key ? `/api/oss/assets/content?key=${encodeURIComponent(key)}` : null;
-    }
-    const key = normalizeKey(decodeURIComponent(url.pathname.replace(/^\/+/, "")));
-    return key ? `/api/oss/assets/content?key=${encodeURIComponent(key)}` : null;
-  } catch {
-    const key = normalizeKey(raw);
-    return key ? `/api/oss/assets/content?key=${encodeURIComponent(key)}` : null;
-  }
-}
-
-function normalizeKey(value: string | null | undefined) {
-  if (!value) return null;
-  const trimmed = value.trim().replace(/^\/+/, "").split(/[!@?]/)[0];
-  if (
-    !trimmed ||
-    trimmed.includes("..") ||
-    trimmed.startsWith("http") ||
-    trimmed.startsWith("blob:")
-  ) {
-    return null;
-  }
-  return trimmed;
 }
 
 function mediaExtension({ blob, kind }: { blob: Blob; kind: SessionImportKind }) {
