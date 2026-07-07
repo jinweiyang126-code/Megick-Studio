@@ -1387,36 +1387,31 @@ export class JobsService {
         : {}),
     };
 
-    const include = {
+    const adminJobSelect = {
+      id: true,
+      userId: true,
+      type: true,
+      status: true,
+      modelCode: true,
+      prompt: true,
+      costCredits: true,
+      createdAt: true,
       user: { select: { id: true, email: true } },
-    } satisfies Prisma.GenerationJobInclude;
+    } satisfies Prisma.GenerationJobSelect;
 
     const take = Math.min(query.take ?? 50, 200);
     const skip = query.skip ?? 0;
 
-    const [idRows, total] = await this.prisma.$transaction([
+    const [items, total] = await this.prisma.$transaction([
       this.prisma.generationJob.findMany({
         where,
         orderBy: { createdAt: "desc" },
         skip,
         take,
-        select: { id: true },
+        select: adminJobSelect,
       }),
       this.prisma.generationJob.count({ where }),
     ]);
-
-    if (!idRows.length) {
-      return { items: [], total };
-    }
-
-    const jobs = await this.prisma.generationJob.findMany({
-      where: { id: { in: idRows.map((row) => row.id) } },
-      include,
-    });
-    const jobsById = new Map(jobs.map((job) => [job.id, job]));
-    const items = idRows
-      .map((row) => jobsById.get(row.id))
-      .filter((job): job is (typeof jobs)[number] => Boolean(job));
 
     return { items, total };
   }

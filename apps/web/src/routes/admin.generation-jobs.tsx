@@ -62,6 +62,7 @@ function AdminJobs() {
         query: { ...filters, page, pageSize },
       }),
     placeholderData: keepPreviousData,
+    staleTime: 15_000,
   });
   const modelsQ = useQuery({
     queryKey: ["admin", "ai-models"],
