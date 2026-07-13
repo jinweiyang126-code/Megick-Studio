@@ -52,9 +52,7 @@ flowchart TB
 - `apps/web/src/routes/dashboard.studio.image.tsx`
 - `apps/web/src/routes/-studio-panel.tsx`
 
-侧边栏 `Link` **未设置** `preload="intent"`，悬停不会预加载 chunk，只能点击后再加载。
-
-`apps/web/src/router.tsx` 中 `defaultPreloadStaleTime: 0`，预加载策略偏保守。
+侧边栏 `Link` 已设置 `preload="intent"`；`router.tsx` `defaultPreloadStaleTime: 30_000`。
 
 ---
 
@@ -73,7 +71,7 @@ flowchart TB
 
 | 位置 | 行为 |
 |------|------|
-| `-dashboard-shell.tsx` | 登录后 `chatsQ`，`staleTime: 30000`（**仍全量拉列表，未降级**） |
+| `-dashboard-shell.tsx` | ~~登录后 `chatsQ` 全量拉列表~~ **已移除**；Studio 导航用 localStorage 按 mode 记 sessionId |
 | `-studio-shared.tsx` | 有 localStorage 时**已不再**走 chat list；无记忆 session 时直接 `createNewSession` |
 | `dashboard.chats.tsx` | 对话历史页分页 |
 | `session-media.ts` | 编辑器导入 `fetchAllChatSessions`（最多 10 页） |
@@ -136,8 +134,8 @@ Chrome DevTools：
 |--------|-----|------|------|----------|
 | P0 | 合并 chat list mode hints | **已完成** | batch：`UNION ALL` + 每 session 索引 `LIMIT`（非 `ROW_NUMBER`）；有 job 时跳过 messages batch | `chat-list-mode-hints.ts` |
 | P0 | Studio 跳过列表恢复 | **已完成** | 有 localStorage `sessionId` 时直接 `loadSessionDetail`，不再请求 chat list | `-studio-shared.tsx` |
-| P1 | Shell 降级 `chatsQ` | **未做** | 侧边栏若仅需 `sessionId` 导航，可移除或延迟加载 chat list | `-dashboard-shell.tsx` |
-| P1 | 路由预加载 | **未做** | 侧边栏 `Link` 增加 `preload="intent"`；`defaultPreloadStaleTime` 仍为 0 | `-dashboard-shell.tsx`、`router.tsx` |
+| P1 | Shell 降级 `chatsQ` | **已完成** | Shell 不再请求 `GET /api/chats`；对话历史页自行分页拉取 | `-dashboard-shell.tsx` |
+| P1 | 路由预加载 | **已完成** | 侧边栏 / 通知 / 新建生成 `Link` 增加 `preload="intent"`；`defaultPreloadStaleTime: 30s` | `-dashboard-shell.tsx`、`router.tsx` |
 | P2 | 提高 chats 缓存 | **未做** | 全局与 Shell `chatsQ` 仍为 `staleTime: 30s` | `query-client.ts` / 服务端 |
 | P2 | Studio 路由合并 | **未做** | 图片 / 视频共用 layout 减少 remount（改动面大） | `dashboard.studio.*` |
 
@@ -159,7 +157,7 @@ Chrome DevTools：
 | 1 | 文档评审（本文档） | 完成 | — |
 | 2 | P0：合并 `loadChatListModeHints` SQL | **完成**（batch `PARTITION BY`；P95 待压测） | 0.5d |
 | 3 | P0：Studio 优先 localStorage 恢复 | **完成** | 0.5d |
-| 4 | P1：Shell chatsQ 降级 + Link preload | **未做** | 0.5d |
+| 4 | P1：Shell chatsQ 降级 + Link preload | **完成** | 0.5d |
 | 5 | 压测 / 生产 P95 对比 | **未做** | 0.5d |
 
 ---
@@ -169,7 +167,7 @@ Chrome DevTools：
 | # | 标准 | 状态 |
 |---|------|------|
 | 1 | `GET /api/chats?page=1&pageSize=30`：SQL 次数 ≤ 5，P95 &lt; 200ms | **部分达成**（SQL ≈4～5 次/页；P95 待压测） |
-| 2 | 已登录用户切换侧边栏菜单：二次进入同菜单无明显 chunk 等待（预加载生效） | **未达成**（无 `preload="intent"`） |
+| 2 | 已登录用户切换侧边栏菜单：二次进入同菜单无明显 chunk 等待（预加载生效） | **待验证**（已加 `preload="intent"`） |
 | 3 | Studio 冷启动：有 remembered `sessionId` 时不再请求 chat list，仅 1 次 detail + models | **已达成** |
 | 4 | 用户主观「切菜单卡顿」反馈下降 | **待验证** |
 
@@ -195,3 +193,4 @@ Chrome DevTools：
 | | **效果**：`GET /api/chats` 一页 mode hints 由 31～61 次降为 2～3 次（含 sessions/count 共 ≈4～5 次），§7 验收 #1 SQL 次数达标 |
 | | **待验证**：生产 P95 &lt; 200ms（§6 步骤 5）、1038 回归、§7 #4 用户体感 |
 | 2026-07-13 | **热修**：生产 `GET /api/chats` 仍触发 1038（`ROW_NUMBER` batch）；改回 **UNION ALL + 每 session 索引 LIMIT**（1～2 次往返，无窗口排序，保留 batch 收益） |
+| 2026-07-13 | **P1 实现**：Shell 移除 `chatsQ`（不再首屏拉 chat list）；侧边栏 Link `preload="intent"`；`defaultPreloadStaleTime: 30s` |

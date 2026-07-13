@@ -40,19 +40,16 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuthGate } from "@/hooks/useAuthGate";
 import { apiGet } from "@/lib/api-client";
-import { fetchChatSessions } from "@/lib/chat-sessions";
 import { useVideoGenerationEnabled } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
 import { OnboardingTourProvider } from "@/components/onboarding-tour/OnboardingTourProvider";
 import { useOnboardingTour } from "@/components/onboarding-tour/onboarding-tour.context";
 import {
-  type ChatSession,
   type DashboardOverview,
   type StudioMode,
   readLastStudioSessionId,
   rememberLastStudioSessionId,
-  modeForChatSession,
   studioPathForJob,
   studioSearchForJob,
 } from "./-dashboard-types";
@@ -255,12 +252,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     queryFn: () => apiGet<DashboardOverview>("/api/users/me/overview"),
     enabled: shouldLoadPrivateChrome,
   });
-  const chatsQ = useQuery({
-    queryKey: ["dashboard", "chats", 1, 30],
-    queryFn: () => fetchChatSessions({ page: 1, pageSize: 30 }),
-    enabled: shouldLoadPrivateChrome,
-    staleTime: 30000,
-  });
 
   const notificationsQ = useQuery({
     queryKey: ["dashboard", "notifications"],
@@ -414,13 +405,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     }));
   }, [currentIsOnboardingDemo, currentStudioMode, currentStudioSessionId, userId]);
 
-  const storedSessionForMode = (mode: StudioMode) => {
-    const stored = storedStudioSessionIds[mode];
-    if (!stored) return undefined;
-    const storedChat = chatsQ.data?.items.find((chat) => chat.id === stored);
-    if (storedChat && modeForChatSession(storedChat) !== mode) return undefined;
-    return stored;
-  };
+  const storedSessionForMode = (mode: StudioMode) => storedStudioSessionIds[mode];
   const studioNavSearchFor = (mode: StudioMode) => {
     const sessionId =
       currentStudioMode === mode ? currentStudioSessionId : storedSessionForMode(mode);
@@ -616,6 +601,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                         key={item.value}
                         to={item.to}
                         search={item.studioMode ? studioNavSearchFor(item.studioMode) : undefined}
+                        preload="intent"
                         data-onboarding-target={onboardingNavTargets[item.value]}
                         onClick={() => setSidebarOpen(false)}
                         className={cn(
@@ -652,7 +638,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     effectiveSidebarCollapsed && "lg:px-0",
                   )}
                 >
-                  <Link to="/dashboard/studio/image" search={{ newSession: true }}>
+                  <Link to="/dashboard/studio/image" search={{ newSession: true }} preload="intent">
                     <Wand2 className="h-4 w-4" />
                     <span className={cn(effectiveSidebarCollapsed && "lg:hidden")}>
                       {t("dashboard.newGeneration")}
@@ -792,6 +778,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                                 }
                                 params={job.chatSessionId ? undefined : { jobId: job.id }}
                                 search={studioSearchForJob(job)}
+                                preload="intent"
                                 onClick={() => markNotificationRead(job.id)}
                                 className="px-4 py-3 text-sm transition hover:bg-muted/50"
                               >
