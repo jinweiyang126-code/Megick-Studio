@@ -62,12 +62,12 @@ flowchart TB
 
 为规避 MySQL 1038，列表接口改为：
 
-1. 1 次 `chat_sessions` 分页查询  
-2. 每个会话 1～2 次定点查询（`jobs` take 5；若 jobs 已能判定 mode 则**跳过** messages，否则 `messages` take 8）
+1. 1 次 `chat_sessions` 分页查询（与 `count` 并行）  
+2. **1～2 次 batch SQL**（`loadChatListModeHints`）：`PARTITION BY sessionId` + `ROW_NUMBER()` 批量取 jobs take 5；若 jobs 已能判定 mode 则**跳过** messages batch，否则再 1 条 batch 取 messages take 8
 
 实现：`apps/api/src/modules/chats/chat-list-mode-hints.ts` → `loadChatListModeHints()`。
 
-**一页 30 条会话 ≈ 31～61 次数据库往返**（尚未合并为 batch SQL，§7 验收「≤ 5 次」未达成）。
+**一页 30 条会话 ≈ 3～4 次 mode hints SQL**（含 sessions/count 共 ≈ 4～5 次，§7 验收「≤ 5 次」已达成；P95 待压测）。
 
 调用方：
 
@@ -113,7 +113,7 @@ flowchart TB
 慢主要来自：
 
 - **前端**：懒加载 chunk、多接口瀑布、Studio / 剪辑器大包  
-- **后端**：单次 `GET /api/chats` 的 N+1 SQL（修 1038 的代价）  
+- **后端**：单次 `GET /api/chats` 的 mode hints 已 batch 化（2026-07-13）；Shell 仍可能全量拉 list  
 - **不是**整库容量问题，而是**一切换菜单就要加载新代码 + 打一批 API**
 
 ---
@@ -134,7 +134,7 @@ Chrome DevTools：
 
 | 优先级 | 项 | 状态 | 说明 | 相关代码 |
 |--------|-----|------|------|----------|
-| P0 | 合并 chat list mode hints | **部分完成** | 已按 session 索引 `LIMIT`、有 job 时跳过 messages（避免 1038）；**未**合并为 ≤5 次 batch SQL | `chat-list-mode-hints.ts` |
+| P0 | 合并 chat list mode hints | **已完成** | batch SQL：`PARTITION BY sessionId` + `ROW_NUMBER()`；有 job 时跳过 messages batch | `chat-list-mode-hints.ts` |
 | P0 | Studio 跳过列表恢复 | **已完成** | 有 localStorage `sessionId` 时直接 `loadSessionDetail`，不再请求 chat list | `-studio-shared.tsx` |
 | P1 | Shell 降级 `chatsQ` | **未做** | 侧边栏若仅需 `sessionId` 导航，可移除或延迟加载 chat list | `-dashboard-shell.tsx` |
 | P1 | 路由预加载 | **未做** | 侧边栏 `Link` 增加 `preload="intent"`；`defaultPreloadStaleTime` 仍为 0 | `-dashboard-shell.tsx`、`router.tsx` |
@@ -157,7 +157,7 @@ Chrome DevTools：
 | 步骤 | 内容 | 状态 | 预估 |
 |------|------|------|------|
 | 1 | 文档评审（本文档） | 完成 | — |
-| 2 | P0：合并 `loadChatListModeHints` SQL | **部分完成**（索引 LIMIT；batch 合并未做） | 0.5d |
+| 2 | P0：合并 `loadChatListModeHints` SQL | **完成**（batch `PARTITION BY`；P95 待压测） | 0.5d |
 | 3 | P0：Studio 优先 localStorage 恢复 | **完成** | 0.5d |
 | 4 | P1：Shell chatsQ 降级 + Link preload | **未做** | 0.5d |
 | 5 | 压测 / 生产 P95 对比 | **未做** | 0.5d |
@@ -168,7 +168,7 @@ Chrome DevTools：
 
 | # | 标准 | 状态 |
 |---|------|------|
-| 1 | `GET /api/chats?page=1&pageSize=30`：SQL 次数 ≤ 5，P95 &lt; 200ms | **未达成**（仍约 31～61 次/页） |
+| 1 | `GET /api/chats?page=1&pageSize=30`：SQL 次数 ≤ 5，P95 &lt; 200ms | **部分达成**（SQL ≈4～5 次/页；P95 待压测） |
 | 2 | 已登录用户切换侧边栏菜单：二次进入同菜单无明显 chunk 等待（预加载生效） | **未达成**（无 `preload="intent"`） |
 | 3 | Studio 冷启动：有 remembered `sessionId` 时不再请求 chat list，仅 1 次 detail + models | **已达成** |
 | 4 | 用户主观「切菜单卡顿」反馈下降 | **待验证** |
@@ -191,3 +191,6 @@ Chrome DevTools：
 | | **未做 — 根因层**：子路由 lazy 大包、Shell notifications 轮询、生成历史 jobs 轮询 |
 | | **验收**：仅 #3（Studio 有 remembered session）已达成；#1 #2 未达成；#4 待压测/反馈 |
 | | **关联**：素材中心列表优化见 `a909337`，不属本文 §5 backlog |
+| 2026-07-13 | **P0 实现**：`loadChatListModeHints` 改为 2 条 batch SQL（`generation_jobs` / `chat_messages`，`PARTITION BY sessionId` + `ROW_NUMBER()`）；有 job 类型时跳过 messages batch |
+| | **效果**：`GET /api/chats` 一页 mode hints 由 31～61 次降为 2～3 次（含 sessions/count 共 ≈4～5 次），§7 验收 #1 SQL 次数达标 |
+| | **待验证**：生产 P95 &lt; 200ms（§6 步骤 5）、1038 回归、§7 #4 用户体感 |
