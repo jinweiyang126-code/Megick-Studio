@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Res, Sse } from "@nestjs/common";
 import {
   ApiConsumes,
+  ApiFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -17,7 +18,6 @@ import { CurrentUser, type AuthUserContext } from "@/common/decorators/current-u
 import { JobsService, type CreateJobInput } from "./jobs.service";
 import type { GenerationJobTypeEnum } from "@prisma/client";
 import {
-  ApiFoundResponse,
   ApiOkArrayResponse,
   ApiOkResponseModel,
   ApiSessionCookieAuth,
