@@ -63,18 +63,18 @@ flowchart TB
 为规避 MySQL 1038，列表接口改为：
 
 1. 1 次 `chat_sessions` 分页查询  
-2. 每个会话 2 次定点查询（`jobs` take 5 + `messages` take 8）
+2. 每个会话 1～2 次定点查询（`jobs` take 5；若 jobs 已能判定 mode 则**跳过** messages，否则 `messages` take 8）
 
 实现：`apps/api/src/modules/chats/chat-list-mode-hints.ts` → `loadChatListModeHints()`。
 
-**一页 30 条会话 ≈ 61 次数据库往返。**
+**一页 30 条会话 ≈ 31～61 次数据库往返**（尚未合并为 batch SQL，§7 验收「≤ 5 次」未达成）。
 
 调用方：
 
 | 位置 | 行为 |
 |------|------|
-| `-dashboard-shell.tsx` | 登录后 `chatsQ`，`staleTime: 30000` |
-| `-studio-shared.tsx` | 无 `sessionId` 时 `restoreLastSession` → `fetchQuery` 同一 key |
+| `-dashboard-shell.tsx` | 登录后 `chatsQ`，`staleTime: 30000`（**仍全量拉列表，未降级**） |
+| `-studio-shared.tsx` | 有 localStorage 时**已不再**走 chat list；无记忆 session 时直接 `createNewSession` |
 | `dashboard.chats.tsx` | 对话历史页分页 |
 | `session-media.ts` | 编辑器导入 `fetchAllChatSessions`（最多 10 页） |
 
@@ -86,13 +86,12 @@ flowchart TB
 
 进入图片 / 视频 Studio 且无 URL `sessionId` 时（`-studio-shared.tsx`）：
 
-1. `fetchChatSessions`（可能很慢，见 3.2）  
-2. 找不到 remembered session 时 → `GET /api/chats/:id?limit=1`  
-3. `navigate` 写入 `sessionId`  
-4. `loadSessionDetail` → `GET /api/chats/:id?limit=10`  
-5. 并行 `GET /api/ai-models`（`-studio-panel.tsx`）
+1. ~~`fetchChatSessions`~~ → **已改为** `readLastStudioSessionId(localStorage)`；有记忆则 `navigate(sessionId)` + `loadSessionDetail`  
+2. 无记忆 session 时 → `POST /api/chats` 新建会话（不再扫列表）  
+3. `loadSessionDetail` → `GET /api/chats/:id?limit=10`  
+4. 并行 `GET /api/ai-models`（`-studio-panel.tsx`）
 
-图片 Studio ↔ 视频 Studio 为**不同路由**，切换会卸载 / 重挂载，上述流程可能重复。
+图片 Studio ↔ 视频 Studio 为**不同路由**，切换会卸载 / 重挂载，上述流程（含 models）**仍可能重复**（§5 P2 未做）。
 
 ---
 
@@ -133,35 +132,46 @@ Chrome DevTools：
 
 ## 5. 优化方向（按收益排序）
 
-| 优先级 | 项 | 说明 | 相关代码 |
-|--------|-----|------|----------|
-| P0 | 合并 chat list mode hints | 按 session 索引 `LIMIT`；有 job 类型时跳过 messages（避免 `ROW_NUMBER` 全局排序 1038） | `chat-list-mode-hints.ts` |
-| P0 | Studio 跳过列表恢复 | ~~有 localStorage `sessionId` 时直接 `loadSessionDetail`~~ **已实现** | `-studio-shared.tsx` |
-| P1 | Shell 降级 `chatsQ` | 侧边栏若仅需 `sessionId` 导航，可移除或延迟加载 chat list | `-dashboard-shell.tsx` |
-| P1 | 路由预加载 | 侧边栏 `Link` 增加 `preload="intent"` | `-dashboard-shell.tsx` |
-| P2 | 提高 chats 缓存 | 增大 `staleTime` 或 API 短缓存 | `query-client.ts` / 服务端 |
-| P2 | Studio 路由合并 | 图片 / 视频共用布局减少 remount（改动面大） | `dashboard.studio.*` |
+| 优先级 | 项 | 状态 | 说明 | 相关代码 |
+|--------|-----|------|------|----------|
+| P0 | 合并 chat list mode hints | **部分完成** | 已按 session 索引 `LIMIT`、有 job 时跳过 messages（避免 1038）；**未**合并为 ≤5 次 batch SQL | `chat-list-mode-hints.ts` |
+| P0 | Studio 跳过列表恢复 | **已完成** | 有 localStorage `sessionId` 时直接 `loadSessionDetail`，不再请求 chat list | `-studio-shared.tsx` |
+| P1 | Shell 降级 `chatsQ` | **未做** | 侧边栏若仅需 `sessionId` 导航，可移除或延迟加载 chat list | `-dashboard-shell.tsx` |
+| P1 | 路由预加载 | **未做** | 侧边栏 `Link` 增加 `preload="intent"`；`defaultPreloadStaleTime` 仍为 0 | `-dashboard-shell.tsx`、`router.tsx` |
+| P2 | 提高 chats 缓存 | **未做** | 全局与 Shell `chatsQ` 仍为 `staleTime: 30s` | `query-client.ts` / 服务端 |
+| P2 | Studio 路由合并 | **未做** | 图片 / 视频共用 layout 减少 remount（改动面大） | `dashboard.studio.*` |
+
+### 5.1 根因层面尚未专项优化（§5 未单列）
+
+| 问题 | 状态 | 说明 |
+|------|------|------|
+| 子路由 lazy 大包（Studio / History / MegickCut） | 未做 | 首进菜单仍需下载 chunk |
+| Shell `notificationsQ` 轮询 | 未做 | queued/running 时约 10s 间隔 |
+| 生成历史页 jobs 轮询 | 未做 | 有进行中任务时约 3s（进历史页才明显） |
+| 素材中心列表性能 | **另项已做** | 见 commit `a909337` 与 [图片视频加载链路与优化方案](./图片视频加载链路与优化方案.md)，非本文 §5 条目 |
 
 ---
 
 ## 6. 实施顺序建议
 
-| 步骤 | 内容 | 预估 |
-|------|------|------|
-| 1 | 文档评审（本文档） | — |
-| 2 | P0：合并 `loadChatListModeHints` SQL | 0.5d |
-| 3 | P0：Studio 优先 localStorage 恢复 | 0.5d |
-| 4 | P1：Shell chatsQ 降级 + Link preload | 0.5d |
-| 5 | 压测 / 生产 P95 对比 | 0.5d |
+| 步骤 | 内容 | 状态 | 预估 |
+|------|------|------|------|
+| 1 | 文档评审（本文档） | 完成 | — |
+| 2 | P0：合并 `loadChatListModeHints` SQL | **部分完成**（索引 LIMIT；batch 合并未做） | 0.5d |
+| 3 | P0：Studio 优先 localStorage 恢复 | **完成** | 0.5d |
+| 4 | P1：Shell chatsQ 降级 + Link preload | **未做** | 0.5d |
+| 5 | 压测 / 生产 P95 对比 | **未做** | 0.5d |
 
 ---
 
 ## 7. 验收标准
 
-1. `GET /api/chats?page=1&pageSize=30`：SQL 次数 ≤ 5，P95 &lt; 200ms（视生产环境调整）。  
-2. 已登录用户切换侧边栏菜单：二次进入同菜单无明显 chunk 等待（预加载生效）。  
-3. Studio 冷启动：有 remembered `sessionId` 时不再请求 chat list，仅 1 次 detail + models。  
-4. 用户主观「切菜单卡顿」反馈下降。
+| # | 标准 | 状态 |
+|---|------|------|
+| 1 | `GET /api/chats?page=1&pageSize=30`：SQL 次数 ≤ 5，P95 &lt; 200ms | **未达成**（仍约 31～61 次/页） |
+| 2 | 已登录用户切换侧边栏菜单：二次进入同菜单无明显 chunk 等待（预加载生效） | **未达成**（无 `preload="intent"`） |
+| 3 | Studio 冷启动：有 remembered `sessionId` 时不再请求 chat list，仅 1 次 detail + models | **已达成** |
+| 4 | 用户主观「切菜单卡顿」反馈下降 | **待验证** |
 
 ---
 
@@ -170,4 +180,14 @@ Chrome DevTools：
 | 日期 | 说明 |
 |------|------|
 | 2026-07-06 | 初稿：侧边栏切换慢根因、与 chat list N+1 关联、优化 backlog |
-| 2026-07-06 | 实现 P0：按 session 索引 LIMIT 加载 mode hints；Studio 跳过列表恢复 |
+| 2026-07-06 | 实现 P0（部分）：`loadChatListModeHints` 按 session 索引 LIMIT、有 job 时跳过 messages；Studio 优先 localStorage 恢复 |
+| 2026-07-13 | **实施状态同步（代码审查 `main@9b9b11c`）** |
+| | **已完成**：P0 Studio 跳过 chat list 恢复（`-studio-shared.tsx` `readLastStudioSessionId` → `loadSessionDetail`）；P0 mode hints 1038 规避（逐 session LIMIT，非 batch） |
+| | **部分完成**：P0 合并 mode hints SQL（验收「≤5 次/页」未达成，仍约 31～61 次） |
+| | **未做 — P1**：Shell `chatsQ` 全量 `GET /api/chats?page=1&pageSize=30` 未降级或延迟 |
+| | **未做 — P1**：侧边栏 `Link` 无 `preload="intent"`；`router.tsx` `defaultPreloadStaleTime: 0` |
+| | **未做 — P2**：chats `staleTime` 未提高（全局与 Shell 仍为 30s） |
+| | **未做 — P2**：图片 / 视频 Studio 分路由，互切仍 remount + 重复 detail/models |
+| | **未做 — 根因层**：子路由 lazy 大包、Shell notifications 轮询、生成历史 jobs 轮询 |
+| | **验收**：仅 #3（Studio 有 remembered session）已达成；#1 #2 未达成；#4 待压测/反馈 |
+| | **关联**：素材中心列表优化见 `a909337`，不属本文 §5 backlog |
