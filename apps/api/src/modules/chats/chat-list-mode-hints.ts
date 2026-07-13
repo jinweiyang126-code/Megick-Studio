@@ -66,49 +66,51 @@ function groupMessagesBySession(sessionIds: string[], rows: MessageRow[]) {
   return map;
 }
 
+/** One round trip; each branch uses (sessionId, createdAt) index LIMIT — no window sort. */
+function unionPerSessionLimit(
+  sessionIds: string[],
+  build: (sessionId: string) => Prisma.Sql,
+) {
+  return Prisma.join(
+    sessionIds.map((sessionId) => Prisma.sql`(${build(sessionId)})`),
+    " UNION ALL ",
+  );
+}
+
 async function loadRecentJobsBySession(
   prisma: PrismaClient,
   sessionIds: string[],
 ) {
-  return prisma.$queryRaw<JobRow[]>(Prisma.sql`
-    SELECT id, chatSessionId, type, createdAt
-    FROM (
-      SELECT
-        id,
-        chatSessionId,
-        type,
-        createdAt,
-        ROW_NUMBER() OVER (
-          PARTITION BY chatSessionId ORDER BY createdAt DESC
-        ) AS rn
+  return prisma.$queryRaw<JobRow[]>(
+    unionPerSessionLimit(sessionIds, (sessionId) => Prisma.sql`
+      SELECT id, chatSessionId, type, createdAt
       FROM generation_jobs
-      WHERE chatSessionId IN (${Prisma.join(sessionIds)})
-    ) ranked
-    WHERE rn <= ${CHAT_LIST_MODE_JOB_TAKE}
-  `);
+      WHERE chatSessionId = ${sessionId}
+      ORDER BY createdAt DESC
+      LIMIT ${CHAT_LIST_MODE_JOB_TAKE}
+    `),
+  );
 }
 
 async function loadRecentMessagesBySession(
   prisma: PrismaClient,
   sessionIds: string[],
 ) {
-  return prisma.$queryRaw<MessageRow[]>(Prisma.sql`
-    SELECT sessionId, metadata
-    FROM (
-      SELECT
-        sessionId,
-        metadata,
-        ROW_NUMBER() OVER (
-          PARTITION BY sessionId ORDER BY createdAt DESC
-        ) AS rn
+  return prisma.$queryRaw<MessageRow[]>(
+    unionPerSessionLimit(sessionIds, (sessionId) => Prisma.sql`
+      SELECT sessionId, metadata
       FROM chat_messages
-      WHERE sessionId IN (${Prisma.join(sessionIds)})
-    ) ranked
-    WHERE rn <= ${CHAT_LIST_MODE_MESSAGE_TAKE}
-  `);
+      WHERE sessionId = ${sessionId}
+      ORDER BY createdAt DESC
+      LIMIT ${CHAT_LIST_MODE_MESSAGE_TAKE}
+    `),
+  );
 }
 
-/** Batch indexed LIMIT queries — PARTITION BY session, safe for heavy sessions. */
+/**
+ * Batch mode hints in 1–2 SQL round trips.
+ * Uses UNION ALL of per-session indexed LIMIT (not ROW_NUMBER) to avoid MySQL 1038.
+ */
 export async function loadChatListModeHints(
   prisma: PrismaClient,
   sessionIds: string[],

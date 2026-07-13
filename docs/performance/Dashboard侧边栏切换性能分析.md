@@ -63,7 +63,7 @@ flowchart TB
 为规避 MySQL 1038，列表接口改为：
 
 1. 1 次 `chat_sessions` 分页查询（与 `count` 并行）  
-2. **1～2 次 batch SQL**（`loadChatListModeHints`）：`PARTITION BY sessionId` + `ROW_NUMBER()` 批量取 jobs take 5；若 jobs 已能判定 mode 则**跳过** messages batch，否则再 1 条 batch 取 messages take 8
+2. **1～2 次 batch SQL**（`loadChatListModeHints`）：`UNION ALL` 合并各 session 的索引 `LIMIT` 子查询（**不用** `ROW_NUMBER`，避免 1038）；有 job 类型时跳过 messages batch
 
 实现：`apps/api/src/modules/chats/chat-list-mode-hints.ts` → `loadChatListModeHints()`。
 
@@ -134,7 +134,7 @@ Chrome DevTools：
 
 | 优先级 | 项 | 状态 | 说明 | 相关代码 |
 |--------|-----|------|------|----------|
-| P0 | 合并 chat list mode hints | **已完成** | batch SQL：`PARTITION BY sessionId` + `ROW_NUMBER()`；有 job 时跳过 messages batch | `chat-list-mode-hints.ts` |
+| P0 | 合并 chat list mode hints | **已完成** | batch：`UNION ALL` + 每 session 索引 `LIMIT`（非 `ROW_NUMBER`）；有 job 时跳过 messages batch | `chat-list-mode-hints.ts` |
 | P0 | Studio 跳过列表恢复 | **已完成** | 有 localStorage `sessionId` 时直接 `loadSessionDetail`，不再请求 chat list | `-studio-shared.tsx` |
 | P1 | Shell 降级 `chatsQ` | **未做** | 侧边栏若仅需 `sessionId` 导航，可移除或延迟加载 chat list | `-dashboard-shell.tsx` |
 | P1 | 路由预加载 | **未做** | 侧边栏 `Link` 增加 `preload="intent"`；`defaultPreloadStaleTime` 仍为 0 | `-dashboard-shell.tsx`、`router.tsx` |
@@ -194,3 +194,4 @@ Chrome DevTools：
 | 2026-07-13 | **P0 实现**：`loadChatListModeHints` 改为 2 条 batch SQL（`generation_jobs` / `chat_messages`，`PARTITION BY sessionId` + `ROW_NUMBER()`）；有 job 类型时跳过 messages batch |
 | | **效果**：`GET /api/chats` 一页 mode hints 由 31～61 次降为 2～3 次（含 sessions/count 共 ≈4～5 次），§7 验收 #1 SQL 次数达标 |
 | | **待验证**：生产 P95 &lt; 200ms（§6 步骤 5）、1038 回归、§7 #4 用户体感 |
+| 2026-07-13 | **热修**：生产 `GET /api/chats` 仍触发 1038（`ROW_NUMBER` batch）；改回 **UNION ALL + 每 session 索引 LIMIT**（1～2 次往返，无窗口排序，保留 batch 收益） |
