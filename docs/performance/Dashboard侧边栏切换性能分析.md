@@ -52,7 +52,7 @@ flowchart TB
 - `apps/web/src/routes/dashboard.studio.image.tsx`
 - `apps/web/src/routes/-studio-panel.tsx`
 
-侧边栏 `Link` 已设置 `preload="intent"`；`router.tsx` `defaultPreloadStaleTime: 30_000`。
+侧边栏 `Link` 曾设置 `preload="intent"`（2026-07-13 因 TanStack 预加载竞态已移除）；`router.tsx` `defaultPreloadStaleTime: 30_000` 仍保留。
 
 ---
 
@@ -135,7 +135,7 @@ Chrome DevTools：
 | P0 | 合并 chat list mode hints | **已完成** | batch：`UNION ALL` + 每 session 索引 `LIMIT`（非 `ROW_NUMBER`）；有 job 时跳过 messages batch | `chat-list-mode-hints.ts` |
 | P0 | Studio 跳过列表恢复 | **已完成** | 有 localStorage `sessionId` 时直接 `loadSessionDetail`，不再请求 chat list | `-studio-shared.tsx` |
 | P1 | Shell 降级 `chatsQ` | **已完成** | Shell 不再请求 `GET /api/chats`；对话历史页自行分页拉取 | `-dashboard-shell.tsx` |
-| P1 | 路由预加载 | **已完成** | 侧边栏 / 通知 / 新建生成 `Link` 增加 `preload="intent"`；`defaultPreloadStaleTime: 30s` | `-dashboard-shell.tsx`、`router.tsx` |
+| P1 | 路由预加载 | **部分完成** | `defaultPreloadStaleTime: 30s`；`preload="intent"` 已移除（router 竞态） | `router.tsx` |
 | P2 | 提高 chats 缓存 | **未做** | 全局与 Shell `chatsQ` 仍为 `staleTime: 30s` | `query-client.ts` / 服务端 |
 | P2 | Studio 路由合并 | **未做** | 图片 / 视频共用 layout 减少 remount（改动面大） | `dashboard.studio.*` |
 
@@ -193,4 +193,5 @@ Chrome DevTools：
 | | **效果**：`GET /api/chats` 一页 mode hints 由 31～61 次降为 2～3 次（含 sessions/count 共 ≈4～5 次），§7 验收 #1 SQL 次数达标 |
 | | **待验证**：生产 P95 &lt; 200ms（§6 步骤 5）、1038 回归、§7 #4 用户体感 |
 | 2026-07-13 | **热修**：生产 `GET /api/chats` 仍触发 1038（`ROW_NUMBER` batch）；改回 **UNION ALL + 每 session 索引 LIMIT**（1～2 次往返，无窗口排序，保留 batch 收益） |
-| 2026-07-13 | **P1 实现**：Shell 移除 `chatsQ`（不再首屏拉 chat list）；侧边栏 Link `preload="intent"`；`defaultPreloadStaleTime: 30s` |
+| 2026-07-13 | **P1 实现**：Shell 移除 `chatsQ`（不再首屏拉 chat list）；`defaultPreloadStaleTime: 30s` |
+| 2026-07-13 | **P1 调整**：移除侧边栏 `preload="intent"`（TanStack Router 预加载竞态会在控制台抛 `_nonReactive` 错误；待升级 router 后再恢复） |
