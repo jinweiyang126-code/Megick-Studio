@@ -17,6 +17,7 @@ import { CurrentUser, type AuthUserContext } from "@/common/decorators/current-u
 import { JobsService, type CreateJobInput } from "./jobs.service";
 import type { GenerationJobTypeEnum } from "@prisma/client";
 import {
+  ApiFoundResponse,
   ApiOkArrayResponse,
   ApiOkResponseModel,
   ApiSessionCookieAuth,
@@ -24,6 +25,7 @@ import {
   GenerationJobPublicDto,
   MutationCountDto,
   documentedOperation,
+  redirectLocationHeader,
 } from "@/common/swagger/api-docs";
 
 class CreateJobDto {
@@ -258,7 +260,7 @@ export class JobsController {
   @ApiOperation(
     documentedOperation(
       "List my recent generation jobs",
-      "Returns a lightweight summary for each generation job. Output URLs point at the Megick API proxy endpoints; use GET /api/generation/jobs/{id} for full signed URLs and complete params.",
+      "Returns a lightweight summary for each generation job. Output URLs use API proxy paths that redirect to signed OSS. Use GET /api/generation/jobs/{id} for signed delivery URLs in detail responses.",
     ),
   )
   @ApiOkArrayResponse(
@@ -291,27 +293,27 @@ export class JobsController {
   })
   @ApiOperation(
     documentedOperation(
-      "Stream one generated image through the API origin",
-      "Streams a generated image from Megick OSS after verifying ownership. Free users receive the OSS object through the Megick watermark style.",
+      "Redirect to generated image on OSS",
+      "Verifies ownership, then redirects to a short-lived signed OSS URL. Free users receive the watermarked OSS object.",
     ),
   )
-  @ApiOkResponseModel(
-    BinaryGenerationOutputDto,
-    "Generated image bytes returned successfully.",
-  )
+  @ApiFoundResponse({
+    description: "Redirects to a signed OSS delivery URL.",
+    headers: {
+      Location: redirectLocationHeader,
+    },
+  })
   async providerOutputContent(
     @Param("mediaId") mediaId: string,
     @Query("variant") variant: string | undefined,
     @CurrentUser() user: AuthUserContext,
     @Res() res: Response,
   ) {
-    const asset = await this.jobs.getProviderOutputContent(mediaId, user.id, {
+    const url = await this.jobs.getProviderOutputRedirectUrl(mediaId, user.id, {
       variant: variant === "thumbnail" ? "thumbnail" : undefined,
     });
-    res.setHeader("Content-Type", asset.contentType);
-    res.setHeader("Content-Length", String(asset.content.length));
-    res.setHeader("Cache-Control", "private, max-age=3600");
-    res.send(asset.content);
+    res.setHeader("Cache-Control", "private, max-age=300");
+    res.redirect(302, url);
   }
 
   @Get(":id")
@@ -367,14 +369,16 @@ export class JobsController {
   })
   @ApiOperation(
     documentedOperation(
-      "Stream one generation output through the API origin",
-      "Streams one generated output through the API origin after verifying job ownership. This is useful for clients that cannot access signed OSS URLs directly.",
+      "Redirect to one generation output on OSS",
+      "Verifies job ownership, then redirects to a short-lived signed OSS URL so the browser loads media directly from OSS/CDN.",
     ),
   )
-  @ApiOkResponseModel(
-    BinaryGenerationOutputDto,
-    "Generated asset bytes returned successfully.",
-  )
+  @ApiFoundResponse({
+    description: "Redirects to a signed OSS delivery URL.",
+    headers: {
+      Location: redirectLocationHeader,
+    },
+  })
   async outputContent(
     @Param("id") id: string,
     @Param("index") index: string,
@@ -382,13 +386,11 @@ export class JobsController {
     @CurrentUser() user: AuthUserContext,
     @Res() res: Response,
   ) {
-    const asset = await this.jobs.getOutputContent(user.id, id, Number(index), {
+    const url = await this.jobs.getOutputRedirectUrl(user.id, id, Number(index), {
       variant: variant === "thumbnail" ? "thumbnail" : undefined,
     });
-    res.setHeader("Content-Type", asset.contentType);
-    res.setHeader("Content-Length", String(asset.content.length));
-    res.setHeader("Cache-Control", "private, max-age=3600");
-    res.send(asset.content);
+    res.setHeader("Cache-Control", "private, max-age=300");
+    res.redirect(302, url);
   }
 
   @Sse(":id/stream")

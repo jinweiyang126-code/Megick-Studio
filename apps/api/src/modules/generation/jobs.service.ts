@@ -1323,6 +1323,63 @@ export class JobsService {
     return this.outputMedia.getOutputContent(mediaId, userId, input);
   }
 
+  async getOutputRedirectUrl(
+    userId: string,
+    jobId: string,
+    outputIndex: number,
+    input: { variant?: "thumbnail" } = {},
+  ) {
+    if (!Number.isInteger(outputIndex) || outputIndex < 0) {
+      throw new BadRequestException("INVALID_OUTPUT_INDEX");
+    }
+
+    const job = await this.prisma.generationJob.findFirst({
+      where: { id: jobId, userId },
+      select: {
+        type: true,
+        outputAssetIds: true,
+      },
+    });
+    if (!job) throw new NotFoundException();
+
+    const assetIds = (job.outputAssetIds as string[] | null) ?? [];
+    const assets = assetIds.length
+      ? await this.prisma.ossAsset.findMany({ where: { id: { in: assetIds } } })
+      : ([] as OssAsset[]);
+    const ordered = orderedAssets(assetIds, assets);
+    if (outputIndex >= ordered.length) throw new NotFoundException();
+
+    const asset = ordered[outputIndex];
+    if (!asset) throw new NotFoundException();
+
+    if (job.type === "TEXT2IMAGE" || job.type === "IMAGE_EDIT") {
+      return this.outputMedia.getOutputRedirectUrl(
+        await this.outputMedia.ensureForAsset({
+          userId,
+          jobId,
+          outputIndex,
+          assetId: asset.id,
+        }),
+        userId,
+        input,
+      );
+    }
+
+    const url = await this.oss.signAuthorizedGet(asset.key, { id: userId }, 3600);
+    if (!url) {
+      throw new BadGatewayException("REFERENCE_MEDIA_PUBLIC_URL_UNAVAILABLE");
+    }
+    return url;
+  }
+
+  async getProviderOutputRedirectUrl(
+    mediaId: string,
+    userId: string,
+    input: { variant?: "thumbnail" } = {},
+  ) {
+    return this.outputMedia.getOutputRedirectUrl(mediaId, userId, input);
+  }
+
   private async fetchExternalOutputContent(
     url: string,
     type: GenerationJobTypeEnum,

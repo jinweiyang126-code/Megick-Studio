@@ -373,19 +373,13 @@ export class Text2ImageProcessor extends WorkerHost {
           this.logger.warn(
             `Generated image download failed for job ${dbJob.id}: ${(downloadErr as Error).message}`,
           );
-          if (it.requireOssPersistence) {
-            throw downloadErr;
-          }
-          continue;
+          throw downloadErr;
         }
         rememberProviderUrl(materialized.url ?? providerUrl);
         if (!materialized.bytes) {
-          if (it.requireOssPersistence) {
-            throw new Error(
-              "Provider output could not be materialized for OSS persistence",
-            );
-          }
-          continue;
+          throw new Error(
+            "Provider output could not be materialized for OSS persistence",
+          );
         }
         try {
           const { asset } = await this.oss.putBuffer(
@@ -410,8 +404,7 @@ export class Text2ImageProcessor extends WorkerHost {
           this.logger.error(
             `OSS upload failed for text2image job ${dbJob.id}: ${(uploadErr as Error).message}`,
           );
-          if (it.requireOssPersistence) throw uploadErr;
-          if (!providerUrl) throw uploadErr;
+          throw uploadErr;
         }
       }
 

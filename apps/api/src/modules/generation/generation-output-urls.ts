@@ -47,7 +47,7 @@ export function listGenerationOutputCount(
   return Math.max(assetIds.length, providerUrls.length);
 }
 
-/** Lightweight list rows use API proxy URLs instead of signed OSS/provider links. */
+/** List rows use API proxy paths that 302 to signed OSS (auth + CDN offload). */
 export function buildListGenerationOutputItems(
   jobId: string,
   type: string,

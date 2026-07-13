@@ -191,19 +191,13 @@ export class Image2VideoProcessor {
           this.logger.warn(
             `Generated video download failed for job ${dbJob.id}: ${(downloadErr as Error).message}`,
           );
-          if (it.requireOssPersistence) {
-            throw downloadErr;
-          }
-          continue;
+          throw downloadErr;
         }
         rememberProviderUrl(materialized.url ?? providerUrl);
         if (!materialized.bytes) {
-          if (it.requireOssPersistence) {
-            throw new Error(
-              "Provider output could not be materialized for OSS persistence",
-            );
-          }
-          continue;
+          throw new Error(
+            "Provider output could not be materialized for OSS persistence",
+          );
         }
         try {
           const { asset } = await this.oss.putBuffer(
@@ -221,12 +215,11 @@ export class Image2VideoProcessor {
           this.logger.error(
             `OSS upload failed for image2video job ${dbJob.id}: ${(uploadErr as Error).message}`,
           );
-          if (it.requireOssPersistence) throw uploadErr;
-          if (!providerUrl) throw uploadErr;
+          throw uploadErr;
         }
       }
 
-      if (!assetIds.length && !providerOutputUrls.length) {
+      if (!assetIds.length) {
         throw new Error("Provider returned no downloadable video outputs");
       }
 

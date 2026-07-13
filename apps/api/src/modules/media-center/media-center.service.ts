@@ -15,6 +15,10 @@ const MEDIA_CENTER_LIST_SELECT = {
   kind: true,
   status: true,
   requiresWatermark: true,
+  signedUrl: true,
+  signedUrlExpiresAt: true,
+  watermarkedUrl: true,
+  watermarkedUrlExpiresAt: true,
   prompt: true,
   createdAt: true,
   source: true,
@@ -60,6 +64,14 @@ function sourceToApiSource(source: MediaCenterSourceEnum) {
 
 function statusToApiStatus(status: MediaCenterStatusEnum) {
   return status.toLowerCase();
+}
+
+function pickCachedDeliveryUrl(
+  url: string | null | undefined,
+  expiresAt: Date | null | undefined,
+) {
+  if (!url || !expiresAt) return null;
+  return expiresAt.getTime() > Date.now() + 60_000 ? url : null;
 }
 
 @Injectable()
@@ -148,15 +160,24 @@ export class MediaCenterService {
     const kind = dbKindToApiKind(item.kind);
     if (!kind) return null;
     const shouldHideOriginal = item.requiresWatermark && !hasAdvancedAccess;
-    const src = mediaOutputProxyUrl(item.id);
-    const thumbnailUrl = kind === "image" ? mediaOutputProxyUrl(item.id, "thumbnail") : null;
+    const cachedSigned = pickCachedDeliveryUrl(item.signedUrl, item.signedUrlExpiresAt);
+    const cachedWatermarked = pickCachedDeliveryUrl(
+      item.watermarkedUrl,
+      item.watermarkedUrlExpiresAt,
+    );
+    const deliveryUrl =
+      shouldHideOriginal && cachedWatermarked
+        ? cachedWatermarked
+        : cachedSigned ?? mediaOutputProxyUrl(item.id);
+    const thumbnailUrl =
+      kind === "image" ? mediaOutputProxyUrl(item.id, "thumbnail") : null;
 
     return {
       id: item.id,
       kind,
       status: statusToApiStatus(item.status),
-      src,
-      downloadUrl: mediaOutputProxyUrl(item.id),
+      src: deliveryUrl,
+      downloadUrl: deliveryUrl,
       thumbnailUrl,
       ossThumbnailUrl: thumbnailUrl,
       prompt: item.prompt ?? "",

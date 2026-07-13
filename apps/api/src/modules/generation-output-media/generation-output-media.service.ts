@@ -101,7 +101,13 @@ export class GenerationOutputMediaService {
       return { url: input.assetUrl, mediaId };
     }
     if (input.hasAdvancedAccess) return { url: input.assetUrl, mediaId };
-    return { url: mediaOutputProxyUrl(mediaId), mediaId };
+    const watermarkedUrl = await this.oss.signGet(input.asset.key, 24 * 3600, {
+      process: FREE_IMAGE_WATERMARK_PROCESS,
+    });
+    return {
+      url: watermarkedUrl ?? mediaOutputProxyUrl(mediaId),
+      mediaId,
+    };
   }
 
   async getOutputContent(
@@ -166,6 +172,71 @@ export class GenerationOutputMediaService {
     }
 
     throw new NotFoundException("REFERENCE_MEDIA_NOT_FOUND");
+  }
+
+  /** Resolve a browser-facing delivery URL (signed OSS / CDN). Used by API 302 redirects. */
+  async getOutputRedirectUrl(
+    mediaId: string,
+    userId: string,
+    input: { variant?: "thumbnail" } = {},
+  ) {
+    const item = await this.prisma.mediaCenterItem.findFirst({
+      where: { id: mediaId, userId },
+    });
+    if (!item) throw new NotFoundException("REFERENCE_MEDIA_NOT_FOUND");
+
+    const pickCached = (
+      url: string | null | undefined,
+      expiresAt: Date | null | undefined,
+    ) => {
+      if (!url || !expiresAt) return null;
+      return expiresAt.getTime() > Date.now() + 60_000 ? url : null;
+    };
+
+    if (input.variant === "thumbnail" && item.kind === "IMAGE") {
+      const url = await this.oss.signAuthorizedGet(
+        item.ossKey,
+        { id: userId },
+        3600,
+        { process: GENERATED_IMAGE_THUMBNAIL_PROCESS },
+      );
+      if (!url) {
+        throw new BadGatewayException("REFERENCE_MEDIA_PUBLIC_URL_UNAVAILABLE");
+      }
+      return url;
+    }
+
+    const hasAdvancedAccess = await this.advancedAccess.hasAdvancedAccess(userId);
+    if (item.requiresWatermark && !hasAdvancedAccess) {
+      const cached = pickCached(item.watermarkedUrl, item.watermarkedUrlExpiresAt);
+      if (cached) return cached;
+      const process = item.watermarkProcess ?? FREE_IMAGE_WATERMARK_PROCESS;
+      let url = await this.oss.signAuthorizedGet(item.ossKey, { id: userId }, 3600, {
+        process,
+      });
+      if (!url) {
+        throw new BadGatewayException("REFERENCE_MEDIA_PUBLIC_URL_UNAVAILABLE");
+      }
+      const expiresAt = new Date(Date.now() + 3600 * 1000);
+      await this.prisma.mediaCenterItem.update({
+        where: { id: item.id },
+        data: { watermarkedUrl: url, watermarkedUrlExpiresAt: expiresAt },
+      });
+      return url;
+    }
+
+    const cached = pickCached(item.signedUrl, item.signedUrlExpiresAt);
+    if (cached) return cached;
+    const url = await this.oss.signAuthorizedGet(item.ossKey, { id: userId }, 3600);
+    if (!url) {
+      throw new BadGatewayException("REFERENCE_MEDIA_PUBLIC_URL_UNAVAILABLE");
+    }
+    const expiresAt = new Date(Date.now() + 3600 * 1000);
+    await this.prisma.mediaCenterItem.update({
+      where: { id: item.id },
+      data: { signedUrl: url, signedUrlExpiresAt: expiresAt },
+    });
+    return url;
   }
 
   private isOssImageStyleUnavailable(error: unknown) {
