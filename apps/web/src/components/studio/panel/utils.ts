@@ -466,6 +466,7 @@ function isRedirectContentProxyUrl(src: string) {
 
 /** Prefer API streaming proxies over 302 redirect endpoints for canvas pixel access. */
 export function canvasImageCandidates(item: StudioResult) {
+  const jobOutputs = jobOutputContentCandidates(item);
   const proxied = dedupeUrls([
     assetContentUrl(item.src),
     assetContentUrl(item.fallbackSrc),
@@ -473,17 +474,20 @@ export function canvasImageCandidates(item: StudioResult) {
   ]);
   const refs = referenceCandidates(item);
   const redirectProxies = refs.filter(
-    (url) => isRedirectContentProxyUrl(url) && !proxied.includes(url),
+    (url) => isRedirectContentProxyUrl(url) && !proxied.includes(url) && !jobOutputs.includes(url),
   );
-  const external = refs.filter((url) => isExternalHttpUrl(url) && !proxied.includes(url));
+  const external = refs.filter(
+    (url) => isExternalHttpUrl(url) && !proxied.includes(url) && !jobOutputs.includes(url),
+  );
   const sameOrigin = refs.filter(
     (url) =>
       !isExternalHttpUrl(url) &&
       !proxied.includes(url) &&
+      !jobOutputs.includes(url) &&
       !isStreamingAssetProxyUrl(url) &&
       !isRedirectContentProxyUrl(url),
   );
-  return dedupeUrls([...proxied, ...sameOrigin, ...redirectProxies, ...external]);
+  return dedupeUrls([...jobOutputs, ...proxied, ...sameOrigin, ...redirectProxies, ...external]);
 }
 
 export async function loadCanvasImageFromCandidates(candidates: string[]): Promise<HTMLImageElement> {
@@ -738,26 +742,54 @@ export function signUrlForAssetKey(key: string) {
   return `/api/oss/sign?key=${encodeURIComponent(key)}`;
 }
 
-function signUrlFromMediaSrc(src: string | undefined) {
+function ossAssetKeyFromMediaSrc(src: string | undefined) {
+  if (!src?.trim()) return null;
   const content = assetContentUrl(src);
-  if (!content) return null;
+  if (content) {
+    try {
+      const origin = typeof window !== "undefined" ? window.location.origin : "http://local";
+      return new URL(content, origin).searchParams.get("key");
+    } catch {
+      return null;
+    }
+  }
   try {
     const origin = typeof window !== "undefined" ? window.location.origin : "http://local";
-    const key = new URL(content, origin).searchParams.get("key");
-    return key ? signUrlForAssetKey(key) : null;
+    const url = new URL(src, origin);
+    if (url.pathname === "/api/oss/sign" || url.pathname === "/api/oss/assets/content") {
+      return url.searchParams.get("key");
+    }
   } catch {
     return null;
   }
+  return null;
+}
+
+/** Job output keys are blocked on GET /api/oss/sign for free-tier generated images. */
+function isProtectedGenerationOutputKey(key: string) {
+  if (!key.startsWith("generations/")) return false;
+  if (key.startsWith("generations/references/")) return false;
+  const parts = key.split("/").filter(Boolean);
+  return parts.length >= 4 && parts[0] === "generations";
+}
+
+function signUrlFromMediaSrc(src: string | undefined) {
+  const key = ossAssetKeyFromMediaSrc(src);
+  if (!key || isProtectedGenerationOutputKey(key)) return null;
+  return signUrlForAssetKey(key);
 }
 
 function isInstantVideoHandoffSrc(src: string) {
   if (!src?.trim() || src.startsWith("data:")) return false;
   if (isLikelyUpstreamProviderUrl(src)) return false;
-  if (signUrlFromMediaSrc(src)) return true;
+  if (isExternalHttpUrl(src)) return true;
   try {
     const origin = typeof window !== "undefined" ? window.location.origin : "http://local";
     const url = new URL(src, origin);
-    if (url.pathname === "/api/oss/sign" && url.searchParams.get("key")) return true;
+    if (url.pathname === "/api/oss/sign") {
+      const key = url.searchParams.get("key");
+      return Boolean(key && !isProtectedGenerationOutputKey(key));
+    }
     if (url.origin === origin) {
       return /\/api\/generation\/jobs\/[^/]+\/(?:output\/\d+|provider-output\/[^/]+)\/content$/.test(
         url.pathname,
@@ -771,21 +803,37 @@ function isInstantVideoHandoffSrc(src: string) {
 
 /** Resolve a video handoff reference without blocking on download+re-upload when OSS/API URL exists. */
 export function resolveVideoHandoffReference(item: StudioResult) {
-  const candidates = dedupeUrls([
-    item.src,
-    item.sourceSrc,
-    item.fallbackSrc,
-    signUrlFromMediaSrc(item.src),
-    signUrlFromMediaSrc(item.sourceSrc),
-    signUrlFromMediaSrc(item.fallbackSrc),
-    ...jobOutputContentCandidates(item),
-    providerOutputContentUrl(item),
-  ]);
+  const jobOutputs = jobOutputContentCandidates(item);
+  if (jobOutputs[0]) {
+    return { src: jobOutputs[0], ready: true as const };
+  }
 
-  for (const candidate of candidates) {
+  const provider = providerOutputContentUrl(item);
+  if (provider) {
+    return { src: provider, ready: true as const };
+  }
+
+  for (const candidate of dedupeUrls([item.src, item.sourceSrc, item.fallbackSrc])) {
+    if (!candidate?.trim() || candidate.startsWith("data:")) continue;
+    if (isLikelyUpstreamProviderUrl(candidate)) continue;
+
+    if (isExternalHttpUrl(candidate)) {
+      return { src: candidate, ready: true as const };
+    }
+
+    if (
+      candidate.startsWith("/api/generation/jobs/") &&
+      candidate.includes("/content")
+    ) {
+      return { src: candidate, ready: true as const };
+    }
+
     const sign = signUrlFromMediaSrc(candidate);
     if (sign) return { src: sign, ready: true as const };
-    if (isInstantVideoHandoffSrc(candidate)) return { src: candidate, ready: true as const };
+
+    if (isInstantVideoHandoffSrc(candidate)) {
+      return { src: candidate, ready: true as const };
+    }
   }
 
   const referenceResult: StudioHandoffReferenceSnapshot = {
