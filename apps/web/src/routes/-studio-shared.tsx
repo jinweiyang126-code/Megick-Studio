@@ -2196,10 +2196,71 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
   }, []);
 
   const appendMergedVideoToSession = useCallback(
-    async (_blob: Blob, _sourceVideos: StudioResult[]) => {
-      // Video merge handled at the panel level
+    async (blob: Blob, sourceVideos: StudioResult[]) => {
+      const sessionId = activeSessionIdRef.current;
+      if (!sessionId) {
+        throw new Error(t("studio.mergeVideos.saveFailed"));
+      }
+
+      const content = t("studio.mergeVideos.resultPrompt", {
+        count: sourceVideos.length,
+      });
+      const form = new FormData();
+      form.set("content", content);
+      form.set(
+        "metadata",
+        JSON.stringify({
+          status: "done",
+          merged: true,
+          label: t("studio.mergeVideos.label"),
+          sourceResultIds: sourceVideos.map((video) => video.id),
+        }),
+      );
+      const extension = mediaExtension(blob, { kind: "video" } as StudioResult);
+      form.set("file", blob, `megick-merged-${Date.now()}.${extension}`);
+
+      const saved = await api<StudioEditedResultPublic>(
+        `/api/chats/${encodeURIComponent(sessionId)}/media-results`,
+        {
+          method: "POST",
+          body: form,
+          headers: { Accept: "application/json" },
+        },
+      );
+
+      const newResult: StudioResult = {
+        id: saved.id,
+        src: saved.src,
+        kind: "video",
+        prompt: saved.prompt || content,
+        messageId: saved.messageId,
+        chatSessionId: sessionId,
+        createdAt: saved.createdAt ?? Date.now(),
+      };
+
+      addResult([newResult]);
+      if (saved.messageId) {
+        const assistantMessage: StudioMessage = {
+          id: saved.messageId,
+          role: "assistant",
+          text: content,
+          status: "done",
+          results: [newResult],
+          settings: defaultStudioSettings({ mode: "video" }),
+          metadata: {
+            status: "done",
+            merged: true,
+            label: t("studio.mergeVideos.label"),
+            sourceResultIds: sourceVideos.map((video) => video.id),
+          },
+          createdAt: saved.createdAt ?? Date.now(),
+        };
+        nextMessageScrollBehaviorRef.current = "smooth";
+        setMessages((prev) => [...prev, assistantMessage]);
+      }
+      refreshStudioQueries();
     },
-    [],
+    [refreshStudioQueries, t],
   );
 
   return {
