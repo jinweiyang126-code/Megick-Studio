@@ -195,3 +195,4 @@ Chrome DevTools：
 | 2026-07-13 | **热修**：生产 `GET /api/chats` 仍触发 1038（`ROW_NUMBER` batch）；改回 **UNION ALL + 每 session 索引 LIMIT**（1～2 次往返，无窗口排序，保留 batch 收益） |
 | 2026-07-13 | **P1 实现**：Shell 移除 `chatsQ`（不再首屏拉 chat list）；`defaultPreloadStaleTime: 30s` |
 | 2026-07-13 | **P1 调整**：移除侧边栏 `preload="intent"`（TanStack Router 预加载竞态会在控制台抛 `_nonReactive` 错误；待升级 router 后再恢复） |
+| 2026-07-13 | **关联文档**：[图片 Studio → 视频 Studio 跳转性能分析](./图片工作室跳转视频工作室性能分析.md) — P0 已实现「OSS 图直接 handoff、先跳转再后台 upload」 |

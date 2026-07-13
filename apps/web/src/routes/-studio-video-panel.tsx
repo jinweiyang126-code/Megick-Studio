@@ -29,6 +29,7 @@ import {
   normalizeVideoDraft,
   normalizeVideoMode,
   readImageDimensions,
+  readStudioHandoff,
   referenceBoundsForModel,
   referenceKindFromFile,
   referenceMediaTypeFor,
@@ -745,15 +746,7 @@ export function VideoStudioPanel({
   }, [searchPrompt]);
 
   useEffect(() => {
-    const handoff = handoffId
-      ? (() => {
-          const raw =
-            typeof window !== "undefined"
-              ? window.sessionStorage.getItem(`megick-handoff:${handoffId}`)
-              : null;
-          return raw ? JSON.parse(raw) : null;
-        })()
-      : null;
+    const handoff = handoffId ? readStudioHandoff(handoffId) : null;
     const direct = sourceImage?.trim()
       ? { src: sourceImage, name: sourceImageName, prompt: undefined }
       : null;
@@ -819,6 +812,29 @@ export function VideoStudioPanel({
       style: "none",
       videoInputMode: incomingMode,
     });
+
+    if (handoff?.pendingReferenceUpload && handoff.referenceResult) {
+      const snapshot = handoff.referenceResult;
+      const provisionalSrc = handoff.src ?? snapshot.src;
+      void (async () => {
+        try {
+          const src = await referenceSrcFromResult({
+            ...snapshot,
+            prompt: "",
+          });
+          updateVideoDraft(incomingMode, (draft) => ({
+            ...draft,
+            refs: draft.refs.map((ref) =>
+              ref.src === provisionalSrc ? { ...ref, src } : ref,
+            ),
+          }));
+        } catch (err) {
+          toast.error(t("studio.referenceFileReadFailed"), {
+            description: err instanceof Error ? err.message : undefined,
+          });
+        }
+      })();
+    }
   }, [
     handoffId,
     searchVideoInputMode,

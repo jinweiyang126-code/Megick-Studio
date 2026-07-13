@@ -25,6 +25,7 @@ import {
 import type {
   ConcreteVideoInputMode,
   StudioHandoff,
+  StudioHandoffReferenceSnapshot,
   StudioMediaReference,
   StudioReferenceKind,
   StudioVideoMediaType,
@@ -425,6 +426,132 @@ export function loadBrowserImage(src: string) {
   });
 }
 
+function isInlineImageSrc(src: string) {
+  return src.startsWith("data:") || src.startsWith("blob:");
+}
+
+function isExternalHttpUrl(src: string) {
+  if (isInlineImageSrc(src)) return false;
+  if (typeof window === "undefined") return /^https?:\/\//i.test(src);
+  try {
+    const url = new URL(src, window.location.origin);
+    return url.origin !== window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
+function isStreamingAssetProxyUrl(src: string) {
+  if (typeof window === "undefined") return false;
+  try {
+    const url = new URL(src, window.location.origin);
+    return url.pathname === "/api/oss/assets/content";
+  } catch {
+    return false;
+  }
+}
+
+function isRedirectContentProxyUrl(src: string) {
+  if (typeof window === "undefined") return false;
+  try {
+    const url = new URL(src, window.location.origin);
+    if (url.origin !== window.location.origin) return false;
+    return /\/api\/generation\/jobs\/[^/]+\/(?:output\/\d+|provider-output\/[^/]+)\/content$/i.test(
+      url.pathname,
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Prefer API streaming proxies over 302 redirect endpoints for canvas pixel access. */
+export function canvasImageCandidates(item: StudioResult) {
+  const proxied = dedupeUrls([
+    assetContentUrl(item.src),
+    assetContentUrl(item.fallbackSrc),
+    assetContentUrl(item.sourceSrc),
+  ]);
+  const refs = referenceCandidates(item);
+  const redirectProxies = refs.filter(
+    (url) => isRedirectContentProxyUrl(url) && !proxied.includes(url),
+  );
+  const external = refs.filter((url) => isExternalHttpUrl(url) && !proxied.includes(url));
+  const sameOrigin = refs.filter(
+    (url) =>
+      !isExternalHttpUrl(url) &&
+      !proxied.includes(url) &&
+      !isStreamingAssetProxyUrl(url) &&
+      !isRedirectContentProxyUrl(url),
+  );
+  return dedupeUrls([...proxied, ...sameOrigin, ...redirectProxies, ...external]);
+}
+
+export async function loadCanvasImageFromCandidates(candidates: string[]): Promise<HTMLImageElement> {
+  const urls = dedupeUrls(candidates);
+  let lastError: unknown;
+
+  for (const candidate of urls) {
+    if (isInlineImageSrc(candidate)) {
+      try {
+        return await loadBrowserImage(candidate);
+      } catch (err) {
+        lastError = err;
+        continue;
+      }
+    }
+
+    if (!isExternalHttpUrl(candidate)) {
+      try {
+        const blob = await fetchBlobFromUrl(candidate);
+        const objectUrl = URL.createObjectURL(blob);
+        try {
+          return await loadBrowserImage(objectUrl);
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+        }
+      } catch (err) {
+        lastError = err;
+      }
+      continue;
+    }
+
+    try {
+      const blob = await fetchBlobFromUrl(candidate);
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        return await loadBrowserImage(objectUrl);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Image failed to load");
+}
+
+/** Load an image for canvas drawing — fetches same-origin API URLs with cookies instead of crossOrigin. */
+export async function loadCanvasImage(
+  src: string,
+  fallbackSrc?: string,
+  extraCandidates?: string[],
+): Promise<HTMLImageElement> {
+  return loadCanvasImageFromCandidates(
+    dedupeUrls([
+      ...(extraCandidates ?? []),
+      assetContentUrl(src),
+      src,
+      assetContentUrl(fallbackSrc),
+      fallbackSrc,
+    ]),
+  );
+}
+
+export async function loadCanvasImageForResult(item: StudioResult) {
+  return loadCanvasImageFromCandidates(canvasImageCandidates(item));
+}
+
 export function templateReferenceUrls(template: PromptTemplatePublic, limit: number) {
   const urls = [...template.referenceUrls];
   if (
@@ -605,6 +732,73 @@ export function downloadCandidates(item: StudioResult) {
     ...safeDirect,
     ...providerDirect,
   ]);
+}
+
+export function signUrlForAssetKey(key: string) {
+  return `/api/oss/sign?key=${encodeURIComponent(key)}`;
+}
+
+function signUrlFromMediaSrc(src: string | undefined) {
+  const content = assetContentUrl(src);
+  if (!content) return null;
+  try {
+    const origin = typeof window !== "undefined" ? window.location.origin : "http://local";
+    const key = new URL(content, origin).searchParams.get("key");
+    return key ? signUrlForAssetKey(key) : null;
+  } catch {
+    return null;
+  }
+}
+
+function isInstantVideoHandoffSrc(src: string) {
+  if (!src?.trim() || src.startsWith("data:")) return false;
+  if (isLikelyUpstreamProviderUrl(src)) return false;
+  if (signUrlFromMediaSrc(src)) return true;
+  try {
+    const origin = typeof window !== "undefined" ? window.location.origin : "http://local";
+    const url = new URL(src, origin);
+    if (url.pathname === "/api/oss/sign" && url.searchParams.get("key")) return true;
+    if (url.origin === origin) {
+      return /\/api\/generation\/jobs\/[^/]+\/(?:output\/\d+|provider-output\/[^/]+)\/content$/.test(
+        url.pathname,
+      );
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+/** Resolve a video handoff reference without blocking on download+re-upload when OSS/API URL exists. */
+export function resolveVideoHandoffReference(item: StudioResult) {
+  const candidates = dedupeUrls([
+    item.src,
+    item.sourceSrc,
+    item.fallbackSrc,
+    signUrlFromMediaSrc(item.src),
+    signUrlFromMediaSrc(item.sourceSrc),
+    signUrlFromMediaSrc(item.fallbackSrc),
+    ...jobOutputContentCandidates(item),
+    providerOutputContentUrl(item),
+  ]);
+
+  for (const candidate of candidates) {
+    const sign = signUrlFromMediaSrc(candidate);
+    if (sign) return { src: sign, ready: true as const };
+    if (isInstantVideoHandoffSrc(candidate)) return { src: candidate, ready: true as const };
+  }
+
+  const referenceResult: StudioHandoffReferenceSnapshot = {
+    id: item.id,
+    src: item.src,
+    fallbackSrc: item.fallbackSrc,
+    sourceSrc: item.sourceSrc,
+    jobId: item.jobId,
+    outputIndex: item.outputIndex,
+    mediaId: item.mediaId,
+    kind: item.kind,
+  };
+  return { src: item.src, ready: false as const, referenceResult };
 }
 
 export function mediaExtension(blob: Blob, item: StudioResult) {

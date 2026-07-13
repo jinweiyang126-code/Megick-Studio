@@ -70,6 +70,7 @@ import {
   settingsPatchFromGenerationJob,
   handoffReferenceName,
   refsFromGenerationJobParams,
+  resolveVideoHandoffReference,
   templateReferenceUrls,
   writeStudioHandoff,
 } from "@/components/studio/panel/utils";
@@ -663,22 +664,17 @@ export function ImageStudioPanel({
     }
     if (embedded) return;
 
-    let src = result.src;
-    try {
-      src = await referenceSrcFromResult(result);
-    } catch (err) {
-      toast.error(t("studio.referenceFileReadFailed"), {
-        description: err instanceof Error ? err.message : undefined,
-      });
-      return;
-    }
-
+    const handoffReference = resolveVideoHandoffReference(result);
     const handoffId = writeStudioHandoff({
-      src,
+      src: handoffReference.src,
       name: t("studio.videoReference"),
       prompt: prompt.trim() || result.prompt,
       videoInputMode,
+      pendingReferenceUpload: !handoffReference.ready,
+      referenceResult: handoffReference.ready ? undefined : handoffReference.referenceResult,
     });
+    const searchSourceImage =
+      handoffReference.src.length <= 1024 ? handoffReference.src : undefined;
     navigate({
       to: studioPathForMode("video"),
       search: {
@@ -686,7 +682,7 @@ export function ImageStudioPanel({
         prompt: prompt.trim() || result.prompt,
         videoInputMode,
         handoffId: handoffId ?? undefined,
-        sourceImage: src,
+        sourceImage: searchSourceImage,
         sourceImageName: t("studio.videoReference"),
       },
     });

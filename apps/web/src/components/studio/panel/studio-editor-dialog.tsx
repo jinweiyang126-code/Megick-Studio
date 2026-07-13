@@ -1,5 +1,6 @@
 import { Edit3 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { canvasImageCandidates } from "@/components/studio/panel/utils";
 import { StudioCanvas } from "@/components/studio/StudioCanvas";
 import type { StudioEditTarget } from "./types";
 
@@ -30,7 +31,8 @@ export function StudioEditorDialog({
             <StudioCanvas
               key={target.result.id}
               src={target.result.src}
-              fallbackSrc={target.result.fallbackSrc}
+              fallbackSrc={target.result.fallbackSrc ?? target.result.sourceSrc}
+              loadCandidates={canvasImageCandidates(target.result)}
               onSave={onSave}
               onClose={() => onOpenChange(false)}
               saving={saving}

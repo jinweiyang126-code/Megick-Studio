@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 import { localizedImageEditModeName } from "@/lib/studio-i18n";
+import { canvasImageCandidates } from "@/components/studio/panel/utils";
 import { ImageMaskEditor } from "@/components/studio/ImageMaskEditor";
 import type { StudioEditTarget } from "@/components/studio/panel/types";
 
@@ -131,7 +132,10 @@ export function AiImageEditDialog({
   const requiresMask = mode.requiresMask || mode.defaultParams.maskRequired === true;
   const promptField = fields.find((field) => field.name === "prompt");
   const extraFields = fields.filter((field) => field.name !== "prompt");
-  const source = state.target.result.sourceSrc ?? state.target.result.src;
+  const source = state.target.result.src;
+  const sourceFallback =
+    state.target.result.sourceSrc ?? state.target.result.fallbackSrc;
+  const imageLoadCandidates = canvasImageCandidates(state.target.result);
   const Icon = modeIcon(mode.code);
   const promptRequired = mode.defaultParams.promptRequired === true || promptField?.required === true;
   const modeLabel = localizedImageEditModeName(mode, t);
@@ -184,7 +188,13 @@ export function AiImageEditDialog({
 
               <div className="rounded-[1.5rem] border border-border/70 bg-muted/35 p-2 shadow-inner">
                 {requiresMask ? (
-                  <ImageMaskEditor src={source} onMaskChange={setMaskImage} variant="dark" />
+                  <ImageMaskEditor
+                    src={source}
+                    fallbackSrc={sourceFallback}
+                    loadCandidates={imageLoadCandidates}
+                    onMaskChange={setMaskImage}
+                    variant="dark"
+                  />
                 ) : (
                   <div className="relative overflow-hidden rounded-[1.15rem] bg-black">
                     <img

@@ -49,10 +49,18 @@ export type StudioResultActionPayload = {
 
 export type StudioResultAction = (payload: StudioResultActionPayload) => void | Promise<void>;
 
+export type StudioHandoffReferenceSnapshot = Pick<
+  StudioResult,
+  "id" | "src" | "fallbackSrc" | "sourceSrc" | "jobId" | "outputIndex" | "mediaId" | "kind"
+>;
+
 export type StudioHandoff = {
   src?: string;
   name?: string;
   refs?: Array<{ src: string; name?: string }>;
   prompt?: string;
   videoInputMode?: ConcreteVideoInputMode;
+  /** When true, video studio resolves `referenceResult` in the background after navigation. */
+  pendingReferenceUpload?: boolean;
+  referenceResult?: StudioHandoffReferenceSnapshot;
 };

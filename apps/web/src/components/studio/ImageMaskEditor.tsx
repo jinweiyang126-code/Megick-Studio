@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { loadCanvasImageFromCandidates } from "@/components/studio/panel/utils";
 import { useI18n } from "@/lib/i18n";
 
 type SourceImageSize = { width: number; height: number };
@@ -31,10 +33,14 @@ function exportMask(canvas: HTMLCanvasElement, sourceSize: SourceImageSize | nul
 
 export function ImageMaskEditor({
   src,
+  fallbackSrc,
+  loadCandidates,
   onMaskChange,
   variant = "default",
 }: {
   src: string;
+  fallbackSrc?: string;
+  loadCandidates?: string[];
   onMaskChange: (dataUrl: string | null) => void;
   variant?: "default" | "dark";
 }) {
@@ -44,38 +50,47 @@ export function ImageMaskEditor({
   const sourceSizeRef = useRef<SourceImageSize | null>(null);
   const drawingRef = useRef(false);
   const [brushSize, setBrushSize] = useState(36);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let canceled = false;
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => {
-      if (canceled) return;
-      const imageCanvas = imageCanvasRef.current;
-      const maskCanvas = maskCanvasRef.current;
-      if (!imageCanvas || !maskCanvas) return;
-      const { width, height } = sourceSizeFromImage(image);
-      if (!width || !height) return;
-      sourceSizeRef.current = { width, height };
-      for (const canvas of [imageCanvas, maskCanvas]) {
-        canvas.width = width;
-        canvas.height = height;
-        canvas.style.aspectRatio = `${width} / ${height}`;
+    setLoading(true);
+    void (async () => {
+      try {
+        const image = await loadCanvasImageFromCandidates(
+          loadCandidates?.length
+            ? loadCandidates
+            : [src, fallbackSrc].filter((value): value is string => Boolean(value)),
+        );
+        if (canceled) return;
+        const imageCanvas = imageCanvasRef.current;
+        const maskCanvas = maskCanvasRef.current;
+        if (!imageCanvas || !maskCanvas) return;
+        const { width, height } = sourceSizeFromImage(image);
+        if (!width || !height) return;
+        sourceSizeRef.current = { width, height };
+        for (const canvas of [imageCanvas, maskCanvas]) {
+          canvas.width = width;
+          canvas.height = height;
+          canvas.style.aspectRatio = `${width} / ${height}`;
+        }
+        const imageCtx = imageCanvas.getContext("2d");
+        const maskCtx = maskCanvas.getContext("2d");
+        if (!imageCtx || !maskCtx) return;
+        imageCtx.clearRect(0, 0, width, height);
+        imageCtx.drawImage(image, 0, 0, width, height);
+        maskCtx.fillStyle = "#000000";
+        maskCtx.fillRect(0, 0, width, height);
+        onMaskChange(null);
+        setLoading(false);
+      } catch {
+        if (!canceled) setLoading(false);
       }
-      const imageCtx = imageCanvas.getContext("2d");
-      const maskCtx = maskCanvas.getContext("2d");
-      if (!imageCtx || !maskCtx) return;
-      imageCtx.clearRect(0, 0, width, height);
-      imageCtx.drawImage(image, 0, 0, width, height);
-      maskCtx.fillStyle = "#000000";
-      maskCtx.fillRect(0, 0, width, height);
-      onMaskChange(null);
-    };
-    image.src = src;
+    })();
     return () => {
       canceled = true;
     };
-  }, [onMaskChange, src]);
+  }, [fallbackSrc, loadCandidates, onMaskChange, src]);
 
   const drawAt = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawingRef.current) return;
@@ -113,11 +128,11 @@ export function ImageMaskEditor({
       >
         <canvas
           ref={imageCanvasRef}
-          className="block max-h-[68vh] w-full object-contain lg:max-h-[72vh]"
+          className={`block max-h-[68vh] w-full object-contain lg:max-h-[72vh] ${loading ? "opacity-30" : "opacity-100"}`}
         />
         <canvas
           ref={maskCanvasRef}
-          className="absolute inset-0 h-full w-full cursor-crosshair opacity-45 mix-blend-screen"
+          className={`absolute inset-0 h-full w-full cursor-crosshair opacity-45 mix-blend-screen ${loading ? "pointer-events-none" : ""}`}
           onPointerDown={(event) => {
             drawingRef.current = true;
             event.currentTarget.setPointerCapture(event.pointerId);
@@ -132,6 +147,14 @@ export function ImageMaskEditor({
             drawingRef.current = false;
           }}
         />
+        {loading ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/35 backdrop-blur-sm">
+            <div className="flex items-center gap-2 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-xs text-white/75">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {t("studio.loadingImage")}
+            </div>
+          </div>
+        ) : null}
       </div>
       <div
         className={

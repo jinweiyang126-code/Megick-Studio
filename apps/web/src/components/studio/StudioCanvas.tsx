@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
+import { loadCanvasImage, loadCanvasImageFromCandidates } from "@/components/studio/panel/utils";
 import { filterLabelKey, useI18n } from "@/lib/i18n";
 
 type Point = { x: number; y: number };
@@ -378,34 +379,36 @@ function resizeCropRect(
   };
 }
 
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = (e) => reject(e);
-    img.src = src;
-  });
+async function loadImageWithFallback(
+  src: string,
+  fallbackSrc?: string,
+  loadCandidates?: string[],
+) {
+  const img = isInlineImageSrc(src)
+    ? await loadCanvasImage(src)
+    : await loadCanvasImageFromCandidates(
+        loadCandidates?.length
+          ? loadCandidates
+          : [src, fallbackSrc].filter((value): value is string => Boolean(value)),
+      );
+  return { img, src };
 }
 
-async function loadImageWithFallback(src: string, fallbackSrc?: string) {
-  const sources = [
-    ...new Set([src, fallbackSrc].filter((value): value is string => Boolean(value))),
-  ];
-  let lastError: unknown;
-  for (const source of sources) {
-    try {
-      return { img: await loadImage(source), src: source };
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  throw lastError;
+function isInlineImageSrc(src: string) {
+  return src.startsWith("data:") || src.startsWith("blob:");
+}
+
+async function loadCanvasImageForEditing(src: string, loadCandidates?: string[]) {
+  if (isInlineImageSrc(src)) return loadCanvasImage(src);
+  return loadCanvasImageFromCandidates(
+    loadCandidates?.length ? loadCandidates : [src].filter(Boolean),
+  );
 }
 
 export type StudioCanvasProps = {
   src: string;
   fallbackSrc?: string;
+  loadCandidates?: string[];
   onSave?: (blob: Blob) => void | Promise<void>;
   onClose?: () => void;
   saving?: boolean;
@@ -414,6 +417,7 @@ export type StudioCanvasProps = {
 export function StudioCanvas({
   src,
   fallbackSrc,
+  loadCandidates,
   onSave,
   onClose,
   saving = false,
@@ -421,6 +425,8 @@ export function StudioCanvas({
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const loadCandidatesRef = useRef(loadCandidates);
+  loadCandidatesRef.current = loadCandidates;
 
   const [baseSrc, setBaseSrc] = useState(src);
   const [filterSourceSrc, setFilterSourceSrc] = useState(src);
@@ -475,6 +481,7 @@ export function StudioCanvas({
         const loaded = await loadImageWithFallback(
           baseSrc,
           baseSrc === src ? fallbackSrc : undefined,
+          baseSrc === src ? loadCandidatesRef.current : undefined,
         );
         if (cancelled) return;
         const { img } = loaded;
@@ -521,7 +528,7 @@ export function StudioCanvas({
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       try {
-        const img = await loadImage(baseSrc);
+        const img = await loadCanvasImageForEditing(baseSrc, loadCandidatesRef.current);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.filter = "none";
         ctx.imageSmoothingEnabled = true;
@@ -905,7 +912,7 @@ export function StudioCanvas({
       setBaseSrc(filterSourceSrc);
       return;
     }
-    const img = await loadImage(filterSourceSrc);
+    const img = await loadCanvasImageForEditing(filterSourceSrc, loadCandidatesRef.current);
     const c = document.createElement("canvas");
     c.width = img.naturalWidth;
     c.height = img.naturalHeight;
@@ -924,7 +931,7 @@ export function StudioCanvas({
     }
     const flat = await flatten({ restoreCropOverlay: false });
     if (!flat) return;
-    const img = await loadImage(flat);
+    const img = await loadCanvasImage(flat);
     const c = document.createElement("canvas");
     c.width = Math.round(cropRect.w);
     c.height = Math.round(cropRect.h);
