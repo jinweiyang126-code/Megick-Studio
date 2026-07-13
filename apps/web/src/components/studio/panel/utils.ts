@@ -510,6 +510,42 @@ export function jobOutputContentUrl(item: StudioResult, variant?: "thumbnail") {
   return variant ? `${base}?variant=${variant}` : base;
 }
 
+function jobOutputContentCandidates(item: StudioResult, variant?: "thumbnail") {
+  const urls: string[] = [];
+  const primary = jobOutputContentUrl(item, variant);
+  if (primary) urls.push(primary);
+  if (
+    item.jobId &&
+    typeof item.outputIndex === "number" &&
+    item.outputIndex > 0
+  ) {
+    const atZero = jobOutputContentUrl({ ...item, outputIndex: 0 }, variant);
+    if (atZero && !urls.includes(atZero)) urls.push(atZero);
+  }
+  return urls;
+}
+
+function isLikelyUpstreamProviderUrl(src: string) {
+  if (!src.trim()) return false;
+  try {
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "https://local";
+    const url = new URL(src, origin);
+    if (typeof window !== "undefined" && url.origin === window.location.origin) {
+      return false;
+    }
+    return /(?:volces|volcengine|dashscope|ark-acc)/i.test(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function dedupeUrls(urls: Array<string | null | undefined>) {
+  return urls.filter(
+    (src, index, items): src is string => Boolean(src) && items.indexOf(src) === index,
+  );
+}
+
 export function providerOutputContentUrl(item: StudioResult, variant?: "thumbnail") {
   if (!item.mediaId) return null;
   const base = `/api/generation/jobs/provider-output/${encodeURIComponent(item.mediaId)}/content`;
@@ -534,29 +570,41 @@ export async function fetchBlobFromUrl(src: string) {
 }
 
 export function referenceCandidates(item: StudioResult) {
-  return [
-    jobOutputContentUrl(item),
-    providerOutputContentUrl(item),
+  const direct = [
     assetContentUrl(item.src),
     item.src,
     assetContentUrl(item.fallbackSrc),
     item.fallbackSrc,
     assetContentUrl(item.sourceSrc),
     item.sourceSrc,
-  ].filter((src, index, items): src is string => Boolean(src) && items.indexOf(src) === index);
+  ];
+  const safeDirect = direct.filter((src) => src && !isLikelyUpstreamProviderUrl(src));
+  const providerDirect = direct.filter((src) => src && isLikelyUpstreamProviderUrl(src));
+  return dedupeUrls([
+    ...jobOutputContentCandidates(item),
+    providerOutputContentUrl(item),
+    ...safeDirect,
+    ...providerDirect,
+  ]);
 }
 
 export function downloadCandidates(item: StudioResult) {
-  return [
-    jobOutputContentUrl(item),
-    providerOutputContentUrl(item),
+  const direct = [
     assetContentUrl(item.src),
     item.src,
     assetContentUrl(item.fallbackSrc),
     item.fallbackSrc,
     assetContentUrl(item.sourceSrc),
     item.sourceSrc,
-  ].filter((src, index, items): src is string => Boolean(src) && items.indexOf(src) === index);
+  ];
+  const safeDirect = direct.filter((src) => src && !isLikelyUpstreamProviderUrl(src));
+  const providerDirect = direct.filter((src) => src && isLikelyUpstreamProviderUrl(src));
+  return dedupeUrls([
+    ...jobOutputContentCandidates(item),
+    providerOutputContentUrl(item),
+    ...safeDirect,
+    ...providerDirect,
+  ]);
 }
 
 export function mediaExtension(blob: Blob, item: StudioResult) {

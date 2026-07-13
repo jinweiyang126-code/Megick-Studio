@@ -318,6 +318,14 @@ function orderedAssets(assetIds: string[], assets: OssAsset[]) {
     .filter((asset): asset is OssAsset => Boolean(asset));
 }
 
+/** Preserve outputAssetIds index positions; missing rows stay undefined. */
+function orderedAssetSlots(assetIds: string[], assets: OssAsset[]) {
+  const byId = new Map(assets.map((asset) => [asset.id, asset]));
+  return assetIds
+    .filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+    .map((id) => byId.get(id));
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -1277,11 +1285,11 @@ export class JobsService {
     const assets = assetIds.length
       ? await this.prisma.ossAsset.findMany({ where: { id: { in: assetIds } } })
       : ([] as OssAsset[]);
-    const ordered = orderedAssets(assetIds, assets);
-    const count = Math.max(ordered.length, providerOutputUrls.length);
+    const slots = orderedAssetSlots(assetIds, assets);
+    const count = Math.max(slots.length, providerOutputUrls.length);
     if (outputIndex >= count) throw new NotFoundException();
 
-    const asset = ordered[outputIndex];
+    const asset = slots[outputIndex];
     if (asset) {
       if (job.type === "TEXT2IMAGE" || job.type === "IMAGE_EDIT") {
         return this.outputMedia.getOutputContent(
@@ -1349,11 +1357,11 @@ export class JobsService {
     const assets = assetIds.length
       ? await this.prisma.ossAsset.findMany({ where: { id: { in: assetIds } } })
       : ([] as OssAsset[]);
-    const ordered = orderedAssets(assetIds, assets);
-    const count = Math.max(ordered.length, providerOutputUrls.length);
+    const slots = orderedAssetSlots(assetIds, assets);
+    const count = Math.max(slots.length, providerOutputUrls.length);
     if (outputIndex >= count) throw new NotFoundException();
 
-    const asset = ordered[outputIndex];
+    const asset = slots[outputIndex];
     if (!asset) {
       if (input.variant === "thumbnail") throw new NotFoundException();
       if (job.type === "TEXT2IMAGE" || job.type === "IMAGE_EDIT") {

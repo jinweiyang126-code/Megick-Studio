@@ -793,8 +793,6 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
             kind: mode,
             prompt: promptText,
             chatSessionId: job.chatSessionId ?? undefined,
-            jobId: job.id,
-            outputIndex: index,
           }),
         );
       const seen = new Set<string>();
