@@ -196,7 +196,7 @@ export class OssService {
     ) {
       throw new ForbiddenException();
     }
-    await this.assertDirectAssetAccessAllowed(asset.id, user);
+    await this.assertDirectAssetAccessAllowed(asset.id, user, opts);
     return this.signGet(key, expiresSeconds, opts);
   }
 
