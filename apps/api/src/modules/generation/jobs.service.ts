@@ -1323,12 +1323,13 @@ export class JobsService {
     return this.outputMedia.getOutputContent(mediaId, userId, input);
   }
 
+  /** Signed OSS URL when persisted; null when the slot only has a provider URL (caller should stream). */
   async getOutputRedirectUrl(
     userId: string,
     jobId: string,
     outputIndex: number,
     input: { variant?: "thumbnail" } = {},
-  ) {
+  ): Promise<string | null> {
     if (!Number.isInteger(outputIndex) || outputIndex < 0) {
       throw new BadRequestException("INVALID_OUTPUT_INDEX");
     }
@@ -1338,19 +1339,28 @@ export class JobsService {
       select: {
         type: true,
         outputAssetIds: true,
+        providerOutputUrls: true,
       },
     });
     if (!job) throw new NotFoundException();
 
     const assetIds = (job.outputAssetIds as string[] | null) ?? [];
+    const providerOutputUrls = stringArray(job.providerOutputUrls);
     const assets = assetIds.length
       ? await this.prisma.ossAsset.findMany({ where: { id: { in: assetIds } } })
       : ([] as OssAsset[]);
     const ordered = orderedAssets(assetIds, assets);
-    if (outputIndex >= ordered.length) throw new NotFoundException();
+    const count = Math.max(ordered.length, providerOutputUrls.length);
+    if (outputIndex >= count) throw new NotFoundException();
 
     const asset = ordered[outputIndex];
-    if (!asset) throw new NotFoundException();
+    if (!asset) {
+      if (input.variant === "thumbnail") throw new NotFoundException();
+      if (job.type === "TEXT2IMAGE" || job.type === "IMAGE_EDIT") {
+        throw new NotFoundException();
+      }
+      return null;
+    }
 
     if (job.type === "TEXT2IMAGE" || job.type === "IMAGE_EDIT") {
       return this.outputMedia.getOutputRedirectUrl(

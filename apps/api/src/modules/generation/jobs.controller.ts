@@ -386,11 +386,25 @@ export class JobsController {
     @CurrentUser() user: AuthUserContext,
     @Res() res: Response,
   ) {
-    const url = await this.jobs.getOutputRedirectUrl(user.id, id, Number(index), {
-      variant: variant === "thumbnail" ? "thumbnail" : undefined,
+    const variantOpt = variant === "thumbnail" ? "thumbnail" as const : undefined;
+    const redirectUrl = await this.jobs.getOutputRedirectUrl(
+      user.id,
+      id,
+      Number(index),
+      { variant: variantOpt },
+    );
+    if (redirectUrl) {
+      res.setHeader("Cache-Control", "private, max-age=300");
+      res.redirect(302, redirectUrl);
+      return;
+    }
+    const asset = await this.jobs.getOutputContent(user.id, id, Number(index), {
+      variant: variantOpt,
     });
-    res.setHeader("Cache-Control", "private, max-age=300");
-    res.redirect(302, url);
+    res.setHeader("Content-Type", asset.contentType);
+    res.setHeader("Content-Length", String(asset.content.length));
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.send(asset.content);
   }
 
   @Sse(":id/stream")
