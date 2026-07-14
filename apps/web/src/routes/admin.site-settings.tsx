@@ -583,38 +583,62 @@ function AdminSiteSettings() {
         </div>
       </div>
 
-      <div className="glass space-y-3 rounded-2xl p-5">
-        <div className="grid gap-3 md:grid-cols-3">
-          <Input
-            placeholder={t("page.siteSettings.keyPlaceholder")}
-            value={draft.key}
-            onChange={(e) => setDraft({ ...draft, key: e.target.value })}
-          />
-          <Input
-            placeholder={t("page.siteSettings.scopePlaceholder")}
-            value={draft.scope}
-            onChange={(e) => setDraft({ ...draft, scope: e.target.value })}
-          />
-          <div />
+      <div className="glass space-y-4 rounded-2xl p-5">
+        <div>
+          <h2 className="text-lg font-semibold">{t("page.siteSettings.rawSettingsTitle")}</h2>
+          <p className="text-sm text-muted-foreground">
+            {t("page.siteSettings.rawSettingsDescription")}
+          </p>
         </div>
-        <Textarea
-          placeholder={t("page.siteSettings.valuePlaceholder")}
-          rows={3}
-          value={draft.value}
-          onChange={(e) => setDraft({ ...draft, value: e.target.value })}
-        />
-        <div className="flex justify-end">
-          <Button onClick={() => upsert.mutate()}>{t("common.save")}</Button>
+        <div className="rounded-xl border border-border bg-background/40 p-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="site-setting-key">{t("common.key")}</Label>
+              <Input
+                id="site-setting-key"
+                className="bg-background"
+                placeholder={t("page.siteSettings.keyPlaceholder")}
+                value={draft.key}
+                onChange={(e) => setDraft({ ...draft, key: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="site-setting-scope">{t("common.scope")}</Label>
+              <Input
+                id="site-setting-scope"
+                className="bg-background"
+                placeholder={t("page.siteSettings.scopePlaceholder")}
+                value={draft.scope}
+                onChange={(e) => setDraft({ ...draft, scope: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2">
+            <Label htmlFor="site-setting-value">{t("common.value")}</Label>
+            <Textarea
+              id="site-setting-value"
+              className="bg-background"
+              placeholder={t("page.siteSettings.valuePlaceholder")}
+              rows={3}
+              value={draft.value}
+              onChange={(e) => setDraft({ ...draft, value: e.target.value })}
+            />
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button onClick={() => upsert.mutate()} disabled={upsert.isPending || !draft.key.trim()}>
+              {t("common.save")}
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <AdminTable
-        rows={table.rows}
-        columns={columns}
-        loading={settingsQ.isLoading}
-        rowKey={(s) => s.key}
-        pagination={table.pagination}
-      />
+        <AdminTable
+          rows={table.rows}
+          columns={columns}
+          loading={settingsQ.isLoading}
+          rowKey={(s) => s.key}
+          pagination={table.pagination}
+        />
+      </div>
     </div>
   );
 }

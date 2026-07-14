@@ -554,6 +554,9 @@ const en = {
     "For Gmail, use a Google App Password rather than your normal account password.",
   "page.siteSettings.smtpSaved": "SMTP settings saved",
   "page.siteSettings.smtpTestSent": "Test email sent",
+  "page.siteSettings.rawSettingsTitle": "Advanced settings",
+  "page.siteSettings.rawSettingsDescription":
+    "Edit site settings as key/value pairs when there is no dedicated control above. Prefer the panels above for auth, SMTP, and features.",
   "page.siteSettings.keyPlaceholder": "key (homepage.title)",
   "page.siteSettings.scopePlaceholder": "scope (optional)",
   "page.siteSettings.valuePlaceholder": 'value (JSON allowed, e.g. {"foo": "bar"})',
@@ -1119,6 +1122,9 @@ const zh: AdminMessages = {
   "page.siteSettings.smtpGmailHelp": "Gmail 请使用 Google 应用专用密码，不要使用普通账号密码。",
   "page.siteSettings.smtpSaved": "SMTP 设置已保存",
   "page.siteSettings.smtpTestSent": "测试邮件已发送",
+  "page.siteSettings.rawSettingsTitle": "高级配置（key/value）",
+  "page.siteSettings.rawSettingsDescription":
+    "没有上方专用面板时，可在此直接编辑站点配置项。认证、SMTP、功能开关请优先使用上面的专属区域。",
   "page.siteSettings.keyPlaceholder": "key (homepage.title)",
   "page.siteSettings.scopePlaceholder": "scope（可选）",
   "page.siteSettings.valuePlaceholder": 'value（支持 JSON，例如 {"foo": "bar"}）',
