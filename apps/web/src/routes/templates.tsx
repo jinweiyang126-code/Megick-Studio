@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import type { PaginatedResponse, PromptTemplateCategoryPublic, PromptTemplatePublic } from "@megick/api-types";
 import { apiGet } from "@/lib/api-client";
 import { getInitialLocale, translate } from "@/lib/i18n";
 import { asSearchRecord, optionalEnum, optionalString } from "@/lib/search-params";
@@ -22,17 +23,27 @@ export function templateSearchSchema(input: unknown): PublicTemplateSearch {
   };
 }
 
-const fetchInitialTemplatesData = createServerFn({ method: "GET" }).handler(async () => {
-  const [templates, categories] = await Promise.all([
-    apiGet<any>("/api/templates?compact=true&page=1&pageSize=20", {
-      forwardServerCookies: true,
-    }),
-    apiGet<any[]>("/api/templates/categories", {
-      forwardServerCookies: true,
-    }),
-  ]);
-  return { templates, categories };
-});
+export type TemplatesLayoutLoaderData = {
+  templates: PaginatedResponse<PromptTemplatePublic>;
+  categories: PromptTemplateCategoryPublic[];
+};
+
+const fetchInitialTemplatesData = createServerFn({ method: "GET" }).handler(
+  async (): Promise<TemplatesLayoutLoaderData> => {
+    const [templates, categories] = await Promise.all([
+      apiGet<PaginatedResponse<PromptTemplatePublic>>(
+        "/api/templates?compact=true&page=1&pageSize=20",
+        {
+          forwardServerCookies: true,
+        },
+      ),
+      apiGet<PromptTemplateCategoryPublic[]>("/api/templates/categories", {
+        forwardServerCookies: true,
+      }),
+    ]);
+    return { templates, categories };
+  },
+);
 
 export const Route = createFileRoute("/templates")({
   loader: () => fetchInitialTemplatesData(),

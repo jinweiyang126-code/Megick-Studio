@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Menu, X } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -15,6 +15,51 @@ import {
 
 const EASE = "cubic-bezier(0.25,0.1,0.25,1)";
 const DASHBOARD_DEFAULT_PATH = "/dashboard/studio/image" as const;
+
+function isInternalAppPath(href: string) {
+  return href.startsWith("/") && !href.startsWith("//");
+}
+
+function HeaderNavLink({
+  item,
+  className,
+  style,
+  onClick,
+  children,
+}: {
+  item: NavigationMenuItem;
+  className?: string;
+  style?: CSSProperties;
+  onClick?: () => void;
+  children: ReactNode;
+}) {
+  if (!isInternalAppPath(item.href)) {
+    return (
+      <a
+        href={item.href}
+        className={className}
+        style={style}
+        onClick={onClick}
+        target={/^https?:\/\//i.test(item.href) ? "_blank" : undefined}
+        rel={/^https?:\/\//i.test(item.href) ? "noreferrer" : undefined}
+      >
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <Link
+      to={item.href}
+      preload="intent"
+      className={className}
+      style={style}
+      onClick={onClick}
+    >
+      {children}
+    </Link>
+  );
+}
 
 function ScrollText({ text }: { text: string }) {
   return (
@@ -132,13 +177,13 @@ export function Header({
               style={{ color: "var(--theme-text)" }}
             >
               {menuItems.map((link) => (
-                <a
+                <HeaderNavLink
                   key={link.id}
-                  href={link.href}
+                  item={link}
                   className="text-[14px] opacity-100 transition-opacity duration-300 hover:opacity-60"
                 >
                   {localizedMenuLabel(link, locale, t)}
-                </a>
+                </HeaderNavLink>
               ))}
             </div>
           </div>
@@ -239,15 +284,15 @@ export function Header({
               </div>
               <nav className="mb-8 flex flex-col gap-5">
                 {menuItems.map((link) => (
-                  <a
+                  <HeaderNavLink
                     key={link.id}
-                    href={link.href}
+                    item={link}
                     className="text-2xl font-semibold tracking-tight sm:text-[32px]"
                     style={{ color: "var(--theme-text)" }}
                     onClick={() => setMobileOpen(false)}
                   >
                     {localizedMenuLabel(link, locale, t)}
-                  </a>
+                  </HeaderNavLink>
                 ))}
               </nav>
               {user ? (

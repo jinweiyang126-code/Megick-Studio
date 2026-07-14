@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, getRouteApi } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/SiteLayout";
 import { TemplateCenterPage } from "./dashboard.templates.index";
 import { useI18n } from "@/lib/i18n";
@@ -8,18 +8,18 @@ export const Route = createFileRoute("/templates/")({
   component: PublicTemplatesPage,
 });
 
+// Parent `/templates` owns the loader; read it explicitly so the index page
+// can seed React Query and skip an immediate client refetch of page 1.
+const templatesLayoutRoute = getRouteApi("/templates");
+
 function PublicTemplatesPage() {
   const { t } = useI18n();
   const search = Route.useSearch() as PublicTemplateSearch;
-  const loaderData = Route.useLoaderData() as {
-    categories: any[];
-    templates: any;
-  } | undefined;
+  const loaderData = templatesLayoutRoute.useLoaderData();
 
   return (
     <SiteLayout>
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        {/* Page header */}
         <section
           className="mb-6 rounded-xl border p-5 sm:p-6"
           style={{
@@ -43,8 +43,8 @@ function PublicTemplatesPage() {
         <TemplateCenterPage
           search={search}
           basePath="/templates"
-          initialCategories={loaderData?.categories}
-          initialTemplatesPage={loaderData?.templates}
+          initialCategories={loaderData.categories}
+          initialTemplatesPage={loaderData.templates}
           showControls
           showSummary
         />

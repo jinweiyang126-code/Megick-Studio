@@ -200,6 +200,8 @@ export function TemplateCenterPage({
           pageParams: [1],
         }
       : undefined,
+    // Treat loader-seeded page-1 as fresh so the client does not refetch immediately.
+    initialDataUpdatedAt: initialTemplatesPage ? Date.now() : undefined,
     initialPageParam: 1,
     getNextPageParam: (lastPage) => (lastPage.hasNextPage ? lastPage.page + 1 : undefined),
     staleTime: 300_000,
@@ -209,6 +211,7 @@ export function TemplateCenterPage({
     queryFn: () => apiGet<PromptTemplateCategoryPublic[]>("/api/templates/categories"),
     enabled: showControls,
     initialData: initialCategories,
+    initialDataUpdatedAt: initialCategories ? Date.now() : undefined,
     staleTime: 300_000,
   });
 
