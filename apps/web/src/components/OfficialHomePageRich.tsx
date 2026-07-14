@@ -96,19 +96,31 @@ function DesktopDownloadButton({ platform, release, loading }: { platform: Deskt
   );
 }
 
+const HOME_PREVIEW_SRC = "/index.jpg?v=2";
+const HOME_PREVIEW_WIDTH = 1921;
+const HOME_PREVIEW_HEIGHT = 931;
+
 function DesktopPreview({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick}
-      className="relative mx-auto w-full max-w-[884px] cursor-pointer overflow-hidden bg-transparent p-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:ml-auto"
-      aria-label="Megick Studio desktop app preview">
+    <button
+      type="button"
+      onClick={onClick}
+      className="group relative mx-auto w-full max-w-[min(100%,1040px)] origin-center cursor-pointer overflow-hidden rounded-[1.1rem] border p-0 text-left shadow-[0_28px_80px_rgba(0,0,0,0.32)] transition-[transform,box-shadow] duration-500 hover:-translate-y-1 hover:shadow-[0_36px_100px_rgba(0,0,0,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:ml-auto lg:[transform:perspective(1800px)_rotateY(-7deg)] lg:hover:[transform:perspective(1800px)_rotateY(-3deg)_translateY(-4px)]"
+      style={{
+        borderColor: "color-mix(in oklab, var(--theme-primary) 30%, var(--glass-border))",
+        backgroundColor: "var(--theme-surface)",
+      }}
+      aria-label="Megick Studio desktop app preview"
+    >
       <img
-        src="/index.jpg"
-        srcSet="/index.jpg 1768w"
-        sizes="(min-width: 1024px) 48vw, 100vw"
+        src={HOME_PREVIEW_SRC}
+        width={HOME_PREVIEW_WIDTH}
+        height={HOME_PREVIEW_HEIGHT}
+        sizes="(min-width: 1024px) min(52vw, 1040px), 92vw"
         fetchPriority="high"
         decoding="async"
         alt="Megick Studio desktop app screenshot"
-        className="block w-full select-none rounded-[1.6rem] sm:rounded-[2rem]"
+        className="block aspect-[1921/931] w-full select-none object-cover object-left-top"
         draggable={false}
       />
     </button>
@@ -332,7 +344,7 @@ export function OfficialHomePageRich({
         <HomeHeroBackdrop />
         <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_18%_35%,color-mix(in_oklab,var(--theme-primary)_22%,transparent),transparent_30%),linear-gradient(115deg,transparent_0%,transparent_44%,color-mix(in_oklab,var(--theme-primary)_10%,transparent)_44.2%,transparent_70%)]" />
         <Header menuItems={clientHeaderMenuItems} />
-        <section className="relative z-20 mx-auto grid min-h-0 w-full max-w-[1440px] flex-1 grid-cols-1 gap-6 overflow-y-auto px-5 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-6 sm:px-8 sm:pb-10 lg:grid-cols-[minmax(0,0.92fr)_minmax(420px,0.78fr)] lg:items-center lg:gap-10 lg:overflow-visible lg:px-12 lg:pb-12 lg:pt-0">
+        <section className="relative z-20 mx-auto grid min-h-0 w-full max-w-[1440px] flex-1 grid-cols-1 gap-6 overflow-y-auto px-5 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-6 sm:px-8 sm:pb-10 lg:grid-cols-[minmax(0,0.88fr)_minmax(520px,1.08fr)] lg:items-center lg:gap-8 lg:overflow-visible lg:px-12 lg:pb-12 lg:pt-0">
           <div className="home-reveal min-w-0">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] sm:mb-7" style={{ borderColor: "var(--glass-border)", backgroundColor: "var(--glass-bg)", color: "var(--theme-text)" }}>
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--theme-primary)" }} />
@@ -357,7 +369,7 @@ export function OfficialHomePageRich({
           <div className="flex min-w-0 flex-col gap-5 lg:items-end">
             <DesktopPreview onClick={startCreating} />
             {showDesktopDownloads ? (
-              <div className="home-reveal w-full max-w-[884px] rounded-[1.75rem] border p-3 backdrop-blur-2xl" style={{ borderColor: "var(--glass-border)", backgroundColor: "var(--glass-bg)" }}>
+              <div className="home-reveal w-full max-w-[min(100%,1040px)] rounded-[1.75rem] border p-3 backdrop-blur-2xl" style={{ borderColor: "var(--glass-border)", backgroundColor: "var(--glass-bg)" }}>
                 <div className="mb-3 flex flex-col gap-1 px-1 sm:flex-row sm:items-end sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold">{t("home.glaze.downloads.title")}</p>
