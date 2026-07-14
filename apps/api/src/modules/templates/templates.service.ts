@@ -155,17 +155,19 @@ export class TemplatesService {
       where.type = { not: "IMAGE2VIDEO" };
     }
 
+    const orderBy = [
+      { isFeatured: "desc" as const },
+      { sortOrder: "asc" as const },
+      { createdAt: "desc" as const },
+    ];
+    const skip = query.skip ?? 0;
+    const take = Math.min(query.take ?? 20, 80);
     const [items, total] = await Promise.all([
-      this.prisma.promptTemplate.findMany({
+      this.findTemplatesPage({
         where,
-        include: templateWithCategoriesInclude,
-        orderBy: [
-          { isFeatured: "desc" },
-          { sortOrder: "asc" },
-          { createdAt: "desc" },
-        ],
-        skip: query.skip ?? 0,
-        take: Math.min(query.take ?? 20, 80),
+        orderBy,
+        skip,
+        take,
       }),
       this.prisma.promptTemplate.count({ where }),
     ]);
@@ -233,16 +235,16 @@ export class TemplatesService {
       includeModelSearch: true,
     });
 
+    const orderBy = [
+      { type: "asc" as const },
+      { status: "asc" as const },
+      { sortOrder: "asc" as const },
+      { createdAt: "desc" as const },
+    ];
     const [items, total] = await Promise.all([
-      this.prisma.promptTemplate.findMany({
+      this.findTemplatesPage({
         where,
-        include: templateWithCategoriesInclude,
-        orderBy: [
-          { type: "asc" },
-          { status: "asc" },
-          { sortOrder: "asc" },
-          { createdAt: "desc" },
-        ],
+        orderBy,
         skip: query.skip ?? 0,
         take: Math.min(query.take ?? 100, 200),
       }),
@@ -730,6 +732,36 @@ export class TemplatesService {
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
     };
+  }
+
+  /**
+   * Sort/paginate by id first so MySQL does not filesort huge TEXT/JSON columns
+   * (error 1038: Out of sort memory) after bulk template imports.
+   */
+  private async findTemplatesPage(input: {
+    where: Prisma.PromptTemplateWhereInput;
+    orderBy: Prisma.PromptTemplateOrderByWithRelationInput[];
+    skip: number;
+    take: number;
+  }) {
+    const page = await this.prisma.promptTemplate.findMany({
+      where: input.where,
+      select: { id: true },
+      orderBy: input.orderBy,
+      skip: input.skip,
+      take: input.take,
+    });
+    if (!page.length) return [] as TemplateWithCategories[];
+
+    const ids = page.map((row) => row.id);
+    const rows = await this.prisma.promptTemplate.findMany({
+      where: { id: { in: ids } },
+      include: templateWithCategoriesInclude,
+    });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return ids
+      .map((id) => byId.get(id))
+      .filter((row): row is TemplateWithCategories => Boolean(row));
   }
 
   private async resolveCategories(input: {

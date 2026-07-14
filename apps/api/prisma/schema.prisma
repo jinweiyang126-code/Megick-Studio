@@ -397,6 +397,7 @@ model PromptTemplate {
   categoryAssignments PromptTemplateCategoryAssignment[]
 
   @@index([type, status])
+  @@index([status, isFeatured, sortOrder, createdAt], map: "prompt_templates_public_list_idx")
   @@index([categoryName], map: "prompt_templates_category_idx")
   @@index([sourceChatSessionId])
   @@index([sourceGenerationJobId])
