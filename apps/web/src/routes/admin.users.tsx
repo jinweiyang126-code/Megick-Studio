@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { apiGet, apiPatch, apiPost } from "@/lib/api-client";
+import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api-client";
 import { useAdminI18n } from "@/lib/admin-i18n";
 import { toast } from "sonner";
 
@@ -121,6 +121,12 @@ interface AdminUserDashboard {
   activity: { chatSessions: number; assets: number };
 }
 
+interface RoleOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
 function AdminUsers() {
   const { t, formatDateTime, formatNumber } = useAdminI18n();
   const [q, setQ] = useState("");
@@ -186,6 +192,27 @@ function AdminUsers() {
     queryKey: ["admin", "users", statsUserId, "dashboard"],
     queryFn: () => apiGet<AdminUserDashboard>(`/api/admin/users/${statsUserId}/dashboard`),
     enabled: !!statsUserId,
+  });
+
+  const rolesCatalogQ = useQuery({
+    queryKey: ["admin", "roles"],
+    queryFn: () => apiGet<RoleOption[]>("/api/admin/rbac/roles"),
+    enabled: !!statsUserId,
+  });
+
+  const roleMut = useMutation({
+    mutationFn: (input: { userId: string; roleCode: string; assign: boolean }) =>
+      input.assign
+        ? apiPost(`/api/admin/users/${input.userId}/roles`, { roleCode: input.roleCode })
+        : apiDelete(`/api/admin/users/${input.userId}/roles/${encodeURIComponent(input.roleCode)}`),
+    onSuccess: () => {
+      toast.success(t("page.users.roleUpdated"));
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      if (statsUserId) {
+        queryClient.invalidateQueries({ queryKey: ["admin", "users", statsUserId, "dashboard"] });
+      }
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
   const rows = usersQ.data?.items ?? [];
@@ -421,7 +448,15 @@ function AdminUsers() {
               {t("common.loading")}
             </div>
           ) : dashboardQ.data ? (
-            <UserDashboardDetails data={dashboardQ.data} />
+            <UserDashboardDetails
+              data={dashboardQ.data}
+              roleOptions={rolesCatalogQ.data ?? []}
+              rolesLoading={rolesCatalogQ.isLoading}
+              rolePending={roleMut.isPending}
+              onToggleRole={(roleCode, assign) =>
+                roleMut.mutate({ userId: dashboardQ.data.user.id, roleCode, assign })
+              }
+            />
           ) : (
             <div className="rounded-lg border border-border/70 bg-card/70 p-6 text-sm text-muted-foreground">
               {t("common.empty")}
@@ -520,7 +555,20 @@ function AdminUsers() {
     });
   }
 
-  function UserDashboardDetails({ data }: { data: AdminUserDashboard }) {
+  function UserDashboardDetails({
+    data,
+    roleOptions,
+    rolesLoading,
+    rolePending,
+    onToggleRole,
+  }: {
+    data: AdminUserDashboard;
+    roleOptions: RoleOption[];
+    rolesLoading: boolean;
+    rolePending: boolean;
+    onToggleRole: (roleCode: string, assign: boolean) => void;
+  }) {
+    const assignedRoles = new Set(data.user.roles);
     const statCards = [
       {
         label: t("page.users.creditBalance"),
@@ -585,12 +633,42 @@ function AdminUsers() {
             </dl>
           </section>
           <section className="rounded-lg border border-border bg-card p-4">
-            <h3 className="font-semibold">Account</h3>
+            <h3 className="font-semibold">{t("page.users.account")}</h3>
             <dl className="mt-3 space-y-2 text-sm">
-              <MetricLine label={t("page.users.roles")} value={data.user.roles.join(", ") || "USER"} />
               <MetricLine label="Locale" value={data.user.profile.locale ?? "—"} />
               <MetricLine label={t("common.created")} value={formatDateTime(data.user.createdAt)} />
             </dl>
+            <div className="mt-4 space-y-2">
+              <div className="text-sm font-medium">{t("page.users.assignRoles")}</div>
+              <p className="text-xs text-muted-foreground">{t("page.users.rolesHelp")}</p>
+              {rolesLoading ? (
+                <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+              ) : roleOptions.length ? (
+                <div className="space-y-2">
+                  {roleOptions.map((role) => {
+                    const checked = assignedRoles.has(role.code);
+                    return (
+                      <label
+                        key={role.id}
+                        className="flex items-center gap-2 rounded-md border border-border/60 bg-background/35 px-2.5 py-2 text-sm"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          disabled={rolePending}
+                          onCheckedChange={(value) => onToggleRole(role.code, value === true)}
+                        />
+                        <span className="min-w-0">
+                          <span className="font-medium">{role.name}</span>
+                          <code className="ml-2 text-[11px] text-muted-foreground">{role.code}</code>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">{t("common.empty")}</p>
+              )}
+            </div>
           </section>
         </div>
 

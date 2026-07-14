@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "nestjs-prisma";
 import type { AdminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import { AdminAuditService } from "@/modules/admin/admin-audit.service";
@@ -75,9 +75,8 @@ export class RbacService {
   async deleteRole(id: string, auditCtx?: AdminAuditRequestContext) {
     const before = await this.roleSnapshot(id);
     const role = await this.prisma.role.findUnique({ where: { id } });
-    if (!role || role.isSystem) {
-      throw new Error("Cannot delete system role");
-    }
+    if (!role) throw new NotFoundException("ROLE_NOT_FOUND");
+    if (role.isSystem) throw new BadRequestException("CANNOT_DELETE_SYSTEM_ROLE");
     await this.prisma.role.delete({ where: { id } });
     await this.audit.logExplicit(auditCtx, {
       action: "DELETE",
@@ -118,19 +117,62 @@ export class RbacService {
     }
   }
 
-  async assignRoleToUser(userId: string, roleCode: string) {
+  async assignRoleToUser(
+    userId: string,
+    roleCode: string,
+    auditCtx?: AdminAuditRequestContext,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) throw new NotFoundException("USER_NOT_FOUND");
     const role = await this.prisma.role.findUnique({ where: { code: roleCode } });
-    if (!role) throw new Error("Role not found");
-    return this.prisma.userRole.upsert({
+    if (!role) throw new NotFoundException("ROLE_NOT_FOUND");
+    const before = await this.userRoleCodes(userId);
+    await this.prisma.userRole.upsert({
       where: { userId_roleId: { userId, roleId: role.id } },
       update: {},
       create: { userId, roleId: role.id },
     });
+    const after = await this.userRoleCodes(userId);
+    await this.audit.logExplicit(auditCtx, {
+      action: "UPDATE",
+      targetType: "user",
+      targetId: userId,
+      before: { roles: before },
+      after: { roles: after, assigned: roleCode },
+    });
+    return { userId, roles: after };
   }
 
-  async removeRoleFromUser(userId: string, roleCode: string) {
+  async removeRoleFromUser(
+    userId: string,
+    roleCode: string,
+    actorUserId?: string,
+    auditCtx?: AdminAuditRequestContext,
+  ) {
     const role = await this.prisma.role.findUnique({ where: { code: roleCode } });
-    if (!role) return;
+    if (!role) throw new NotFoundException("ROLE_NOT_FOUND");
+    if (roleCode === "SUPER_ADMIN" && actorUserId && actorUserId === userId) {
+      throw new BadRequestException("CANNOT_REMOVE_OWN_SUPER_ADMIN");
+    }
+    const before = await this.userRoleCodes(userId);
     await this.prisma.userRole.deleteMany({ where: { userId, roleId: role.id } });
+    const after = await this.userRoleCodes(userId);
+    await this.audit.logExplicit(auditCtx, {
+      action: "UPDATE",
+      targetType: "user",
+      targetId: userId,
+      before: { roles: before },
+      after: { roles: after, removed: roleCode },
+    });
+    return { userId, roles: after };
+  }
+
+  private async userRoleCodes(userId: string) {
+    const rows = await this.prisma.userRole.findMany({
+      where: { userId },
+      include: { role: { select: { code: true } } },
+      orderBy: { role: { code: "asc" } },
+    });
+    return rows.map((row) => row.role.code);
   }
 }

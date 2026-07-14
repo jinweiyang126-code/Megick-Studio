@@ -12,7 +12,6 @@ import {
   localizedMenuLabel,
   type NavigationMenuItem,
 } from "@/lib/navigation-menus";
-import { MEGICK_GITHUB_URL } from "@/lib/brand";
 
 const EASE = "cubic-bezier(0.25,0.1,0.25,1)";
 const DASHBOARD_DEFAULT_PATH = "/dashboard/studio/image" as const;
@@ -141,14 +140,6 @@ export function Header({
                   {localizedMenuLabel(link, locale, t)}
                 </a>
               ))}
-              <a
-                href={MEGICK_GITHUB_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[14px] opacity-100 transition-opacity duration-300 hover:opacity-60"
-              >
-                GitHub
-              </a>
             </div>
           </div>
 
@@ -258,16 +249,6 @@ export function Header({
                     {localizedMenuLabel(link, locale, t)}
                   </a>
                 ))}
-                <a
-                  href={MEGICK_GITHUB_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-2xl font-semibold tracking-tight sm:text-[32px]"
-                  style={{ color: "var(--theme-text)" }}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  GitHub
-                </a>
               </nav>
               {user ? (
                 <div className="flex flex-col items-start gap-4">

@@ -41,3 +41,10 @@ export class UpdateRoleDto {
   @IsString({ each: true })
   permissionCodes?: string[];
 }
+
+export class AssignUserRoleDto {
+  @ApiProperty({ example: "SUPER_ADMIN" })
+  @IsString()
+  @MinLength(2)
+  roleCode!: string;
+}

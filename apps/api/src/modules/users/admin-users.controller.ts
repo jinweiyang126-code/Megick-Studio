@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import type { Request } from "express";
 import { ApiOperation, ApiParam, ApiProperty, ApiQuery, ApiTags } from "@nestjs/swagger";
 import {
@@ -18,6 +18,8 @@ import {
   type PaginationQuery,
 } from "@/common/pagination";
 import { UsersService } from "./users.service";
+import { RbacService } from "@/modules/rbac/rbac.service";
+import { AssignUserRoleDto } from "@/modules/rbac/rbac.dto";
 import { adminAuditRequestContext } from "@/common/utils/admin-audit-context";
 import {
   AdminUserDashboardDto,
@@ -149,8 +151,23 @@ class AdminBulkCreditAdjustmentResponseDto {
 @ApiValidationErrorResponse()
 @Roles("SUPER_ADMIN")
 @Controller("api/admin/users")
+class UserRolesResponseDto {
+  @ApiProperty({ description: "User ID.", example: "cmuser123" })
+  userId!: string;
+
+  @ApiProperty({
+    description: "Assigned role codes after the change.",
+    example: ["USER", "SUPER_ADMIN"],
+    type: [String],
+  })
+  roles!: string[];
+}
+
 export class AdminUsersController {
-  constructor(private readonly users: UsersService) {}
+  constructor(
+    private readonly users: UsersService,
+    private readonly rbac: RbacService,
+  ) {}
 
   @Get()
   @ApiPaginationQueries({ defaultPageSize: 25, maxPageSize: 200 })
@@ -283,6 +300,59 @@ export class AdminUsersController {
       dto.reason,
       admin.id,
       dto.notifyUser ?? false,
+      adminAuditRequestContext(req),
+    );
+  }
+
+  @Post(":id/roles")
+  @ApiParam({
+    name: "id",
+    description: "Target user ID.",
+    example: "cmuser123",
+  })
+  @ApiOperation(
+    documentedOperation(
+      "Assign role to user",
+      "Attaches an existing role to the user. Idempotent when the role is already assigned.",
+    ),
+  )
+  @ApiOkResponseModel(UserRolesResponseDto, "Role assigned successfully.")
+  assignRole(
+    @Param("id") id: string,
+    @Body() dto: AssignUserRoleDto,
+    @Req() req: Request & { user?: AuthUserContext },
+  ) {
+    return this.rbac.assignRoleToUser(id, dto.roleCode, adminAuditRequestContext(req));
+  }
+
+  @Delete(":id/roles/:roleCode")
+  @ApiParam({
+    name: "id",
+    description: "Target user ID.",
+    example: "cmuser123",
+  })
+  @ApiParam({
+    name: "roleCode",
+    description: "Role code to remove.",
+    example: "SUPER_ADMIN",
+  })
+  @ApiOperation(
+    documentedOperation(
+      "Remove role from user",
+      "Detaches a role from the user. Admins cannot remove SUPER_ADMIN from their own account.",
+    ),
+  )
+  @ApiOkResponseModel(UserRolesResponseDto, "Role removed successfully.")
+  removeRole(
+    @Param("id") id: string,
+    @Param("roleCode") roleCode: string,
+    @CurrentUser() admin: AuthUserContext,
+    @Req() req: Request & { user?: AuthUserContext },
+  ) {
+    return this.rbac.removeRoleFromUser(
+      id,
+      roleCode,
+      admin.id,
       adminAuditRequestContext(req),
     );
   }

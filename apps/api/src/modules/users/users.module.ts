@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { SmtpModule } from "../smtp/smtp.module";
 import { AdminAuditModule } from "../admin/admin-audit.module";
+import { RbacModule } from "../rbac/rbac.module";
 import { backgroundWorkersEnabled } from "../../runtime";
 import { UsersService } from "./users.service";
 import { UsersController } from "./users.controller";
@@ -17,6 +18,7 @@ const processorProviders = backgroundWorkersEnabled()
   imports: [
     AdminAuditModule,
     SmtpModule,
+    RbacModule,
     BullModule.registerQueue({ name: ADMIN_CREDIT_NOTIFICATIONS_QUEUE }),
   ],
   controllers: [UsersController, AdminUsersController],
