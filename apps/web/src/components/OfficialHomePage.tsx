@@ -168,23 +168,27 @@ function DesktopPreview({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="relative mx-auto w-full max-w-[min(100%,1040px)] origin-center cursor-pointer overflow-hidden rounded-[1.1rem] border p-0 text-left shadow-[0_28px_80px_rgba(0,0,0,0.32)] transition-[transform,box-shadow] duration-500 hover:-translate-y-1 hover:shadow-[0_36px_100px_rgba(0,0,0,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:ml-auto lg:[transform:perspective(1800px)_rotateY(-7deg)] lg:hover:[transform:perspective(1800px)_rotateY(-3deg)_translateY(-4px)]"
-      style={{
-        borderColor: "color-mix(in oklab, var(--theme-primary) 30%, var(--glass-border))",
-        backgroundColor: "var(--theme-surface)",
-      }}
+      className="relative mx-auto w-full max-w-[884px] cursor-pointer overflow-hidden bg-transparent p-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:ml-auto"
       aria-label="Megick Studio desktop app preview"
     >
-      <img
-        src="/index.jpg?v=2"
-        width={1921}
-        height={931}
-        sizes="(min-width: 1024px) min(52vw, 1040px), 92vw"
-        alt="Megick Studio desktop app screenshot"
-        className="block aspect-[1921/931] w-full select-none object-cover object-left-top"
-        draggable={false}
-        fetchPriority="high"
-      />
+      <picture>
+        <source
+          type="image/webp"
+          srcSet="/index-preview.webp 1024w, /index-preview@2x.webp 2048w"
+          sizes="(max-width: 884px) 100vw, 884px"
+        />
+        <img
+          src="/index-preview.webp"
+          srcSet="/index-preview.webp 884w, /index-preview@2x.webp 1768w"
+          sizes="(min-width: 1024px) 48vw, 100vw"
+          alt="Megick Studio desktop app screenshot"
+          className="block w-full select-none rounded-[1.6rem] sm:rounded-[2rem]"
+          draggable={false}
+          fetchPriority="high"
+          width={1024}
+          height={623}
+        />
+      </picture>
     </button>
   );
 }

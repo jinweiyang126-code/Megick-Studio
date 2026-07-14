@@ -21,7 +21,7 @@ export const Route = createFileRoute("/")({
       description: translate(locale, "home.meta.description"),
       path: "/",
       locale,
-      imagePath: "/index.jpg?v=2",
+      imagePath: "/index-preview.webp",
       imageAlt: "Megick Studio desktop app preview",
     });
     return {
@@ -31,9 +31,10 @@ export const Route = createFileRoute("/")({
         {
           rel: "preload",
           as: "image",
-          href: "/index.jpg?v=2",
-          type: "image/jpeg",
-          imageSizes: "(min-width: 1024px) min(52vw, 1040px), 92vw",
+          href: "/index-preview.webp",
+          type: "image/webp",
+          imageSrcSet: "/index-preview.webp 884w, /index-preview@2x.webp 1768w",
+          imageSizes: "(min-width: 1024px) 48vw, 100vw",
           fetchPriority: "high",
         },
       ],
