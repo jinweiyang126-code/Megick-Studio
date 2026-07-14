@@ -102,8 +102,8 @@ function DesktopPreview({ onClick }: { onClick: () => void }) {
       className="relative mx-auto w-full max-w-[884px] cursor-pointer overflow-hidden bg-transparent p-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:ml-auto"
       aria-label="Megick Studio desktop app preview">
       <img
-        src="/index-preview.webp"
-        srcSet="/index-preview.webp 884w, /index-preview@2x.webp 1768w"
+        src="/index.jpg"
+        srcSet="/index.jpg 1768w"
         sizes="(min-width: 1024px) 48vw, 100vw"
         fetchPriority="high"
         decoding="async"
