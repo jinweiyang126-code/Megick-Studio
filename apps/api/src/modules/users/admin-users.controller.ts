@@ -144,13 +144,6 @@ class AdminBulkCreditAdjustmentResponseDto {
   notificationCount!: number;
 }
 
-@ApiTags("admin/users")
-@ApiSessionCookieAuth(
-  "Requires a valid `mg_session` cookie for a SUPER_ADMIN account.",
-)
-@ApiValidationErrorResponse()
-@Roles("SUPER_ADMIN")
-@Controller("api/admin/users")
 class UserRolesResponseDto {
   @ApiProperty({ description: "User ID.", example: "cmuser123" })
   userId!: string;
@@ -163,6 +156,13 @@ class UserRolesResponseDto {
   roles!: string[];
 }
 
+@ApiTags("admin/users")
+@ApiSessionCookieAuth(
+  "Requires a valid `mg_session` cookie for a SUPER_ADMIN account.",
+)
+@ApiValidationErrorResponse()
+@Roles("SUPER_ADMIN")
+@Controller("api/admin/users")
 export class AdminUsersController {
   constructor(
     private readonly users: UsersService,
