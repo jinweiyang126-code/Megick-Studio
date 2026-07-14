@@ -281,15 +281,28 @@ export class AdminController {
       defaultPageSize: 50,
       maxPageSize: 200,
     });
-    const [items, total] = await Promise.all([
+    // Sort/paginate by id first so MySQL does not filesort huge JSON before/after payloads.
+    const [page, total] = await Promise.all([
       this.prisma.adminAuditLog.findMany({
+        select: { id: true },
         orderBy: { createdAt: "desc" },
         skip: pagination.skip,
         take: pagination.take,
-        include: { admin: { select: { id: true, email: true } } },
       }),
       this.prisma.adminAuditLog.count(),
     ]);
+    if (!page.length) return paginated([], total, pagination);
+
+    const ids = page.map((row) => row.id);
+    const rows = await this.prisma.adminAuditLog.findMany({
+      where: { id: { in: ids } },
+      include: { admin: { select: { id: true, email: true } } },
+    });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const items = ids.flatMap((id) => {
+      const row = byId.get(id);
+      return row ? [row] : [];
+    });
     return paginated(items, total, pagination);
   }
 }

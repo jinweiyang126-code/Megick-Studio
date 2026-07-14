@@ -721,5 +721,6 @@ model AdminAuditLog {
 
   @@index([adminId])
   @@index([targetType])
+  @@index([createdAt])
   @@map("admin_audit_logs")
 }
