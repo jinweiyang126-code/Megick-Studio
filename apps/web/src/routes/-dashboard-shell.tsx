@@ -601,6 +601,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                         key={item.value}
                         to={item.to}
                         search={item.studioMode ? studioNavSearchFor(item.studioMode) : undefined}
+                        preload="intent"
                         data-onboarding-target={onboardingNavTargets[item.value]}
                         onClick={() => setSidebarOpen(false)}
                         className={cn(
@@ -637,7 +638,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     effectiveSidebarCollapsed && "lg:px-0",
                   )}
                 >
-                  <Link to="/dashboard/studio/image" search={{ newSession: true }}>
+                  <Link to="/dashboard/studio/image" search={{ newSession: true }} preload="intent">
                     <Wand2 className="h-4 w-4" />
                     <span className={cn(effectiveSidebarCollapsed && "lg:hidden")}>
                       {t("dashboard.newGeneration")}
@@ -777,6 +778,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                                 }
                                 params={job.chatSessionId ? undefined : { jobId: job.id }}
                                 search={studioSearchForJob(job)}
+                                preload="intent"
                                 onClick={() => markNotificationRead(job.id)}
                                 className="px-4 py-3 text-sm transition hover:bg-muted/50"
                               >
