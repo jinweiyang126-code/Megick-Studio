@@ -758,10 +758,11 @@ export class TemplatesService {
       where: { id: { in: ids } },
       include: templateWithCategoriesInclude,
     });
-    const byId = new Map(rows.map((row) => [row.id, row]));
-    return ids
-      .map((id) => byId.get(id))
-      .filter((row): row is TemplateWithCategories => Boolean(row));
+    const byId = new Map(rows.map((row) => [row.id, row as TemplateWithCategories]));
+    return ids.flatMap((id) => {
+      const row = byId.get(id);
+      return row ? [row] : [];
+    });
   }
 
   private async resolveCategories(input: {
