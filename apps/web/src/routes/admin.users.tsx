@@ -29,8 +29,18 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api-client";
-import { useAdminI18n } from "@/lib/admin-i18n";
+import { useAdminI18n, type AdminTranslationKey } from "@/lib/admin-i18n";
 import { toast } from "sonner";
+
+function localizedRoleLabel(
+  t: (key: AdminTranslationKey) => string,
+  code: string,
+  fallback: string,
+) {
+  const key = `page.roles.role.${code}.name`;
+  const translated = t(key as AdminTranslationKey);
+  return !translated || translated === key ? fallback : translated;
+}
 
 export const Route = createFileRoute("/admin/users")({
   component: AdminUsers,
@@ -658,7 +668,9 @@ function AdminUsers() {
                           onCheckedChange={(value) => onToggleRole(role.code, value === true)}
                         />
                         <span className="min-w-0">
-                          <span className="font-medium">{role.name}</span>
+                          <span className="font-medium">
+                            {localizedRoleLabel(t, role.code, role.name)}
+                          </span>
                           <code className="ml-2 text-[11px] text-muted-foreground">{role.code}</code>
                         </span>
                       </label>

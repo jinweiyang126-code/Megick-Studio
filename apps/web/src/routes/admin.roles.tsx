@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { AdminTable, useAdminClientPagination, type Column } from "@/components/admin/AdminTable";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api-client";
-import { useAdminI18n } from "@/lib/admin-i18n";
+import { useAdminI18n, type AdminTranslationKey } from "@/lib/admin-i18n";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/roles")({
@@ -51,6 +51,31 @@ interface RoleDraft {
 
 function emptyDraft(): RoleDraft {
   return { code: "", name: "", description: "", permissionCodes: [] };
+}
+
+type Translate = (key: AdminTranslationKey, values?: Record<string, string | number | null | undefined>) => string;
+
+function resolveI18nLabel(t: Translate, key: string, fallback: string) {
+  const translated = t(key as AdminTranslationKey);
+  return !translated || translated === key ? fallback : translated;
+}
+
+function localizedPermissionGroup(t: Translate, group?: string | null) {
+  const raw = group?.trim();
+  if (!raw) return t("page.roles.ungrouped");
+  return resolveI18nLabel(t, `page.roles.group.${raw}`, raw);
+}
+
+function localizedPermissionName(t: Translate, code: string, fallback: string) {
+  return resolveI18nLabel(t, `page.roles.permission.${code}`, fallback);
+}
+
+function localizedRoleName(t: Translate, code: string, fallback: string) {
+  return resolveI18nLabel(t, `page.roles.role.${code}.name`, fallback);
+}
+
+function localizedRoleDescription(t: Translate, code: string, fallback: string) {
+  return resolveI18nLabel(t, `page.roles.role.${code}.description`, fallback);
 }
 
 function AdminRoles() {
@@ -105,7 +130,7 @@ function AdminRoles() {
   const permissionGroups = useMemo(() => {
     const groups = new Map<string, PermissionRow[]>();
     for (const perm of permissionsQ.data ?? []) {
-      const key = perm.group?.trim() || t("page.roles.ungrouped");
+      const key = localizedPermissionGroup(t, perm.group);
       const list = groups.get(key) ?? [];
       list.push(perm);
       groups.set(key, list);
@@ -118,8 +143,8 @@ function AdminRoles() {
     setDraft({
       id: role.id,
       code: role.code,
-      name: role.name,
-      description: role.description ?? "",
+      name: localizedRoleName(t, role.code, role.name),
+      description: localizedRoleDescription(t, role.code, role.description ?? ""),
       permissionCodes: role.permissions.map((item) => item.permission.code),
       isSystem: role.isSystem,
     });
@@ -150,8 +175,11 @@ function AdminRoles() {
   };
 
   const columns: Column<RoleRow>[] = [
-    { header: "Code", cell: (r) => <code>{r.code}</code> },
-    { header: "Name", cell: (r) => r.name },
+    { header: t("common.code"), cell: (r) => <code>{r.code}</code> },
+    {
+      header: t("common.name"),
+      cell: (r) => localizedRoleName(t, r.code, r.name),
+    },
     { header: t("page.roles.system"), cell: (r) => (r.isSystem ? "✓" : "—") },
     { header: t("common.users"), cell: (r) => r._count.users },
     { header: t("common.permissions"), cell: (r) => r.permissions.length },
@@ -210,7 +238,7 @@ function AdminRoles() {
             <div className="grid gap-4">
               <div className="grid gap-2 sm:grid-cols-2">
                 <div className="grid gap-2">
-                  <Label htmlFor="role-code">Code</Label>
+                  <Label htmlFor="role-code">{t("common.code")}</Label>
                   <Input
                     id="role-code"
                     value={draft.code}
@@ -220,7 +248,7 @@ function AdminRoles() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="role-name">Name</Label>
+                  <Label htmlFor="role-name">{t("common.name")}</Label>
                   <Input
                     id="role-name"
                     value={draft.name}
@@ -269,7 +297,9 @@ function AdminRoles() {
                                   className="mt-0.5"
                                 />
                                 <span className="min-w-0">
-                                  <span className="block font-medium">{perm.name}</span>
+                                  <span className="block font-medium">
+                                    {localizedPermissionName(t, perm.code, perm.name)}
+                                  </span>
                                   <code className="block truncate text-[11px] text-muted-foreground">
                                     {perm.code}
                                   </code>
