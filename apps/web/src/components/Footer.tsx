@@ -1,12 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { Github, Twitter } from "lucide-react";
 import { Logo } from "./Logo";
 import { useI18n } from "@/lib/i18n";
-import {
-  MEGICK_GITHUB_URL,
-  MEGICK_SITE_URL,
-  MEGICK_TWITTER_URL,
-} from "@/lib/brand";
+import { MEGICK_SITE_URL } from "@/lib/brand";
 
 export function Footer() {
   const { t } = useI18n();
@@ -27,45 +22,6 @@ export function Footer() {
             <p className="mt-4 max-w-sm text-sm" style={{ color: "var(--theme-text-muted)" }}>
               {t("footer.description")}
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <a
-                href={MEGICK_SITE_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm transition-opacity hover:opacity-70"
-                style={{ color: "var(--theme-text-muted)" }}
-              >
-                megick.com
-              </a>
-              <a
-                href={MEGICK_GITHUB_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border transition-opacity hover:opacity-70"
-                style={{
-                  backgroundColor: "var(--theme-bg)",
-                  borderColor: "var(--glass-border)",
-                  color: "var(--theme-text-muted)",
-                }}
-                aria-label="GitHub"
-              >
-                <Github className="h-4 w-4" />
-              </a>
-              <a
-                href={MEGICK_TWITTER_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border transition-opacity hover:opacity-70"
-                style={{
-                  backgroundColor: "var(--theme-bg)",
-                  borderColor: "var(--glass-border)",
-                  color: "var(--theme-text-muted)",
-                }}
-                aria-label="Twitter"
-              >
-                <Twitter className="h-4 w-4" />
-              </a>
-            </div>
           </div>
 
           <div className="min-w-0">
@@ -82,40 +38,6 @@ export function Footer() {
               <li>
                 <Link to="/dashboard/template" className="transition-opacity hover:opacity-70">
                   {t("home.glaze.nav.projects")}
-                </Link>
-              </li>
-              {/* <li>
-                <a href="/#gallery" className="hover:text-foreground">
-                  {t("footer.gallery")}
-                </a>
-              </li> */}
-            </ul>
-          </div>
-
-          <div className="min-w-0">
-            <h4 className="text-sm font-semibold">{t("footer.company")}</h4>
-            <ul
-              className="mt-4 space-y-3 text-sm break-words"
-              style={{ color: "var(--theme-text-muted)" }}
-            >
-              <li>
-                <a
-                  href={MEGICK_GITHUB_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="transition-opacity hover:opacity-70"
-                >
-                  {t("footer.openSource")}
-                </a>
-              </li>
-              <li>
-                <Link to="/privacy" className="transition-opacity hover:opacity-70">
-                  {t("footer.privacy")}
-                </Link>
-              </li>
-              <li>
-                <Link to="/terms" className="transition-opacity hover:opacity-70">
-                  {t("footer.terms")}
                 </Link>
               </li>
             </ul>
@@ -137,17 +59,6 @@ export function Footer() {
               Megick
             </a>
             . {t("footer.rights")}
-          </p>
-          <p>
-            {t("footer.crafted")}{" "}
-            <a
-              href={MEGICK_GITHUB_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="transition-opacity hover:opacity-70"
-            >
-              GitHub
-            </a>
           </p>
         </div>
       </div>
