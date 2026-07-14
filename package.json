@@ -31,6 +31,8 @@
     "pm2:stop": "pm2 stop ecosystem.config.cjs",
     "pm2:delete": "pm2 delete ecosystem.config.cjs",
     "prod:clean-dist-conflicts": "bash scripts/prod-clean-dist-conflicts.sh",
-    "pm2:logs": "pm2 logs"
+    "pm2:logs": "pm2 logs",
+    "templates:export-megick": "node scripts/import-megick-templates.mjs",
+    "templates:import-megick": "node scripts/import-megick-templates.mjs --apply"
   }
 }

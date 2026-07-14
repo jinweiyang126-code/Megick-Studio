@@ -46,6 +46,7 @@ packages/api-types/dist
 packages/api-types/src/generated
 
 # misc
+tmp/
 *.tsbuildinfo
 coverage
 .eslintcache
