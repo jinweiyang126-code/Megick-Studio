@@ -183,6 +183,20 @@ export function TemplateCenterPage({
     [search.category, search.q, type],
   );
 
+  // Parent /templates loader only seeds unfiltered page-1. Never reuse that
+  // payload for q/category/type queries — staleTime would keep stale "all"
+  // results and make search appear broken.
+  const loaderSeedFiltersMatch =
+    Boolean(initialTemplatesPage) && !filters.q && !filters.category && !filters.type;
+  const loaderSeedUpdatedAtRef = useRef<number | undefined>(undefined);
+  if (loaderSeedFiltersMatch && loaderSeedUpdatedAtRef.current === undefined) {
+    loaderSeedUpdatedAtRef.current = Date.now();
+  }
+  const categoriesSeedUpdatedAtRef = useRef<number | undefined>(undefined);
+  if (initialCategories && categoriesSeedUpdatedAtRef.current === undefined) {
+    categoriesSeedUpdatedAtRef.current = Date.now();
+  }
+
   const templatesQ = useInfiniteQuery({
     queryKey: ["templates", "center", basePath, filters],
     queryFn: ({ pageParam }) =>
@@ -194,14 +208,15 @@ export function TemplateCenterPage({
           pageSize: TEMPLATE_PAGE_SIZE,
         },
       }),
-    initialData: initialTemplatesPage
+    initialData: loaderSeedFiltersMatch
       ? {
-          pages: [initialTemplatesPage],
+          pages: [initialTemplatesPage!],
           pageParams: [1],
         }
       : undefined,
-    // Treat loader-seeded page-1 as fresh so the client does not refetch immediately.
-    initialDataUpdatedAt: initialTemplatesPage ? Date.now() : undefined,
+    initialDataUpdatedAt: loaderSeedFiltersMatch
+      ? loaderSeedUpdatedAtRef.current
+      : undefined,
     initialPageParam: 1,
     getNextPageParam: (lastPage) => (lastPage.hasNextPage ? lastPage.page + 1 : undefined),
     staleTime: 300_000,
@@ -211,7 +226,7 @@ export function TemplateCenterPage({
     queryFn: () => apiGet<PromptTemplateCategoryPublic[]>("/api/templates/categories"),
     enabled: showControls,
     initialData: initialCategories,
-    initialDataUpdatedAt: initialCategories ? Date.now() : undefined,
+    initialDataUpdatedAt: categoriesSeedUpdatedAtRef.current,
     staleTime: 300_000,
   });
 
