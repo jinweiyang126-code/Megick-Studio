@@ -33,7 +33,7 @@ function shouldWatermarkGeneratedOutput(type: GenerationJobTypeEnum | string | n
   return kind === "IMAGE" && (type === "TEXT2IMAGE" || type === "IMAGE_EDIT");
 }
 
-function nullableJson(value: Prisma.JsonValue | null | undefined) {
+function nullableJson(value: Prisma.JsonValue | Prisma.InputJsonValue | null | undefined) {
   return value === null || typeof value === "undefined"
     ? undefined
     : (value as Prisma.InputJsonValue);
@@ -114,6 +114,11 @@ export class GenerationOutputMediaService {
     });
     const id = existing?.id ?? `media_${randomId(24)}`;
 
+    const metadataValue =
+      input.metadata !== undefined && input.metadata !== null
+        ? input.metadata
+        : nullableJson(asset.metadata);
+
     await this.prisma.mediaCenterItem.upsert({
       where: { ossAssetId: asset.id },
       update: {
@@ -141,7 +146,7 @@ export class GenerationOutputMediaService {
         durationMs: asset.durationMs,
         sha256: asset.sha256,
         visibility: asset.visibility,
-        metadata: nullableJson(input.metadata ?? asset.metadata),
+        metadata: metadataValue,
       },
       create: {
         id,
@@ -166,7 +171,7 @@ export class GenerationOutputMediaService {
         durationMs: asset.durationMs,
         sha256: asset.sha256,
         visibility: asset.visibility,
-        metadata: nullableJson(input.metadata ?? asset.metadata),
+        metadata: metadataValue,
         createdAt: asset.createdAt,
       },
     });
