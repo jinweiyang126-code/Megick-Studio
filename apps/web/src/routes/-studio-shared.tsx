@@ -2216,8 +2216,23 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
           sourceResultIds: sourceVideos.map((video) => video.id),
         }),
       );
-      const extension = mediaExtension(blob, { kind: "video" } as StudioResult);
-      form.set("file", blob, `megick-merged-${Date.now()}.${extension}`);
+      const rawType = (blob.type || "").toLowerCase();
+      const extension = rawType.includes("webm")
+        ? "webm"
+        : rawType.includes("quicktime") || rawType.includes("mp4")
+          ? mediaExtension(blob, { kind: "video" } as StudioResult)
+          : "webm";
+      const mimeType =
+        rawType.split(";")[0]?.trim() ||
+        (extension === "webm"
+          ? "video/webm"
+          : extension === "mov"
+            ? "video/quicktime"
+            : "video/mp4");
+      form.set(
+        "file",
+        new File([blob], `megick-merged-${Date.now()}.${extension}`, { type: mimeType }),
+      );
 
       const saved = await api<StudioEditedResultPublic>(
         `/api/chats/${encodeURIComponent(sessionId)}/media-results`,

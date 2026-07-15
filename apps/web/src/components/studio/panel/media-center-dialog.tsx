@@ -50,6 +50,7 @@ export function MediaCenterDialog({
               toast.error(t("studio.mergeVideos.saveFailed"), {
                 description: err instanceof Error ? err.message : undefined,
               });
+              throw err;
             }
           }}
         />

@@ -82,6 +82,98 @@ export class GenerationOutputMediaService {
     return record.id;
   }
 
+  /**
+   * Persist Studio session media (merged video / canvas export) into the media center.
+   * Does not create generation_output_media (no generation job).
+   */
+  async registerStudioMedia(input: {
+    userId: string;
+    assetId: string;
+    chatSessionId?: string | null;
+    messageId?: string | null;
+    prompt?: string | null;
+    source?: "STUDIO_EDIT" | "STUDIO_MEDIA";
+    metadata?: Prisma.InputJsonValue | null;
+  }) {
+    const asset = await this.prisma.ossAsset.findUnique({
+      where: { id: input.assetId },
+    });
+    if (!asset) return null;
+
+    const kind = mediaKindForAsset(null, asset.contentType);
+    const source = input.source ?? "STUDIO_MEDIA";
+    const expiresAt = new Date(Date.now() + 24 * 3600 * 1000);
+    const [originalOssUrl, signedUrl] = await Promise.all([
+      this.oss.publicObjectUrl(asset.key),
+      this.oss.signGet(asset.key, 24 * 3600),
+    ]);
+
+    const existing = await this.prisma.mediaCenterItem.findUnique({
+      where: { ossAssetId: asset.id },
+      select: { id: true },
+    });
+    const id = existing?.id ?? `media_${randomId(24)}`;
+
+    await this.prisma.mediaCenterItem.upsert({
+      where: { ossAssetId: asset.id },
+      update: {
+        userId: input.userId,
+        kind,
+        source,
+        status: "READY",
+        bucket: asset.bucket,
+        ossKey: asset.key,
+        originalOssUrl,
+        signedUrl,
+        signedUrlExpiresAt: signedUrl ? expiresAt : null,
+        watermarkedUrl: null,
+        watermarkedUrlExpiresAt: null,
+        watermarkProcess: null,
+        requiresWatermark: false,
+        providerSourceUrl: null,
+        prompt: input.prompt ?? null,
+        chatSessionId: input.chatSessionId ?? null,
+        messageId: input.messageId ?? null,
+        contentType: asset.contentType,
+        sizeBytes: asset.sizeBytes,
+        width: asset.width,
+        height: asset.height,
+        durationMs: asset.durationMs,
+        sha256: asset.sha256,
+        visibility: asset.visibility,
+        metadata: nullableJson(input.metadata ?? asset.metadata),
+      },
+      create: {
+        id,
+        userId: input.userId,
+        kind,
+        source,
+        status: "READY",
+        ossAssetId: asset.id,
+        bucket: asset.bucket,
+        ossKey: asset.key,
+        originalOssUrl,
+        signedUrl,
+        signedUrlExpiresAt: signedUrl ? expiresAt : null,
+        requiresWatermark: false,
+        prompt: input.prompt ?? null,
+        chatSessionId: input.chatSessionId ?? null,
+        messageId: input.messageId ?? null,
+        contentType: asset.contentType,
+        sizeBytes: asset.sizeBytes,
+        width: asset.width,
+        height: asset.height,
+        durationMs: asset.durationMs,
+        sha256: asset.sha256,
+        visibility: asset.visibility,
+        metadata: nullableJson(input.metadata ?? asset.metadata),
+        createdAt: asset.createdAt,
+      },
+    });
+
+    return id;
+  }
+
   async publicRefForAsset(input: {
     userId: string;
     jobId: string;

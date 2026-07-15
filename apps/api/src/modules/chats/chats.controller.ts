@@ -110,6 +110,7 @@ class UpdateSessionDto {
 type UploadedMediaFile = {
   buffer?: Buffer;
   mimetype?: string;
+  originalname?: string;
   size?: number;
 };
 

@@ -31,17 +31,36 @@ type MessageWithJob = Prisma.ChatMessageGetPayload<{
 type UploadedMedia = {
   buffer?: Buffer;
   mimetype?: string;
+  originalname?: string;
   size?: number;
 };
 
 const EDITABLE_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const EDITABLE_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 const EDITABLE_MEDIA_TYPES = new Set([...EDITABLE_IMAGE_TYPES, ...EDITABLE_VIDEO_TYPES]);
+const GENERIC_UPLOAD_TYPES = new Set(["", "application/octet-stream", "binary/octet-stream"]);
 const DEFAULT_CHAT_TITLE = "New chat";
 
 function normalizedContentType(value: string | undefined, fallback: string) {
   const contentType = (value || fallback).split(";")[0]?.trim().toLowerCase();
   return contentType || fallback;
+}
+
+/** Browser FormData often sends merged MediaRecorder blobs as octet-stream; recover type from name. */
+function resolveUploadedContentType(file: UploadedMedia | undefined, fallback: string) {
+  const fromMime = normalizedContentType(file?.mimetype, "");
+  if (fromMime && EDITABLE_MEDIA_TYPES.has(fromMime)) return fromMime;
+
+  const name = (file?.originalname ?? "").toLowerCase();
+  if (name.endsWith(".webm")) return "video/webm";
+  if (name.endsWith(".mp4") || name.endsWith(".m4v")) return "video/mp4";
+  if (name.endsWith(".mov")) return "video/quicktime";
+  if (name.endsWith(".png")) return "image/png";
+  if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
+  if (name.endsWith(".webp")) return "image/webp";
+
+  if (fromMime && !GENERIC_UPLOAD_TYPES.has(fromMime)) return fromMime;
+  return fallback;
 }
 
 function parseMetadataRecord(value: unknown): Record<string, unknown> {
@@ -369,7 +388,7 @@ export class ChatsService {
     input: { sourceResultId?: string; file?: UploadedMedia },
   ) {
     const file = input.file;
-    const contentType = normalizedContentType(file?.mimetype, "image/png");
+    const contentType = resolveUploadedContentType(file, "image/png");
     if (!file?.buffer?.length)
       throw new BadRequestException("MEDIA_FILE_REQUIRED");
     if (!EDITABLE_MEDIA_TYPES.has(contentType))
@@ -429,6 +448,28 @@ export class ChatsService {
       }),
     ]);
 
+    await this.outputMedia
+      .registerStudioMedia({
+        userId,
+        assetId: asset.id,
+        chatSessionId: sessionId,
+        messageId: message.id,
+        prompt: message.content,
+        source: "STUDIO_EDIT",
+        metadata: {
+          edited: true,
+          sourceResultId: input.sourceResultId ?? null,
+          kind,
+          assetKey: key,
+        },
+      })
+      .catch((err) => {
+        this.logger.warn(
+          `Failed to register studio edit in media center for asset=${asset.id}: ${(err as Error).message}`,
+        );
+        return null;
+      });
+
     return {
       id: asset.id,
       src,
@@ -450,7 +491,7 @@ export class ChatsService {
     },
   ) {
     const file = input.file;
-    const contentType = normalizedContentType(file?.mimetype, "video/webm");
+    const contentType = resolveUploadedContentType(file, "video/webm");
     if (!file?.buffer?.length)
       throw new BadRequestException("MEDIA_FILE_REQUIRED");
     if (!EDITABLE_MEDIA_TYPES.has(contentType))
@@ -513,6 +554,27 @@ export class ChatsService {
       return created;
     });
 
+    const mediaCenterId = await this.outputMedia
+      .registerStudioMedia({
+        userId,
+        assetId: asset.id,
+        chatSessionId: sessionId,
+        messageId: message.id,
+        prompt: input.content,
+        source: metadata.merged ? "STUDIO_MEDIA" : "STUDIO_EDIT",
+        metadata: {
+          ...metadata,
+          kind,
+          assetKey: key,
+        },
+      })
+      .catch((err) => {
+        this.logger.warn(
+          `Failed to register studio media in media center for asset=${asset.id}: ${(err as Error).message}`,
+        );
+        return null;
+      });
+
     return {
       id: asset.id,
       src,
@@ -521,6 +583,7 @@ export class ChatsService {
       sourceResultId: input.sourceResultId ?? null,
       createdAt: createdAt.getTime(),
       messageId: message.id,
+      mediaId: mediaCenterId,
     };
   }
 
