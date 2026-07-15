@@ -165,11 +165,27 @@ export class Image2VideoProcessor {
           });
         },
         onProgress: async (progress) => {
+          // Cap below 100 while still running: provider "success" only means
+          // remote generation finished; local download + OSS upload remain.
+          const nextProgress = Math.min(95, Math.max(10, Math.round(progress)));
           await this.prisma.generationJob.updateMany({
-            where: { id: dbJob.id, status: "running" },
-            data: { progress },
+            where: {
+              id: dbJob.id,
+              status: "running",
+              progress: { lt: nextProgress },
+            },
+            data: { progress: nextProgress },
           });
         },
+      });
+
+      await this.prisma.generationJob.updateMany({
+        where: {
+          id: dbJob.id,
+          status: "running",
+          progress: { lt: 92 },
+        },
+        data: { progress: 92 },
       });
 
       const assetIds: string[] = [];
@@ -222,6 +238,15 @@ export class Image2VideoProcessor {
       if (!assetIds.length) {
         throw new Error("Provider returned no downloadable video outputs");
       }
+
+      await this.prisma.generationJob.updateMany({
+        where: {
+          id: dbJob.id,
+          status: "running",
+          progress: { lt: 95 },
+        },
+        data: { progress: 95 },
+      });
 
       await this.prisma.generationJob.update({
         where: { id: jobId },

@@ -1272,7 +1272,9 @@ function progressForStatus(status: string | undefined) {
     normalized.includes("complete") ||
     normalized.includes("ready")
   ) {
-    return 100;
+    // Cap below 100: upstream success may still need local materialize/OSS.
+    // Terminal jobs set progress:100 only when status is succeeded/failed.
+    return 95;
   }
   if (isFailureStatus(normalized)) return 100;
   return undefined;
