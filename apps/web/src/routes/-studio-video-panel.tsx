@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
+import { apiGet, apiPost } from "@/lib/api-client";
 import { useI18n } from "@/lib/i18n";
 import { modelDisplayName } from "@/lib/model-display";
 import {
@@ -17,6 +18,7 @@ import {
   newStudioId,
 } from "@/routes/-dashboard-types";
 import {
+  asPlainRecord,
   modelCreditLabel,
   createDefaultVideoDrafts,
   defaultVideoModeForModels,
@@ -28,6 +30,7 @@ import {
   normalizeReferenceInput,
   normalizeVideoDraft,
   normalizeVideoMode,
+  numericParam,
   readImageDimensions,
   readStudioHandoff,
   referenceBoundsForModel,
@@ -35,6 +38,8 @@ import {
   referenceMediaTypeFor,
   refsFromGenerationJobParams,
   settingsPatchFromGenerationJob,
+  stringParam,
+  templateReferenceUrls,
   withVideoReferenceTypes,
 } from "@/components/studio/panel/utils";
 import type {
@@ -724,6 +729,141 @@ export function VideoStudioPanel({
     [setSettings, t, updateVideoDraft],
   );
 
+  const applyTemplate = useCallback(
+    (template: PromptTemplatePublic) => {
+      const params = asPlainRecord(template.params);
+      const templateSettings = asPlainRecord(params.settings);
+      const modelCode =
+        template.modelCode ||
+        stringParam(templateSettings.model) ||
+        stringParam(params.model) ||
+        "";
+      const matchedModel =
+        allVideoModels.find((m) => m.code === modelCode) ??
+        allVideoModels.find((m) => m.isDefault) ??
+        allVideoModels[0] ??
+        null;
+
+      const requestedMode = normalizeVideoMode(
+        stringParam(templateSettings.videoInputMode) ??
+          stringParam(params.videoInputMode) ??
+          matchedModel?.videoInputMode ??
+          "T2V",
+      ) as ConcreteVideoInputMode;
+
+      const nextPrompt = [
+        template.textPrompt,
+        template.materialPrompt
+          ? t("templates.detail.materialPromptLine", { material: template.materialPrompt })
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+
+      const candidateLimit = Math.max(
+        referenceBoundsForModel("video", matchedModel).maxReferenceImages,
+        MAX_STUDIO_REFERENCE_MEDIA,
+      );
+      const candidateRefs = templateReferenceUrls(template, candidateLimit).map((src, index) => ({
+        id: newStudioId(),
+        src,
+        name: template.referenceAssetKeys[index] ?? template.title,
+        kind: mediaKindFromUrl(src),
+      }));
+
+      const inferredMode = (
+        candidateRefs.some((ref) => ref.kind === "video")
+          ? "EDIT"
+          : candidateRefs.length > 1
+            ? "R2V"
+            : candidateRefs.length === 1
+              ? "I2V"
+              : "T2V"
+      ) as ConcreteVideoInputMode;
+
+      const videoMode =
+        requestedMode === "T2V" && candidateRefs.length > 0 ? inferredMode : requestedMode;
+
+      const modelsForTemplateMode = allVideoModels.filter(
+        (m) => !m.videoInputMode || normalizeVideoMode(m.videoInputMode) === videoMode,
+      );
+      const nextModel =
+        modelsForTemplateMode.find((m) => m.code === modelCode) ??
+        modelsForTemplateMode.find((m) => m.isDefault) ??
+        modelsForTemplateMode[0] ??
+        matchedModel;
+
+      const modeRefLimit =
+        videoMode === "T2V"
+          ? 0
+          : videoMode === "I2V"
+            ? 1
+            : Math.max(
+                referenceBoundsForModel("video", nextModel).maxReferenceImages,
+                MAX_STUDIO_REFERENCE_MEDIA,
+              );
+      const refs = withVideoReferenceTypes(candidateRefs.slice(0, modeRefLimit), videoMode);
+
+      const nextSettings = defaultVideoSettingsForMode(videoMode, {
+        ratio:
+          stringParam(templateSettings.ratio) ??
+          stringParam(params.ratio) ??
+          stringParam(params.aspect_ratio) ??
+          "16:9",
+        resolution: templateSettings.resolution === "1080P" || params.resolution === "1080P"
+          ? "1080P"
+          : "720P",
+        duration: clampStudioVideoDuration(
+          numericParam(templateSettings.duration) ??
+            numericParam(params.duration) ??
+            numericParam(params.seconds),
+        ),
+        count:
+          numericParam(templateSettings.count) ??
+          numericParam(params.n) ??
+          numericParam(params.count) ??
+          1,
+        seed: numericParam(templateSettings.seed) ?? numericParam(params.seed) ?? null,
+        negative: stringParam(templateSettings.negative) ?? stringParam(params.negative) ?? "",
+        model: nextModel?.code ?? modelCode,
+      });
+
+      updateVideoDraft(videoMode, (draft) => ({
+        ...draft,
+        prompt: nextPrompt,
+        refs,
+        settings: nextSettings,
+        referenceUrlInput: "",
+      }));
+      setSettings(nextSettings);
+      setPrompt(nextPrompt);
+      setTemplateOpen(false);
+      void apiPost(`/api/templates/${template.id}/use`).catch(() => undefined);
+    },
+    [allVideoModels, setPrompt, setSettings, t, updateVideoDraft],
+  );
+
+  useEffect(() => {
+    if (!templateId || templateAppliedRef.current === templateId) return;
+    let cancelled = false;
+    apiGet<PromptTemplatePublic>(`/api/templates/${templateId}`)
+      .then((template) => {
+        if (cancelled) return;
+        applyTemplate(template);
+        templateAppliedRef.current = templateId;
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          toast.error(t("templates.loadFailed"), {
+            description: err instanceof Error ? err.message : undefined,
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [applyTemplate, templateId, t]);
+
   const onReset = () => {
     resetVideoGenerationPanel();
     startNewSessionFromHook();
@@ -1068,7 +1208,7 @@ export function VideoStudioPanel({
         onOpenChange={setTemplateOpen}
         title={t("studio.templateCenter")}
         search={templateSearch}
-        onTemplateSelect={(_template: PromptTemplatePublic) => setTemplateOpen(false)}
+        onTemplateSelect={applyTemplate}
         onSearchChange={setTemplateSearch}
         initialVideoGenerationEnabled={videoGenerationEnabled}
       />
