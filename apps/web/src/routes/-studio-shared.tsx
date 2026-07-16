@@ -857,7 +857,7 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
     [refreshStudioQueries, resultsFromJob],
   );
 
-  const jobHasResolvableOutputs = (job: GenerationJobPublic) => {
+  const jobHasResolvableOutputs = useCallback((job: GenerationJobPublic) => {
     if (job.outputItems?.some((item) => Boolean(item.url || item.mediaId || item.sourceUrl))) {
       return true;
     }
@@ -869,7 +869,7 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
       (Array.isArray(params.outputUrls) && params.outputUrls.length > 0) ||
       (Array.isArray(params.providerOutputUrls) && params.providerOutputUrls.length > 0)
     );
-  };
+  }, []);
 
   const previewJob = useCallback(
     (job: GenerationJobPublic) => {
@@ -891,7 +891,7 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
         setSelectedId(items[0]?.id ?? null);
       })();
     },
-    [resultsFromJob],
+    [jobHasResolvableOutputs, resultsFromJob],
   );
 
   const copyToClipboard = useCallback(
@@ -907,12 +907,18 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
   );
 
   const waitForGenerationJob = async (jobId: string) => {
-    for (let attempt = 0; attempt < 150; attempt += 1) {
-      const job = await apiGet<GenerationJobPublic>(`/api/generation/jobs/${jobId}`, {
-        fresh: true,
-      });
-      if (job.status === "succeeded" || job.status === "failed" || job.status === "canceled") {
-        return job;
+    // Align with worker video poll floor (~30m). Seedance often exceeds the old 2–5m UI wait.
+    const maxAttempts = 1_800;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        const job = await apiGet<GenerationJobPublic>(`/api/generation/jobs/${jobId}`, {
+          fresh: true,
+        });
+        if (job.status === "succeeded" || job.status === "failed" || job.status === "canceled") {
+          return job;
+        }
+      } catch {
+        // Detail GETs can race on output-media upsert; keep polling instead of failing the wait.
       }
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
@@ -1527,22 +1533,20 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
     };
   }, [activeSessionId, applySucceededGeneration, hasAdvancedAccess, messages, refreshStudioQueries, t]);
 
-  // When the jobs strip already shows "succeeded" but detail polling is stale, sync preview.
-  useEffect(() => {
-    if (!activeSessionId) return;
-    const loadingMessages = messages.filter(
-      (msg): msg is Extract<StudioMessage, { role: "assistant" }> & { generationJobId: string } =>
-        msg.role === "assistant" &&
-        msg.status === "loading" &&
-        typeof msg.generationJobId === "string" &&
-        msg.generationJobId.length > 0,
-    );
-    if (!loadingMessages.length) return;
+  const autoPreviewJobIdRef = useRef<string | null>(null);
 
-    for (const message of loadingMessages) {
+  // When the jobs strip already shows "succeeded" but the UI wait timed out / detail 500'd,
+  // recover message + main preview from strip (or a fresh detail fetch).
+  useEffect(() => {
+    if (!activeSessionId || sessionLoading) return;
+
+    const recoverMessage = (
+      message: Extract<StudioMessage, { role: "assistant" }> & { generationJobId: string },
+    ) => {
       const job = studioJobs.find((item) => item.id === message.generationJobId);
-      if (!job || job.status !== "succeeded") continue;
-      if (applySucceededGeneration(job, message)) continue;
+      if (!job || job.status !== "succeeded") return;
+
+      if (applySucceededGeneration(job, message)) return;
 
       void (async () => {
         try {
@@ -1555,8 +1559,53 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
           // Retry on the next jobs refresh / poll tick.
         }
       })();
+    };
+
+    for (const message of messages) {
+      if (message.role !== "assistant" || !message.generationJobId) continue;
+      const jobId = message.generationJobId;
+      if (message.status === "loading") {
+        recoverMessage({ ...message, generationJobId: jobId });
+        continue;
+      }
+      // Frontend wait can expire while the worker is still finishing Seedance.
+      if (message.status === "error") {
+        recoverMessage({ ...message, generationJobId: jobId });
+        continue;
+      }
+      if (message.status === "done" && message.results.length === 0) {
+        recoverMessage({ ...message, generationJobId: jobId });
+      }
     }
-  }, [activeSessionId, applySucceededGeneration, messages, studioJobs]);
+
+    // No selected preview, but strip already has a succeeded job for this session.
+    if (!selected) {
+      const latestSucceeded =
+        studioJobs.find(
+          (job) =>
+            job.status === "succeeded" &&
+            job.chatSessionId === activeSessionId &&
+            jobHasResolvableOutputs(job),
+        ) ?? null;
+      if (latestSucceeded && autoPreviewJobIdRef.current !== latestSucceeded.id) {
+        autoPreviewJobIdRef.current = latestSucceeded.id;
+        previewJob(latestSucceeded);
+      }
+    }
+  }, [
+    activeSessionId,
+    applySucceededGeneration,
+    jobHasResolvableOutputs,
+    messages,
+    previewJob,
+    selected,
+    sessionLoading,
+    studioJobs,
+  ]);
+
+  useEffect(() => {
+    autoPreviewJobIdRef.current = null;
+  }, [activeSessionId]);
 
   // ── Title editing effects ─────────────────────────────────────────
 
