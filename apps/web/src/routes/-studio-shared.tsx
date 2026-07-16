@@ -688,6 +688,7 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
     queryFn: () =>
       apiGet<GenerationJobPublic[]>("/api/generation/jobs", {
         query: { mine: true, limit: STUDIO_JOB_HISTORY_LIMIT, type: activeJobType },
+        fresh: true,
       }),
     staleTime: 30_000,
     refetchInterval: (query) =>
@@ -760,7 +761,15 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
 
   const addResult = (items: StudioResult[]) => {
     const newestFirst = [...items].reverse();
-    setResults((prev) => [...newestFirst, ...prev].slice(0, 24));
+    const jobIds = new Set(
+      items.map((item) => item.jobId).filter((id): id is string => Boolean(id)),
+    );
+    setResults((prev) => {
+      const withoutJob = jobIds.size
+        ? prev.filter((item) => !item.jobId || !jobIds.has(item.jobId))
+        : prev;
+      return [...newestFirst, ...withoutJob].slice(0, 24);
+    });
     setSelectedJobId(null);
     setSelectedId(newestFirst[0]?.id ?? null);
   };
@@ -819,6 +828,49 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
     [],
   );
 
+  const applySucceededGeneration = useCallback(
+    (
+      job: GenerationJobPublic,
+      message: Extract<StudioMessage, { role: "assistant" }>,
+    ) => {
+      const items = resultsFromJob(job, message.text, message.settings.mode, message.id);
+      if (!items.length) return false;
+      const newestFirst = [...items].reverse();
+      setOptimisticJobs((prev) =>
+        [job, ...prev.filter((item) => item.id !== job.id)].slice(0, 24),
+      );
+      setMessages((prev) =>
+        prev.map((item) =>
+          item.role === "assistant" && item.generationJobId === job.id
+            ? { ...item, status: "done", results: items, error: undefined }
+            : item,
+        ),
+      );
+      setResults((prev) =>
+        [...newestFirst, ...prev.filter((item) => item.jobId !== job.id)].slice(0, 24),
+      );
+      setSelectedJobId(null);
+      setSelectedId(newestFirst[0]?.id ?? null);
+      refreshStudioQueries();
+      return true;
+    },
+    [refreshStudioQueries, resultsFromJob],
+  );
+
+  const jobHasResolvableOutputs = (job: GenerationJobPublic) => {
+    if (job.outputItems?.some((item) => Boolean(item.url || item.mediaId || item.sourceUrl))) {
+      return true;
+    }
+    if ((job.outputUrls?.length ?? 0) > 0) return true;
+    if ((job.providerOutputUrls?.length ?? 0) > 0) return true;
+    const params =
+      job.params && typeof job.params === "object" && !Array.isArray(job.params) ? job.params : {};
+    return (
+      (Array.isArray(params.outputUrls) && params.outputUrls.length > 0) ||
+      (Array.isArray(params.providerOutputUrls) && params.providerOutputUrls.length > 0)
+    );
+  };
+
   const previewJob = useCallback(
     (job: GenerationJobPublic) => {
       setSelectedJobId(job.id);
@@ -827,11 +879,9 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
         return;
       }
       void (async () => {
-        const detailed =
-          job.outputItems?.some((item) => item.mediaId || item.sourceUrl) ||
-          (job.providerOutputUrls?.length ?? 0) > 0
-            ? job
-            : await apiGet<GenerationJobPublic>(`/api/generation/jobs/${job.id}`);
+        const detailed = jobHasResolvableOutputs(job)
+          ? job
+          : await apiGet<GenerationJobPublic>(`/api/generation/jobs/${job.id}`, { fresh: true });
         const mode = detailed.type === "IMAGE2VIDEO" ? "video" : "image";
         const items = resultsFromJob(detailed, detailed.prompt, mode);
         if (!items.length) return;
@@ -858,11 +908,13 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
 
   const waitForGenerationJob = async (jobId: string) => {
     for (let attempt = 0; attempt < 150; attempt += 1) {
-      const job = await apiGet<GenerationJobPublic>(`/api/generation/jobs/${jobId}`);
+      const job = await apiGet<GenerationJobPublic>(`/api/generation/jobs/${jobId}`, {
+        fresh: true,
+      });
       if (job.status === "succeeded" || job.status === "failed" || job.status === "canceled") {
         return job;
       }
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
     throw new Error(t("studio.generationTimedOut"));
   };
@@ -1429,6 +1481,7 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
         try {
           const job = await apiGet<GenerationJobPublic>(
             `/api/generation/jobs/${message.generationJobId}`,
+            { fresh: true },
           );
           if (
             cancelled ||
@@ -1441,24 +1494,7 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
           }
 
           if (job.status === "succeeded") {
-            const items = resultsFromJob(job, message.text, message.settings.mode, message.id);
-            const newestFirst = [...items].reverse();
-            setOptimisticJobs((prev) =>
-              [job, ...prev.filter((item) => item.id !== job.id)].slice(0, 24),
-            );
-            setMessages((prev) =>
-              prev.map((item) =>
-                item.role === "assistant" && item.generationJobId === job.id
-                  ? { ...item, status: "done", results: items, error: undefined }
-                  : item,
-              ),
-            );
-            setResults((prev) =>
-              [...newestFirst, ...prev.filter((item) => item.jobId !== job.id)].slice(0, 24),
-            );
-            setSelectedJobId(null);
-            setSelectedId(newestFirst[0]?.id ?? null);
-            refreshStudioQueries();
+            applySucceededGeneration(job, message);
           } else {
             const notice = studioGenerationErrorNotice({
               rawMessage: job.errorMessage,
@@ -1484,12 +1520,43 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
     };
 
     void tick();
-    const timer = window.setInterval(() => void tick(), 2500);
+    const timer = window.setInterval(() => void tick(), 1500);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [activeSessionId, hasAdvancedAccess, messages, resultsFromJob, refreshStudioQueries, t]);
+  }, [activeSessionId, applySucceededGeneration, hasAdvancedAccess, messages, refreshStudioQueries, t]);
+
+  // When the jobs strip already shows "succeeded" but detail polling is stale, sync preview.
+  useEffect(() => {
+    if (!activeSessionId) return;
+    const loadingMessages = messages.filter(
+      (msg): msg is Extract<StudioMessage, { role: "assistant" }> & { generationJobId: string } =>
+        msg.role === "assistant" &&
+        msg.status === "loading" &&
+        typeof msg.generationJobId === "string" &&
+        msg.generationJobId.length > 0,
+    );
+    if (!loadingMessages.length) return;
+
+    for (const message of loadingMessages) {
+      const job = studioJobs.find((item) => item.id === message.generationJobId);
+      if (!job || job.status !== "succeeded") continue;
+      if (applySucceededGeneration(job, message)) continue;
+
+      void (async () => {
+        try {
+          const detailed = await apiGet<GenerationJobPublic>(`/api/generation/jobs/${job.id}`, {
+            fresh: true,
+          });
+          if (detailed.status !== "succeeded") return;
+          applySucceededGeneration(detailed, message);
+        } catch {
+          // Retry on the next jobs refresh / poll tick.
+        }
+      })();
+    }
+  }, [activeSessionId, applySucceededGeneration, messages, studioJobs]);
 
   // ── Title editing effects ─────────────────────────────────────────
 

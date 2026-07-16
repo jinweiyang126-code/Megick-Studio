@@ -33,6 +33,8 @@ export interface ApiOptions extends RequestInit {
   json?: unknown;
   query?: Record<string, string | number | boolean | undefined | null>;
   forwardServerCookies?: boolean;
+  /** Bypass browser/CDN caches for frequently polled endpoints (e.g. generation jobs). */
+  fresh?: boolean;
 }
 
 const getServerRequestHeaders = createServerOnlyFn(() => {
@@ -90,7 +92,7 @@ function buildQuery(query?: ApiOptions["query"]): string {
 }
 
 export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Promise<T> {
-  const { json, query, headers, forwardServerCookies, ...rest } = opts;
+  const { json, query, headers, forwardServerCookies, fresh, cache, ...rest } = opts;
   const serverHeaders =
     typeof window === "undefined" && forwardServerCookies
       ? (getServerRequestHeaders() ?? {})
@@ -102,10 +104,12 @@ export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Pro
       : relativeUrl;
   const init: RequestInit = {
     credentials: "include",
+    cache: fresh ? "no-store" : cache,
     headers: {
       Accept: "application/json",
       "Accept-Language": serverHeaders.acceptLanguage ?? getClientAcceptLanguage() ?? DEFAULT_LOCALE,
       "X-Megick-Locale-Source": serverHeaders.localeSource ?? getClientLocaleSource() ?? "device",
+      ...(fresh ? { "Cache-Control": "no-cache", Pragma: "no-cache" } : {}),
       ...(json !== undefined ? { "Content-Type": "application/json" } : {}),
       ...(serverHeaders.cookie ? { Cookie: serverHeaders.cookie } : {}),
       ...(headers ?? {}),

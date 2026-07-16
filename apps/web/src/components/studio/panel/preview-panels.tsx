@@ -235,10 +235,11 @@ export function VideoPreviewPanel({
   const [downloading, setDownloading] = useState(false);
   const [videoLoadFailed, setVideoLoadFailed] = useState(false);
   const [toolbarVisible, setToolbarVisible] = usePreviewToolbarVisibility();
+  const playbackSrc = jobOutputContentUrl(result) ?? result.src;
 
   useEffect(() => {
     setVideoLoadFailed(false);
-  }, [result.src]);
+  }, [playbackSrc]);
 
   const runDownload = async () => {
     if (downloading) return;
@@ -337,7 +338,7 @@ export function VideoPreviewPanel({
         <video
           ref={videoRef}
           controls
-          src={result.src}
+          src={playbackSrc}
           muted={muted}
           playsInline
           preload="metadata"
