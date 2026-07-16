@@ -391,9 +391,42 @@ export class GenerationOutputMediaService {
         status: "READY",
         kind: { in: ["IMAGE", "VIDEO"] },
       },
-      select: { id: true, ossKey: true, originalOssUrl: true },
+      select: {
+        id: true,
+        ossKey: true,
+        originalOssUrl: true,
+        signedUrl: true,
+        signedUrlExpiresAt: true,
+      },
     });
     if (item) {
+      const pickCached = (
+        url: string | null | undefined,
+        expiresAt: Date | null | undefined,
+      ) => {
+        if (!url || !expiresAt) return null;
+        // keep a small buffer to avoid edge-of-expiry failures
+        return expiresAt.getTime() > Date.now() + 60_000 ? url : null;
+      };
+
+      const cachedSigned = pickCached(
+        item.signedUrl,
+        item.signedUrlExpiresAt as Date | null | undefined,
+      );
+      if (cachedSigned) return cachedSigned;
+
+      // Provider side downloads must work without cookies/CORS.
+      // Prefer signed URLs over "public" object URLs, because objects can be private.
+      const signed = await this.oss.signGet(item.ossKey, 24 * 3600);
+      if (signed) {
+        const expiresAt = new Date(Date.now() + 24 * 3600 * 1000);
+        await this.prisma.mediaCenterItem.update({
+          where: { id: item.id },
+          data: { signedUrl: signed, signedUrlExpiresAt: expiresAt },
+        });
+        return signed;
+      }
+
       const original =
         item.originalOssUrl ?? (await this.exportableOssUrl(item.ossKey));
       if (!item.originalOssUrl) {
