@@ -123,7 +123,9 @@ import {
   referenceKindFromFile,
   referenceMediaTypeFor,
   refsFromGenerationJobParams,
+  resolveJobOutputIndexForUrl,
   settingsPatchFromGenerationJob,
+  studioResultCoversMediaUrl,
   templateReferenceUrls,
   validateReferenceVideoDuration,
   withVideoReferenceTypes,
@@ -785,16 +787,22 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
       ].filter((url): url is string => typeof url === "string" && url.trim().length > 0);
       const items = studioResultsFromJob(job, promptText, mode, messageId ?? job.id);
       const fallbackItems = fallbackUrls
-        .filter((url) => mode === "video" || mediaKindFromUrl(url) === "image")
-        .map(
-          (url, index): StudioResult => ({
+        .filter((url) => {
+          if (items.some((item) => studioResultCoversMediaUrl(item, url))) return false;
+          return mode === "video" || mediaKindFromUrl(url) === "image";
+        })
+        .map((url, index): StudioResult => {
+          const outputIndex = resolveJobOutputIndexForUrl(job, url, index);
+          return {
             id: `${job.id}-fallback-${index}`,
             src: url,
             kind: mode,
             prompt: promptText,
             chatSessionId: job.chatSessionId ?? undefined,
-          }),
-        );
+            jobId: job.id,
+            outputIndex,
+          };
+        });
       const seen = new Set<string>();
       return [...items, ...fallbackItems]
         .filter((result) => {

@@ -633,11 +633,114 @@ export function assetContentUrl(src: string | undefined) {
   }
 }
 
+function mediaSrcIdentity(src: string | undefined | null) {
+  if (!src?.trim()) return null;
+  const key = ossAssetKeyFromMediaSrc(src);
+  if (key) return `key:${key}`;
+  return src.trim();
+}
+
+function mediaSrcsMatch(
+  a: string | undefined | null,
+  b: string | undefined | null,
+) {
+  if (!a?.trim() || !b?.trim()) return false;
+  if (a === b) return true;
+  const idA = mediaSrcIdentity(a);
+  const idB = mediaSrcIdentity(b);
+  return idA !== null && idA === idB;
+}
+
+export function studioResultCoversMediaUrl(item: StudioResult, url: string) {
+  return (
+    mediaSrcsMatch(item.src, url) ||
+    mediaSrcsMatch(item.fallbackSrc, url) ||
+    mediaSrcsMatch(item.sourceSrc, url)
+  );
+}
+
+/** Recover job/output slot from primary results or `{jobId}-fallback-{n}` ids. */
+export function inferStudioResultJobContext(item: StudioResult) {
+  let jobId = item.jobId;
+  let outputIndex = item.outputIndex;
+  if (!jobId) {
+    const fallback = item.id.match(/^(.+)-fallback-(\d+)$/);
+    if (fallback) {
+      jobId = fallback[1];
+      if (outputIndex === undefined) outputIndex = Number(fallback[2]);
+    }
+  }
+  return { jobId, outputIndex };
+}
+
+export function resolveJobOutputIndexForUrl(
+  job: Pick<
+    GenerationJobPublic,
+    "outputItems" | "outputUrls" | "providerOutputUrls"
+  >,
+  url: string,
+  fallbackArrayIndex?: number,
+) {
+  const items = job.outputItems ?? [];
+  for (let i = 0; i < items.length; i++) {
+    const output = items[i];
+    if (
+      mediaSrcsMatch(output.url, url) ||
+      mediaSrcsMatch(output.fallbackUrl, url) ||
+      mediaSrcsMatch(output.sourceUrl, url)
+    ) {
+      return i;
+    }
+  }
+  const outputUrls = job.outputUrls ?? [];
+  const outputIdx = outputUrls.findIndex((candidate) => mediaSrcsMatch(candidate, url));
+  if (outputIdx >= 0) return outputIdx;
+  const providerUrls = job.providerOutputUrls ?? [];
+  const providerIdx = providerUrls.findIndex((candidate) => mediaSrcsMatch(candidate, url));
+  if (providerIdx >= 0) return providerIdx;
+  const slotCount = Math.max(items.length, outputUrls.length, providerUrls.length);
+  if (
+    typeof fallbackArrayIndex === "number" &&
+    fallbackArrayIndex >= 0 &&
+    fallbackArrayIndex < slotCount
+  ) {
+    return fallbackArrayIndex;
+  }
+  return undefined;
+}
+
+function isFallbackStudioResultId(id: string) {
+  return /-fallback-\d+$/.test(id);
+}
+
+/** Prefer canonical job outputs over legacy `{jobId}-fallback-{n}` duplicates. */
+export function dedupeSessionVideosForMerge(videos: StudioResult[]) {
+  const bySlot = new Map<string, StudioResult>();
+  const extras: StudioResult[] = [];
+  for (const video of videos) {
+    const { jobId, outputIndex } = inferStudioResultJobContext(video);
+    if (jobId && typeof outputIndex === "number" && outputIndex >= 0) {
+      const key = `${jobId}:${outputIndex}`;
+      const existing = bySlot.get(key);
+      if (
+        !existing ||
+        (isFallbackStudioResultId(existing.id) && !isFallbackStudioResultId(video.id))
+      ) {
+        bySlot.set(key, video);
+      }
+      continue;
+    }
+    extras.push(video);
+  }
+  return [...bySlot.values(), ...extras];
+}
+
 export function jobOutputContentUrl(item: StudioResult, variant?: "thumbnail") {
-  if (!item.jobId || !Number.isInteger(item.outputIndex) || (item.outputIndex ?? -1) < 0) {
+  const { jobId, outputIndex } = inferStudioResultJobContext(item);
+  if (!jobId || !Number.isInteger(outputIndex) || (outputIndex ?? -1) < 0) {
     return null;
   }
-  const base = `/api/generation/jobs/${encodeURIComponent(item.jobId)}/output/${item.outputIndex}/content`;
+  const base = `/api/generation/jobs/${encodeURIComponent(jobId)}/output/${outputIndex}/content`;
   return variant ? `${base}?variant=${variant}` : base;
 }
 
@@ -645,12 +748,9 @@ function jobOutputContentCandidates(item: StudioResult, variant?: "thumbnail") {
   const urls: string[] = [];
   const primary = jobOutputContentUrl(item, variant);
   if (primary) urls.push(primary);
-  if (
-    item.jobId &&
-    typeof item.outputIndex === "number" &&
-    item.outputIndex > 0
-  ) {
-    const atZero = jobOutputContentUrl({ ...item, outputIndex: 0 }, variant);
+  const { jobId, outputIndex } = inferStudioResultJobContext(item);
+  if (jobId && typeof outputIndex === "number" && outputIndex > 0) {
+    const atZero = jobOutputContentUrl({ ...item, jobId, outputIndex: 0 }, variant);
     if (atZero && !urls.includes(atZero)) urls.push(atZero);
   }
   return urls;

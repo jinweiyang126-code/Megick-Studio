@@ -159,12 +159,6 @@ function RootShell({ children }: { children: React.ReactNode }) {
                   document.head.appendChild(gtagScript);
                   gtag('js', new Date());
                   gtag('config', 'G-EVZWS6K1VT');
-
-                  var statsScript = document.createElement('script');
-                  statsScript.defer = true;
-                  statsScript.src = 'https://stats.zeeklog.com/script.js';
-                  statsScript.setAttribute('data-website-id', 'a0fa2711-5925-480b-add2-86cb5f88bcd0');
-                  document.head.appendChild(statsScript);
                 };
                 var schedule = function(){
                   if ('requestIdleCallback' in window) {

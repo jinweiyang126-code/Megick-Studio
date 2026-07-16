@@ -58,6 +58,7 @@ import {
 import { STYLE_PRESETS, RATIO_PRESETS } from "@/components/studio/presets";
 import {
   asPlainRecord,
+  dedupeSessionVideosForMerge,
   extensionFromName,
   imageExtension,
   mediaKindFromUrl,
@@ -483,7 +484,9 @@ export function ImageStudioPanel({
     },
     [addResultFromHook],
   );
-  const sessionVideos = results.filter((item) => item.kind === "video");
+  const sessionVideos = dedupeSessionVideosForMerge(
+    results.filter((item) => item.kind === "video"),
+  );
 
   const download = async (item: StudioResult) => {
     try {

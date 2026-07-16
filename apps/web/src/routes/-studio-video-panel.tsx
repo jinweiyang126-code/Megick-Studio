@@ -23,6 +23,7 @@ import {
   createDefaultVideoDrafts,
   defaultVideoModeForModels,
   defaultVideoSettingsForMode,
+  dedupeSessionVideosForMerge,
   estimatedGenerationCredits,
   extensionFromName,
   handoffReferenceName,
@@ -870,14 +871,18 @@ export function VideoStudioPanel({
   };
 
   const openMediaCenter = () => {
-    const sessionVideos = results.filter((item) => item.kind === "video");
+    const sessionVideos = dedupeSessionVideosForMerge(
+      results.filter((item) => item.kind === "video"),
+    );
     if (sessionVideos.length === 0) {
       toast.error(t("studio.mediaCenter.empty"));
       return;
     }
     setMediaCenterOpen(true);
   };
-  const sessionVideos = results.filter((item) => item.kind === "video");
+  const sessionVideos = dedupeSessionVideosForMerge(
+    results.filter((item) => item.kind === "video"),
+  );
 
   // ── Handoff/sourceImage effect ──────────────────────────────────
   const searchPromptRef = useRef<string | undefined>(searchPrompt);
