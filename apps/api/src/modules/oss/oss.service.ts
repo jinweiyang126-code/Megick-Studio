@@ -20,6 +20,17 @@ interface OssClient {
     key: string,
     opts?: { process?: string },
   ): Promise<{ content: Buffer | Uint8Array | string }>;
+  getStream?(
+    key: string,
+    opts?: { process?: string; headers?: Record<string, string> },
+  ): Promise<{
+    stream: NodeJS.ReadableStream | null;
+    res: {
+      status: number;
+      headers: Record<string, string>;
+      size?: number;
+    };
+  }>;
   signatureUrl(key: string, opts?: { expires: number; process?: string }): string;
 }
 
@@ -307,6 +318,87 @@ export class OssService {
         : asset.contentType,
       sizeBytes: content.length,
     };
+  }
+
+  /**
+   * Stream an owned object through the API (supports Range). Prefer this for
+   * browser `<video>` merge/export so media stays same-origin for canvas.
+   */
+  async getAuthorizedAssetStream(
+    keyOrUrl: string,
+    user: { id: string; isSuperAdmin?: boolean },
+    opts: {
+      process?: string;
+      range?: string;
+      allowGeneratedImageDelivery?: boolean;
+    } = {},
+  ) {
+    const key = this.assetKeyFromUrl(keyOrUrl);
+    if (!key) throw new BadRequestException("INVALID_ASSET_KEY");
+
+    const asset = await this.prisma.ossAsset.findUnique({ where: { key } });
+    if (!asset) {
+      if (!this.isDirectUploadKeyForUser(key, user.id)) {
+        throw new NotFoundException();
+      }
+    } else {
+      if (
+        asset.visibility !== "PUBLIC" &&
+        asset.userId !== user.id &&
+        !user.isSuperAdmin
+      ) {
+        throw new ForbiddenException();
+      }
+      await this.assertDirectAssetAccessAllowed(asset.id, user, opts);
+    }
+
+    const client = await this.client();
+    if (!client?.getStream) {
+      const buffered = await this.getAuthorizedAssetContent(keyOrUrl, user, opts);
+      const { Readable } = await import("node:stream");
+      return {
+        key,
+        stream: Readable.from(buffered.content),
+        contentType: buffered.contentType,
+        sizeBytes: buffered.sizeBytes,
+        status: 200 as number,
+        contentRange: undefined as string | undefined,
+      };
+    }
+
+    try {
+      const result = await client.getStream(key, {
+        ...(opts.process ? { process: opts.process } : {}),
+        ...(opts.range ? { headers: { Range: opts.range } } : {}),
+      });
+      if (!result.stream) throw new NotFoundException();
+      const headers = result.res.headers ?? {};
+      const contentType =
+        headers["content-type"] ??
+        asset?.contentType ??
+        this.guessContentTypeFromKey(key);
+      const sizeHeader = headers["content-length"];
+      const sizeBytes = sizeHeader
+        ? Number(sizeHeader)
+        : typeof result.res.size === "number"
+          ? result.res.size
+          : asset?.sizeBytes ?? undefined;
+      return {
+        key,
+        stream: result.stream,
+        contentType,
+        sizeBytes: Number.isFinite(sizeBytes) ? sizeBytes : undefined,
+        status: result.res.status || (opts.range ? 206 : 200),
+        contentRange: headers["content-range"] as string | undefined,
+      };
+    } catch (err) {
+      if (err instanceof NotFoundException || err instanceof ForbiddenException) {
+        throw err;
+      }
+      const message = (err as Error).message ?? String(err);
+      this.logger.error(`OSS getStream failed for ${key}: ${message}`);
+      throw new NotFoundException();
+    }
   }
 
   async signPostObject(

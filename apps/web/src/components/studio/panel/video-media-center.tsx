@@ -236,13 +236,17 @@ export async function exportMergedVideo(
     releaseObjectUrls(objectUrls);
   };
 
-  /** Prefer streaming <video src> (302→OSS). Full fetch via API proxy is a slow last resort. */
+  /** Prefer same-origin streaming proxy. Never use 302→OSS for canvas merge. */
   const bindPlayableSource = async (video: HTMLVideoElement, item: StudioResult) => {
+    const candidates = playableVideoSrcCandidates(item);
     let lastError: unknown;
-    for (const candidate of playableVideoSrcCandidates(item)) {
+    for (const candidate of candidates) {
       try {
         bindVideoSource(video, candidate);
-        await waitForVideoMetadata(video, 60_000);
+        await waitForVideoMetadata(video, 90_000);
+        if ((video.videoWidth || 0) < 2 && (video.videoHeight || 0) < 2) {
+          throw new Error("Video has no visible frames");
+        }
         return candidate;
       } catch (err) {
         lastError = err;
@@ -258,11 +262,15 @@ export async function exportMergedVideo(
       await waitForVideoMetadata(video, 30_000);
       return url;
     } catch (err) {
-      throw err instanceof Error
-        ? err
-        : lastError instanceof Error
-          ? lastError
-          : new Error("Unable to download media");
+      const detail =
+        err instanceof Error
+          ? err.message
+          : lastError instanceof Error
+            ? lastError.message
+            : "Unable to download media";
+      throw new Error(
+        `Unable to load video for merge (${item.id}): ${detail}`,
+      );
     }
   };
 

@@ -673,24 +673,6 @@ function isLikelyUpstreamProviderUrl(src: string) {
   }
 }
 
-/** Hosts that <video> usually cannot play (unlike Megick OSS on aliyuncs). */
-function isUnplayableProviderMediaUrl(src: string) {
-  if (!src.trim()) return false;
-  try {
-    const origin =
-      typeof window !== "undefined" ? window.location.origin : "https://local";
-    const url = new URL(src, origin);
-    if (typeof window !== "undefined" && url.origin === window.location.origin) {
-      return false;
-    }
-    return /(?:volces|volcengine|dashscope|ark-acc|ark-cn|byteimg|ibyteimg)/i.test(
-      url.hostname,
-    );
-  } catch {
-    return false;
-  }
-}
-
 function dedupeUrls(urls: Array<string | null | undefined>) {
   return urls.filter(
     (src, index, items): src is string => Boolean(src) && items.indexOf(src) === index,
@@ -728,7 +710,7 @@ function isSameOriginUrl(src: string) {
  * Default /content responses 302 to signed OSS; browser fetch of that OSS URL fails CORS
  * (including Megick's own aliyuncs bucket). `delivery=proxy` streams bytes via the API.
  */
-function withContentProxyDelivery(src: string) {
+export function withContentProxyDelivery(src: string) {
   if (typeof window === "undefined") return src;
   try {
     const url = new URL(src, window.location.origin);
@@ -845,23 +827,19 @@ export function downloadCandidates(item: StudioResult) {
 }
 
 /**
- * URLs suitable for `<video src>` during merge/export.
- * Prefer 302→OSS (fast CDN) over `/assets/content` full-buffer proxy (slow ECS egress).
- * Megick OSS signed URLs are OK for media elements; volces/dashscope are not.
+ * URLs for `<video src>` during merge/export.
+ * Must stay same-origin: 302→OSS plays in a preview tag, but without CORS it taints
+ * canvas and MediaRecorder merge fails — then fetch fallback also dies on OSS CORS.
  */
 export function playableVideoSrcCandidates(item: StudioResult) {
-  const direct = [item.src, item.fallbackSrc, item.sourceSrc];
-  const playableDirect = direct.filter(
-    (src) => src && !isUnplayableProviderMediaUrl(src),
-  );
   return dedupeUrls([
-    ...jobOutputContentCandidates(item),
-    providerOutputContentUrl(item),
-    ...playableDirect,
-    // Last resort: same-origin byte proxy (slow, but works when redirects are blocked).
     assetContentUrl(item.src),
     assetContentUrl(item.fallbackSrc),
     assetContentUrl(item.sourceSrc),
+    ...jobOutputContentCandidates(item).map(withContentProxyDelivery),
+    providerOutputContentUrl(item)
+      ? withContentProxyDelivery(providerOutputContentUrl(item)!)
+      : null,
   ]);
 }
 

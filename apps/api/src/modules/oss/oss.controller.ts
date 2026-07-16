@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Post, Query, Res } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Post, Query, Req, Res } from "@nestjs/common";
 import {
   ApiConsumes,
   ApiFoundResponse,
@@ -8,7 +8,7 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { IsInt, IsOptional, IsString, Max, Min } from "class-validator";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import { CurrentUser, type AuthUserContext } from "@/common/decorators/current-user.decorator";
 import { OssService } from "./oss.service";
 import {
@@ -191,7 +191,7 @@ export class OssController {
   @ApiOperation(
     documentedOperation(
       "Stream an owned OSS asset through the API origin",
-      "Checks current-user ownership or SUPER_ADMIN access, then streams the asset bytes through the API origin. Use this endpoint when a client cannot talk to OSS directly.",
+      "Checks current-user ownership or SUPER_ADMIN access, then streams the asset bytes through the API origin (supports Range). Use this endpoint when a client cannot talk to OSS directly — e.g. browser video merge that needs a same-origin source for canvas.",
     ),
   )
   @ApiOkResponseModel(
@@ -201,12 +201,30 @@ export class OssController {
   async content(
     @Query("key") key: string,
     @CurrentUser() user: AuthUserContext,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
-    const asset = await this.oss.getAuthorizedAssetContent(key, user);
+    const range = typeof req.headers.range === "string" ? req.headers.range : undefined;
+    const asset = await this.oss.getAuthorizedAssetStream(key, user, { range });
     res.setHeader("Content-Type", asset.contentType);
-    res.setHeader("Content-Length", String(asset.content.length));
+    res.setHeader("Accept-Ranges", "bytes");
     res.setHeader("Cache-Control", "private, max-age=3600");
-    res.send(asset.content);
+    if (asset.contentRange) {
+      res.status(206);
+      res.setHeader("Content-Range", asset.contentRange);
+    } else {
+      res.status(asset.status >= 200 && asset.status < 300 ? asset.status : 200);
+    }
+    if (typeof asset.sizeBytes === "number" && Number.isFinite(asset.sizeBytes)) {
+      res.setHeader("Content-Length", String(asset.sizeBytes));
+    }
+    asset.stream.on("error", (err) => {
+      if (!res.headersSent) {
+        res.status(502).end();
+      } else {
+        res.destroy(err);
+      }
+    });
+    asset.stream.pipe(res);
   }
 }
