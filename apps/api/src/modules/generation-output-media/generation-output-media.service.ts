@@ -1,4 +1,5 @@
 import { BadGatewayException, BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Prisma, type GenerationJobTypeEnum, type OssAsset } from "@prisma/client";
 import { PrismaService } from "nestjs-prisma";
 import { randomId } from "@/common/random-id";
 import { AdvancedAccessService } from "@/common/services/advanced-access.service";
@@ -9,7 +10,12 @@ import {
   mediaOutputProxyUrl,
   parseGenerationOutputProxyUrl,
 } from "../generation/generation-output-urls";
-import type { GenerationJobTypeEnum, OssAsset, Prisma } from "@prisma/client";
+
+function isUniqueConstraintError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
+  );
+}
 
 export const GENERATED_IMAGE_THUMBNAIL_PROCESS =
   "image/resize,m_lfit,w_320,h_320/format,webp/quality,q_72";
@@ -55,23 +61,45 @@ export class GenerationOutputMediaService {
     outputIndex: number;
     assetId: string;
   }) {
-    const record = await this.prisma.generationOutputMedia.upsert({
-      where: {
-        jobId_outputIndex: {
+    // Concurrent GET /jobs/:id (studio polling) can race on MySQL upsert INSERT.
+    // Recover from P2002 by loading the winner row instead of 500'ing the preview.
+    let record: { id: string };
+    try {
+      record = await this.prisma.generationOutputMedia.upsert({
+        where: {
+          jobId_outputIndex: {
+            jobId: input.jobId,
+            outputIndex: input.outputIndex,
+          },
+        },
+        update: { userId: input.userId, assetId: input.assetId },
+        create: {
+          id: `media_${randomId(24)}`,
+          userId: input.userId,
           jobId: input.jobId,
           outputIndex: input.outputIndex,
+          assetId: input.assetId,
         },
-      },
-      update: { userId: input.userId, assetId: input.assetId },
-      create: {
-        id: `media_${randomId(24)}`,
-        userId: input.userId,
-        jobId: input.jobId,
-        outputIndex: input.outputIndex,
-        assetId: input.assetId,
-      },
-      select: { id: true },
-    });
+        select: { id: true },
+      });
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error;
+      const existing = await this.prisma.generationOutputMedia.findUnique({
+        where: {
+          jobId_outputIndex: {
+            jobId: input.jobId,
+            outputIndex: input.outputIndex,
+          },
+        },
+        select: { id: true },
+      });
+      if (!existing) throw error;
+      record = await this.prisma.generationOutputMedia.update({
+        where: { id: existing.id },
+        data: { userId: input.userId, assetId: input.assetId },
+        select: { id: true },
+      });
+    }
     await this.ensureMediaCenterItem({
       id: record.id,
       userId: input.userId,
@@ -533,73 +561,68 @@ export class GenerationOutputMediaService {
     const providerSourceUrl =
       stringArray(job?.providerOutputUrls)[input.outputIndex] ?? null;
 
-    await this.prisma.mediaCenterItem.upsert({
-      where: {
-        jobId_outputIndex: {
+    const mediaCenterPayload = {
+      userId: input.userId,
+      kind,
+      source: "GENERATION" as const,
+      status: "READY" as const,
+      ossAssetId: asset.id,
+      bucket: asset.bucket,
+      ossKey: asset.key,
+      originalOssUrl,
+      signedUrl,
+      signedUrlExpiresAt: signedUrl ? expiresAt : null,
+      watermarkedUrl,
+      watermarkedUrlExpiresAt: watermarkedUrl ? expiresAt : null,
+      watermarkProcess: requiresWatermark ? FREE_IMAGE_WATERMARK_PROCESS : null,
+      requiresWatermark,
+      providerSourceUrl,
+      prompt: job?.prompt ?? null,
+      chatSessionId: job?.chatSessionId ?? null,
+      contentType: asset.contentType,
+      sizeBytes: asset.sizeBytes,
+      width: asset.width,
+      height: asset.height,
+      durationMs: asset.durationMs,
+      sha256: asset.sha256,
+      visibility: asset.visibility,
+      metadata: nullableJson(asset.metadata),
+      sourceParams: nullableJson(job?.params),
+    };
+
+    try {
+      await this.prisma.mediaCenterItem.upsert({
+        where: {
+          jobId_outputIndex: {
+            jobId: input.jobId,
+            outputIndex: input.outputIndex,
+          },
+        },
+        update: mediaCenterPayload,
+        create: {
+          id: input.id,
+          ...mediaCenterPayload,
           jobId: input.jobId,
           outputIndex: input.outputIndex,
+          createdAt: job?.finishedAt ?? job?.createdAt ?? asset.createdAt,
         },
-      },
-      update: {
-        userId: input.userId,
-        kind,
-        source: "GENERATION",
-        status: "READY",
-        ossAssetId: asset.id,
-        bucket: asset.bucket,
-        ossKey: asset.key,
-        originalOssUrl,
-        signedUrl,
-        signedUrlExpiresAt: signedUrl ? expiresAt : null,
-        watermarkedUrl,
-        watermarkedUrlExpiresAt: watermarkedUrl ? expiresAt : null,
-        watermarkProcess: requiresWatermark ? FREE_IMAGE_WATERMARK_PROCESS : null,
-        requiresWatermark,
-        providerSourceUrl,
-        prompt: job?.prompt ?? null,
-        chatSessionId: job?.chatSessionId ?? null,
-        contentType: asset.contentType,
-        sizeBytes: asset.sizeBytes,
-        width: asset.width,
-        height: asset.height,
-        durationMs: asset.durationMs,
-        sha256: asset.sha256,
-        visibility: asset.visibility,
-        metadata: nullableJson(asset.metadata),
-        sourceParams: nullableJson(job?.params),
-      },
-      create: {
-        id: input.id,
-        userId: input.userId,
-        kind,
-        source: "GENERATION",
-        status: "READY",
-        ossAssetId: asset.id,
-        bucket: asset.bucket,
-        ossKey: asset.key,
-        originalOssUrl,
-        signedUrl,
-        signedUrlExpiresAt: signedUrl ? expiresAt : null,
-        watermarkedUrl,
-        watermarkedUrlExpiresAt: watermarkedUrl ? expiresAt : null,
-        watermarkProcess: requiresWatermark ? FREE_IMAGE_WATERMARK_PROCESS : null,
-        requiresWatermark,
-        providerSourceUrl,
-        prompt: job?.prompt ?? null,
-        jobId: input.jobId,
-        outputIndex: input.outputIndex,
-        chatSessionId: job?.chatSessionId ?? null,
-        contentType: asset.contentType,
-        sizeBytes: asset.sizeBytes,
-        width: asset.width,
-        height: asset.height,
-        durationMs: asset.durationMs,
-        sha256: asset.sha256,
-        visibility: asset.visibility,
-        metadata: nullableJson(asset.metadata),
-        sourceParams: nullableJson(job?.params),
-        createdAt: job?.finishedAt ?? job?.createdAt ?? asset.createdAt,
-      },
-    });
+      });
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error;
+      const existing = await this.prisma.mediaCenterItem.findUnique({
+        where: {
+          jobId_outputIndex: {
+            jobId: input.jobId,
+            outputIndex: input.outputIndex,
+          },
+        },
+        select: { id: true },
+      });
+      if (!existing) throw error;
+      await this.prisma.mediaCenterItem.update({
+        where: { id: existing.id },
+        data: mediaCenterPayload,
+      });
+    }
   }
 }

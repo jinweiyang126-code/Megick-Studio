@@ -2509,7 +2509,7 @@ export class GenerationProviderClient {
 
     const attempts = Math.max(
       1,
-      Math.min(10_000, Math.round(numberParam(params.pollAttempts, 72))),
+      Math.min(10_000, Math.round(numberParam(params.pollAttempts, 360))),
     );
     const intervalMs = Math.max(
       1000,
@@ -2519,8 +2519,10 @@ export class GenerationProviderClient {
       intervalMs,
       Math.min(
         24 * 60 * 60_000,
-        Math.round(
-          numberParam(params.maxPollDurationMs, attempts * intervalMs),
+        // Seedance / wan often exceed short provider defaults; keep a 30m floor.
+        Math.max(
+          30 * 60_000,
+          Math.round(numberParam(params.maxPollDurationMs, 30 * 60_000)),
         ),
       ),
     );
