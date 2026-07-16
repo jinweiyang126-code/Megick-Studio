@@ -706,15 +706,51 @@ function isSameOriginUrl(src: string) {
 }
 
 /**
+ * Force same-origin streaming for generation content URLs.
+ * Default /content responses 302 to signed OSS; browser fetch of that OSS URL fails CORS
+ * (including Megick's own aliyuncs bucket). `delivery=proxy` streams bytes via the API.
+ */
+function withContentProxyDelivery(src: string) {
+  if (typeof window === "undefined") return src;
+  try {
+    const url = new URL(src, window.location.origin);
+    if (url.origin !== window.location.origin) return src;
+    const path = url.pathname;
+    const isJobOutput = /\/api\/generation\/jobs\/[^/]+\/output\/\d+\/content$/.test(path);
+    const isProvider =
+      /\/api\/generation\/jobs\/provider-output\/[^/]+\/content$/.test(path);
+    if (!isJobOutput && !isProvider) return src;
+    url.searchParams.set("delivery", "proxy");
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return src;
+  }
+}
+
+/**
  * Download media as a Blob.
- * Same-origin /content endpoints often 302 to signed OSS; following that redirect with
- * cookies triggers CORS failure (* + credentials). Resolve Location manually with omit.
+ * Prefer `delivery=proxy` on generation content URLs so the browser never follows a 302 to OSS.
+ * Remaining same-origin redirects still use manual follow with credentials omitted.
  */
 export async function fetchBlobFromUrl(src: string) {
-  const credentials = fetchCredentialsForUrl(src);
-  const res = await fetch(src, {
+  const requestUrl = withContentProxyDelivery(src);
+  const credentials = fetchCredentialsForUrl(requestUrl);
+  const sameOrigin = isSameOriginUrl(requestUrl);
+  const alreadyProxied =
+    sameOrigin &&
+    typeof window !== "undefined" &&
+    (() => {
+      try {
+        return new URL(requestUrl, window.location.origin).searchParams.get("delivery") === "proxy";
+      } catch {
+        return false;
+      }
+    })();
+
+  const res = await fetch(requestUrl, {
     credentials,
-    redirect: isSameOriginUrl(src) ? "manual" : "follow",
+    // Proxied content returns 200 with a body; other same-origin content may still 302.
+    redirect: sameOrigin && !alreadyProxied ? "manual" : "follow",
   });
 
   if (res.status >= 300 && res.status < 400) {
@@ -724,6 +760,16 @@ export async function fetchBlobFromUrl(src: string) {
       location,
       typeof window !== "undefined" ? window.location.origin : "http://local",
     ).href;
+    // Prefer same-origin asset stream when the redirect points at a Megick OSS object key.
+    const streamed = assetContentUrl(absolute);
+    if (streamed) {
+      const viaApi = await fetch(streamed, {
+        credentials: "include",
+        redirect: "follow",
+      });
+      if (!viaApi.ok) throw new Error(`HTTP ${viaApi.status}`);
+      return viaApi.blob();
+    }
     // Never follow redirects onto upstream provider hosts — they block browser CORS.
     if (isLikelyUpstreamProviderUrl(absolute)) {
       throw new Error("Upstream provider media is not browser-fetchable");
@@ -763,18 +809,17 @@ export function referenceCandidates(item: StudioResult) {
 }
 
 export function downloadCandidates(item: StudioResult) {
-  const direct = [
+  const assetStreams = [
     assetContentUrl(item.src),
-    item.src,
     assetContentUrl(item.fallbackSrc),
-    item.fallbackSrc,
     assetContentUrl(item.sourceSrc),
-    item.sourceSrc,
   ];
+  const direct = [item.src, item.fallbackSrc, item.sourceSrc];
   // Merge/download use fetch(); upstream provider hosts (volces/dashscope/...) block CORS.
-  // Only same-origin API proxies and Megick-owned OSS/signed URLs are eligible.
+  // Prefer /api/oss/assets/content and delivery=proxy job content — never raw OSS URLs.
   const safeDirect = direct.filter((src) => src && !isLikelyUpstreamProviderUrl(src));
   return dedupeUrls([
+    ...assetStreams,
     ...jobOutputContentCandidates(item),
     providerOutputContentUrl(item),
     ...safeDirect,

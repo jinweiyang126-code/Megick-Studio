@@ -291,10 +291,17 @@ export class JobsController {
       "Opaque generated media ID mapped to a Megick-owned OSS asset. The ID does not contain or encode the OSS/provider URL.",
     example: "media_abc123",
   })
+  @ApiQuery({
+    name: "delivery",
+    required: false,
+    description:
+      "Use `proxy` to stream bytes through the API origin (for browser fetch/merge). Default redirects to signed OSS.",
+    example: "proxy",
+  })
   @ApiOperation(
     documentedOperation(
       "Redirect to generated image on OSS",
-      "Verifies ownership, then redirects to a short-lived signed OSS URL. Free users receive the watermarked OSS object.",
+      "Verifies ownership, then redirects to a short-lived signed OSS URL. Free users receive the watermarked OSS object. Pass `delivery=proxy` to stream through the API when the browser cannot fetch OSS (CORS).",
     ),
   )
   @ApiFoundResponse({
@@ -306,11 +313,23 @@ export class JobsController {
   async providerOutputContent(
     @Param("mediaId") mediaId: string,
     @Query("variant") variant: string | undefined,
+    @Query("delivery") delivery: string | undefined,
     @CurrentUser() user: AuthUserContext,
     @Res() res: Response,
   ) {
+    const variantOpt = variant === "thumbnail" ? ("thumbnail" as const) : undefined;
+    if (delivery === "proxy" || delivery === "stream") {
+      const asset = await this.jobs.getProviderOutputContent(mediaId, user.id, {
+        variant: variantOpt,
+      });
+      res.setHeader("Content-Type", asset.contentType);
+      res.setHeader("Content-Length", String(asset.content.length));
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      res.send(asset.content);
+      return;
+    }
     const url = await this.jobs.getProviderOutputRedirectUrl(mediaId, user.id, {
-      variant: variant === "thumbnail" ? "thumbnail" : undefined,
+      variant: variantOpt,
     });
     res.setHeader("Cache-Control", "private, max-age=300");
     res.redirect(302, url);
@@ -367,10 +386,17 @@ export class JobsController {
     description: "Zero-based output index from the job's `outputItems` array.",
     example: "0",
   })
+  @ApiQuery({
+    name: "delivery",
+    required: false,
+    description:
+      "Use `proxy` to stream bytes through the API origin (for browser fetch/merge). Default redirects to signed OSS.",
+    example: "proxy",
+  })
   @ApiOperation(
     documentedOperation(
       "Redirect to one generation output on OSS",
-      "Verifies job ownership, then redirects to a short-lived signed OSS URL so the browser loads media directly from OSS/CDN.",
+      "Verifies job ownership, then redirects to a short-lived signed OSS URL so the browser loads media directly from OSS/CDN. Pass `delivery=proxy` to stream through the API when the browser cannot fetch OSS (CORS).",
     ),
   )
   @ApiFoundResponse({
@@ -383,20 +409,24 @@ export class JobsController {
     @Param("id") id: string,
     @Param("index") index: string,
     @Query("variant") variant: string | undefined,
+    @Query("delivery") delivery: string | undefined,
     @CurrentUser() user: AuthUserContext,
     @Res() res: Response,
   ) {
     const variantOpt = variant === "thumbnail" ? "thumbnail" as const : undefined;
-    const redirectUrl = await this.jobs.getOutputRedirectUrl(
-      user.id,
-      id,
-      Number(index),
-      { variant: variantOpt },
-    );
-    if (redirectUrl) {
-      res.setHeader("Cache-Control", "private, max-age=300");
-      res.redirect(302, redirectUrl);
-      return;
+    const forceProxy = delivery === "proxy" || delivery === "stream";
+    if (!forceProxy) {
+      const redirectUrl = await this.jobs.getOutputRedirectUrl(
+        user.id,
+        id,
+        Number(index),
+        { variant: variantOpt },
+      );
+      if (redirectUrl) {
+        res.setHeader("Cache-Control", "private, max-age=300");
+        res.redirect(302, redirectUrl);
+        return;
+      }
     }
     const asset = await this.jobs.getOutputContent(user.id, id, Number(index), {
       variant: variantOpt,
