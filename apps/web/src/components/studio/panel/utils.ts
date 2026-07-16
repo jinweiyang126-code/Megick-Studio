@@ -665,7 +665,9 @@ function isLikelyUpstreamProviderUrl(src: string) {
     if (typeof window !== "undefined" && url.origin === window.location.origin) {
       return false;
     }
-    return /(?:volces|volcengine|dashscope|ark-acc)/i.test(url.hostname);
+    return /(?:volces|volcengine|dashscope|ark-acc|ark-cn|byteimg|ibyteimg|aliyuncs\.com)/i.test(
+      url.hostname,
+    );
   } catch {
     return false;
   }
@@ -694,8 +696,49 @@ export function fetchCredentialsForUrl(src: string): RequestCredentials {
   }
 }
 
+function isSameOriginUrl(src: string) {
+  if (typeof window === "undefined") return src.startsWith("/");
+  try {
+    return new URL(src, window.location.origin).origin === window.location.origin;
+  } catch {
+    return src.startsWith("/");
+  }
+}
+
+/**
+ * Download media as a Blob.
+ * Same-origin /content endpoints often 302 to signed OSS; following that redirect with
+ * cookies triggers CORS failure (* + credentials). Resolve Location manually with omit.
+ */
 export async function fetchBlobFromUrl(src: string) {
-  const res = await fetch(src, { credentials: fetchCredentialsForUrl(src) });
+  const credentials = fetchCredentialsForUrl(src);
+  const res = await fetch(src, {
+    credentials,
+    redirect: isSameOriginUrl(src) ? "manual" : "follow",
+  });
+
+  if (res.status >= 300 && res.status < 400) {
+    const location = res.headers.get("Location");
+    if (!location) throw new Error(`HTTP ${res.status}`);
+    const absolute = new URL(
+      location,
+      typeof window !== "undefined" ? window.location.origin : "http://local",
+    ).href;
+    // Never follow redirects onto upstream provider hosts — they block browser CORS.
+    if (isLikelyUpstreamProviderUrl(absolute)) {
+      throw new Error("Upstream provider media is not browser-fetchable");
+    }
+    const redirected = await fetch(absolute, {
+      credentials: "omit",
+      redirect: "follow",
+    });
+    if (!redirected.ok) throw new Error(`HTTP ${redirected.status}`);
+    return redirected.blob();
+  }
+
+  if (res.type === "opaqueredirect") {
+    throw new Error("HTTP redirect blocked");
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.blob();
 }
@@ -728,13 +771,13 @@ export function downloadCandidates(item: StudioResult) {
     assetContentUrl(item.sourceSrc),
     item.sourceSrc,
   ];
+  // Merge/download use fetch(); upstream provider hosts (volces/dashscope/...) block CORS.
+  // Only same-origin API proxies and Megick-owned OSS/signed URLs are eligible.
   const safeDirect = direct.filter((src) => src && !isLikelyUpstreamProviderUrl(src));
-  const providerDirect = direct.filter((src) => src && isLikelyUpstreamProviderUrl(src));
   return dedupeUrls([
     ...jobOutputContentCandidates(item),
     providerOutputContentUrl(item),
     ...safeDirect,
-    ...providerDirect,
   ]);
 }
 
