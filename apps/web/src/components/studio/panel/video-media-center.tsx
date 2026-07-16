@@ -19,10 +19,15 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function waitForVideoMetadata(video: HTMLVideoElement) {
+function waitForVideoMetadata(video: HTMLVideoElement, timeoutMs = 20_000) {
   if (video.readyState >= 1) return Promise.resolve();
   return new Promise<void>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("Video metadata failed to load"));
+    }, timeoutMs);
     const cleanup = () => {
+      window.clearTimeout(timer);
       video.removeEventListener("loadedmetadata", onLoaded);
       video.removeEventListener("error", onError);
     };
@@ -37,6 +42,44 @@ function waitForVideoMetadata(video: HTMLVideoElement) {
     video.addEventListener("loadedmetadata", onLoaded, { once: true });
     video.addEventListener("error", onError, { once: true });
   });
+}
+
+/** Ensure MediaRecorder / <video> get a decodable MIME; empty/octet-stream blobs often fail metadata. */
+async function asPlayableVideoBlob(blob: Blob) {
+  if (blob.size < 32) {
+    throw new Error("Video download is empty or incomplete");
+  }
+  const declared = (blob.type || "").split(";")[0]?.trim().toLowerCase() ?? "";
+  if (declared.startsWith("video/")) return blob;
+
+  const header = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+  const ascii = String.fromCharCode(...header);
+  if (ascii.includes("ftyp")) {
+    return new Blob([blob], { type: "video/mp4" });
+  }
+  if (
+    header.length >= 4 &&
+    header[0] === 0x1a &&
+    header[1] === 0x45 &&
+    header[2] === 0xdf &&
+    header[3] === 0xa3
+  ) {
+    return new Blob([blob], { type: "video/webm" });
+  }
+  // Prefer mp4 for generation outputs when sniffing is inconclusive.
+  return new Blob([blob], { type: declared || "video/mp4" });
+}
+
+function bindVideoSource(video: HTMLVideoElement, src: string) {
+  // crossOrigin on blob: URLs can make Chromium fail loadedmetadata.
+  if (/^https?:\/\//i.test(src)) {
+    video.crossOrigin = "anonymous";
+  } else {
+    video.removeAttribute("crossorigin");
+  }
+  video.preload = "auto";
+  video.playsInline = true;
+  video.src = src;
 }
 
 function waitForVideoSeek(video: HTMLVideoElement) {
@@ -74,11 +117,8 @@ async function exportEditedVideo(input: {
   muted: boolean;
 }) {
   const video = document.createElement("video");
-  video.crossOrigin = "anonymous";
-  video.preload = "auto";
-  video.playsInline = true;
   video.muted = input.muted;
-  video.src = input.src;
+  bindVideoSource(video, input.src);
   await waitForVideoMetadata(video);
 
   const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
@@ -163,18 +203,16 @@ export async function exportMergedVideo(
   }
   const objectUrls: string[] = [];
   const sourceUrlFor = async (item: StudioResult) => {
-    const blob = await fetchMediaBlob(item);
+    const raw = await fetchMediaBlob(item);
+    const blob = await asPlayableVideoBlob(raw);
     const url = objectUrlFromBlob(blob);
     objectUrls.push(url);
     return url;
   };
 
   const first = document.createElement("video");
-  first.crossOrigin = "anonymous";
-  first.preload = "auto";
-  first.playsInline = true;
   first.muted = true;
-  first.src = await sourceUrlFor(videos[0]);
+  bindVideoSource(first, await sourceUrlFor(videos[0]));
   await waitForVideoMetadata(first);
 
   const sourceW = Math.max(first.videoWidth || 1280, 1);
@@ -216,11 +254,8 @@ export async function exportMergedVideo(
   try {
     for (const item of videos) {
       const video = document.createElement("video");
-      video.crossOrigin = "anonymous";
-      video.preload = "auto";
-      video.playsInline = true;
       video.muted = true;
-      video.src = item === videos[0] ? first.src : await sourceUrlFor(item);
+      bindVideoSource(video, item === videos[0] ? first.src : await sourceUrlFor(item));
       await waitForVideoMetadata(video);
       video.currentTime = 0;
       let frameId = 0;
@@ -243,13 +278,24 @@ export async function exportMergedVideo(
       video.pause();
       await sleep(80);
     }
-  } finally {
+  } catch (err) {
     stream.getTracks().forEach((track) => track.stop());
-    if (recorder.state !== "inactive") recorder.stop();
+    if (recorder.state !== "inactive") {
+      try {
+        recorder.stop();
+      } catch {
+        // ignore
+      }
+    }
     objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    throw err;
   }
 
-  return stopped;
+  stream.getTracks().forEach((track) => track.stop());
+  if (recorder.state !== "inactive") recorder.stop();
+  const merged = await stopped;
+  objectUrls.forEach((url) => URL.revokeObjectURL(url));
+  return merged;
 }
 
 function saveBlob(blob: Blob, filename: string) {
