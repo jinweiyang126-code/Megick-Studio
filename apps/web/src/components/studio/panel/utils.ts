@@ -673,6 +673,24 @@ function isLikelyUpstreamProviderUrl(src: string) {
   }
 }
 
+/** Hosts that <video> usually cannot play (unlike Megick OSS on aliyuncs). */
+function isUnplayableProviderMediaUrl(src: string) {
+  if (!src.trim()) return false;
+  try {
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "https://local";
+    const url = new URL(src, origin);
+    if (typeof window !== "undefined" && url.origin === window.location.origin) {
+      return false;
+    }
+    return /(?:volces|volcengine|dashscope|ark-acc|ark-cn|byteimg|ibyteimg)/i.test(
+      url.hostname,
+    );
+  } catch {
+    return false;
+  }
+}
+
 function dedupeUrls(urls: Array<string | null | undefined>) {
   return urls.filter(
     (src, index, items): src is string => Boolean(src) && items.indexOf(src) === index,
@@ -823,6 +841,27 @@ export function downloadCandidates(item: StudioResult) {
     ...jobOutputContentCandidates(item),
     providerOutputContentUrl(item),
     ...safeDirect,
+  ]);
+}
+
+/**
+ * URLs suitable for `<video src>` during merge/export.
+ * Prefer 302→OSS (fast CDN) over `/assets/content` full-buffer proxy (slow ECS egress).
+ * Megick OSS signed URLs are OK for media elements; volces/dashscope are not.
+ */
+export function playableVideoSrcCandidates(item: StudioResult) {
+  const direct = [item.src, item.fallbackSrc, item.sourceSrc];
+  const playableDirect = direct.filter(
+    (src) => src && !isUnplayableProviderMediaUrl(src),
+  );
+  return dedupeUrls([
+    ...jobOutputContentCandidates(item),
+    providerOutputContentUrl(item),
+    ...playableDirect,
+    // Last resort: same-origin byte proxy (slow, but works when redirects are blocked).
+    assetContentUrl(item.src),
+    assetContentUrl(item.fallbackSrc),
+    assetContentUrl(item.sourceSrc),
   ]);
 }
 

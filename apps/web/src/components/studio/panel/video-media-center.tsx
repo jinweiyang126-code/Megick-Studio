@@ -8,6 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { StudioResult } from "@/routes/-dashboard-types";
+import { playableVideoSrcCandidates } from "./utils";
 
 function mediaRecorderMimeType() {
   if (typeof MediaRecorder === "undefined") return "";
@@ -19,7 +20,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function waitForVideoMetadata(video: HTMLVideoElement, timeoutMs = 20_000) {
+function waitForVideoMetadata(video: HTMLVideoElement, timeoutMs = 60_000) {
   if (video.readyState >= 1) return Promise.resolve();
   return new Promise<void>((resolve, reject) => {
     const timer = window.setTimeout(() => {
@@ -71,15 +72,41 @@ async function asPlayableVideoBlob(blob: Blob) {
 }
 
 function bindVideoSource(video: HTMLVideoElement, src: string) {
-  // crossOrigin on blob: URLs can make Chromium fail loadedmetadata.
-  if (/^https?:\/\//i.test(src)) {
-    video.crossOrigin = "anonymous";
-  } else {
-    video.removeAttribute("crossorigin");
-  }
+  // Do not set crossOrigin: Megick OSS signed URLs lack CORS. Media elements can still
+  // play after 302; canvas.captureStream recording does not need pixel readback.
+  // crossOrigin=anonymous was breaking merge loads and forcing slow full-file fetch.
+  video.removeAttribute("crossorigin");
   video.preload = "auto";
   video.playsInline = true;
   video.src = src;
+}
+
+/** Detach media before revokeObjectURL — otherwise Chromium spams ERR_FILE_NOT_FOUND. */
+function releaseVideoElement(video: HTMLVideoElement) {
+  try {
+    video.pause();
+  } catch {
+    // ignore
+  }
+  video.removeAttribute("src");
+  video.removeAttribute("srcObject");
+  while (video.firstChild) video.removeChild(video.firstChild);
+  try {
+    video.load();
+  } catch {
+    // ignore
+  }
+}
+
+function releaseObjectUrls(urls: string[]) {
+  for (const url of urls) {
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      // ignore
+    }
+  }
+  urls.length = 0;
 }
 
 function waitForVideoSeek(video: HTMLVideoElement) {
@@ -202,18 +229,47 @@ export async function exportMergedVideo(
     throw new Error("Browser video export APIs are unavailable");
   }
   const objectUrls: string[] = [];
-  const sourceUrlFor = async (item: StudioResult) => {
-    const raw = await fetchMediaBlob(item);
-    const blob = await asPlayableVideoBlob(raw);
-    const url = objectUrlFromBlob(blob);
-    objectUrls.push(url);
-    return url;
+  const videoElements: HTMLVideoElement[] = [];
+  const cleanupMedia = () => {
+    for (const el of videoElements) releaseVideoElement(el);
+    videoElements.length = 0;
+    releaseObjectUrls(objectUrls);
+  };
+
+  /** Prefer streaming <video src> (302→OSS). Full fetch via API proxy is a slow last resort. */
+  const bindPlayableSource = async (video: HTMLVideoElement, item: StudioResult) => {
+    let lastError: unknown;
+    for (const candidate of playableVideoSrcCandidates(item)) {
+      try {
+        bindVideoSource(video, candidate);
+        await waitForVideoMetadata(video, 60_000);
+        return candidate;
+      } catch (err) {
+        lastError = err;
+        releaseVideoElement(video);
+      }
+    }
+    try {
+      const raw = await fetchMediaBlob(item);
+      const blob = await asPlayableVideoBlob(raw);
+      const url = objectUrlFromBlob(blob);
+      objectUrls.push(url);
+      bindVideoSource(video, url);
+      await waitForVideoMetadata(video, 30_000);
+      return url;
+    } catch (err) {
+      throw err instanceof Error
+        ? err
+        : lastError instanceof Error
+          ? lastError
+          : new Error("Unable to download media");
+    }
   };
 
   const first = document.createElement("video");
   first.muted = true;
-  bindVideoSource(first, await sourceUrlFor(videos[0]));
-  await waitForVideoMetadata(first);
+  videoElements.push(first);
+  const firstSrc = await bindPlayableSource(first, videos[0]);
 
   const sourceW = Math.max(first.videoWidth || 1280, 1);
   const sourceH = Math.max(first.videoHeight || 720, 1);
@@ -255,27 +311,37 @@ export async function exportMergedVideo(
     for (const item of videos) {
       const video = document.createElement("video");
       video.muted = true;
-      bindVideoSource(video, item === videos[0] ? first.src : await sourceUrlFor(item));
-      await waitForVideoMetadata(video);
+      videoElements.push(video);
+      if (item === videos[0]) {
+        bindVideoSource(video, firstSrc);
+        await waitForVideoMetadata(video, 60_000);
+      } else {
+        await bindPlayableSource(video, item);
+      }
       video.currentTime = 0;
       let frameId = 0;
-      const frameDone = new Promise<void>((resolve, reject) => {
-        const draw = () => {
-          drawVideo(video);
-          if (video.ended || video.currentTime >= (video.duration || 0)) {
-            if (frameId) cancelAnimationFrame(frameId);
-            resolve();
-            return;
-          }
-          frameId = requestAnimationFrame(draw);
-        };
-        video.addEventListener("error", () => reject(new Error("Video playback failed")), {
-          once: true,
+      try {
+        const frameDone = new Promise<void>((resolve, reject) => {
+          const draw = () => {
+            drawVideo(video);
+            if (video.ended || video.currentTime >= (video.duration || 0)) {
+              if (frameId) cancelAnimationFrame(frameId);
+              frameId = 0;
+              resolve();
+              return;
+            }
+            frameId = requestAnimationFrame(draw);
+          };
+          video.addEventListener("error", () => reject(new Error("Video playback failed")), {
+            once: true,
+          });
+          void video.play().then(draw).catch(reject);
         });
-        void video.play().then(draw).catch(reject);
-      });
-      await frameDone;
-      video.pause();
+        await frameDone;
+      } finally {
+        if (frameId) cancelAnimationFrame(frameId);
+        video.pause();
+      }
       await sleep(80);
     }
   } catch (err) {
@@ -287,14 +353,14 @@ export async function exportMergedVideo(
         // ignore
       }
     }
-    objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    cleanupMedia();
     throw err;
   }
 
   stream.getTracks().forEach((track) => track.stop());
   if (recorder.state !== "inactive") recorder.stop();
   const merged = await stopped;
-  objectUrls.forEach((url) => URL.revokeObjectURL(url));
+  cleanupMedia();
   return merged;
 }
 
