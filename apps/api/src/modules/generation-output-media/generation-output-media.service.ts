@@ -1,5 +1,5 @@
 import { BadGatewayException, BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { Prisma, type GenerationJobTypeEnum, type OssAsset } from "@prisma/client";
+import { Prisma, type GenerationJobTypeEnum, type MediaCenterKindEnum, type OssAsset } from "@prisma/client";
 import { PrismaService } from "nestjs-prisma";
 import { randomId } from "@/common/random-id";
 import { AdvancedAccessService } from "@/common/services/advanced-access.service";
@@ -28,14 +28,20 @@ function stringArray(value: unknown): string[] {
   );
 }
 
-function mediaKindForAsset(type: GenerationJobTypeEnum | string | null, contentType: string) {
+function mediaKindForAsset(
+  type: GenerationJobTypeEnum | string | null,
+  contentType: string,
+): MediaCenterKindEnum {
   if (type === "IMAGE2VIDEO" || contentType.startsWith("video/")) return "VIDEO";
   if (contentType.startsWith("image/")) return "IMAGE";
   if (contentType.startsWith("audio/")) return "AUDIO";
   return "FILE";
 }
 
-function shouldWatermarkGeneratedOutput(type: GenerationJobTypeEnum | string | null, kind: string) {
+function shouldWatermarkGeneratedOutput(
+  type: GenerationJobTypeEnum | string | null,
+  kind: MediaCenterKindEnum,
+) {
   return kind === "IMAGE" && (type === "TEXT2IMAGE" || type === "IMAGE_EDIT");
 }
 
