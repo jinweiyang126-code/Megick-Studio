@@ -1321,11 +1321,12 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
 
   const ensureSession = useCallback(
     async (titleSeed: string, mode: StudioMode) => {
-      if (mode === "video") {
-        return createNewSession(titleSeed, mode, { preserveRouteContext: false });
-      }
+      // Reuse the open studio session (image and video). Forcing a new video
+      // session on every generate left sessionLoading stuck over the preview/job strip.
       if (activeSessionId && mode === routeMode) return activeSessionId;
-      return createNewSession(titleSeed, mode);
+      return createNewSession(titleSeed, mode, {
+        preserveRouteContext: mode === routeMode,
+      });
     },
     [activeSessionId, createNewSession, routeMode],
   );
