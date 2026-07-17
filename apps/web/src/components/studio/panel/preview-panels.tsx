@@ -36,7 +36,7 @@ import type { StudioMode, StudioResult } from "@/routes/-dashboard-types";
 import { studioResultsFromJob } from "@/routes/-dashboard-types";
 import { formatDateTime, StatusBadge } from "@/routes/-dashboard-components";
 import { Progress } from "@/components/ui/progress";
-import { jobOutputContentUrl, mediaKindFromUrl, videoModeLabelKey } from "./utils";
+import { jobOutputContentUrl, mediaKindFromUrl, previewVideoSrcCandidates, videoModeLabelKey } from "./utils";
 import { studioGenerationErrorNotice } from "./generation-error-presenter";
 import {
   PREVIEW_TOOL_ACCENT_BUTTON_CLASS,
@@ -234,12 +234,17 @@ export function VideoPreviewPanel({
   const [muted, setMuted] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [videoLoadFailed, setVideoLoadFailed] = useState(false);
+  const [candidateIndex, setCandidateIndex] = useState(0);
   const [toolbarVisible, setToolbarVisible] = usePreviewToolbarVisibility();
-  const playbackSrc = jobOutputContentUrl(result) ?? result.src;
+  const playbackCandidates = useMemo(() => previewVideoSrcCandidates(result), [result]);
+  const playbackSrc =
+    playbackCandidates[Math.min(candidateIndex, Math.max(playbackCandidates.length - 1, 0))] ??
+    result.src;
 
   useEffect(() => {
+    setCandidateIndex(0);
     setVideoLoadFailed(false);
-  }, [playbackSrc]);
+  }, [result.id, result.src, result.jobId, result.outputIndex, result.mediaId]);
 
   const runDownload = async () => {
     if (downloading) return;
@@ -337,13 +342,20 @@ export function VideoPreviewPanel({
       <div className="relative flex h-full min-h-0 w-full flex-1 items-center justify-center overflow-hidden p-3">
         <video
           ref={videoRef}
+          key={playbackSrc}
           controls
           src={playbackSrc}
           muted={muted}
           playsInline
           preload="metadata"
           onLoadedData={() => setVideoLoadFailed(false)}
-          onError={() => setVideoLoadFailed(true)}
+          onError={() => {
+            if (candidateIndex + 1 < playbackCandidates.length) {
+              setCandidateIndex((index) => index + 1);
+              return;
+            }
+            setVideoLoadFailed(true);
+          }}
           className={cn(
             "h-auto max-h-full w-auto max-w-full object-contain",
             videoLoadFailed ? "opacity-20" : "",

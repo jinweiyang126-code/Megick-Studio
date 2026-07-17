@@ -835,6 +835,21 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
     ) => {
       const items = resultsFromJob(job, message.text, message.settings.mode, message.id);
       if (!items.length) return false;
+      // Job-list payloads only expose /api/.../content proxy paths. <video> often fails on those
+      // until we load the signed detail URLs — ask the caller to fetch GET /jobs/:id first.
+      if (message.settings.mode === "video") {
+        const onlyApiProxy = items.every((item) => {
+          const src = item.src?.trim() ?? "";
+          if (!src) return true;
+          try {
+            const url = new URL(src, "http://local");
+            return url.pathname.startsWith("/api/");
+          } catch {
+            return src.startsWith("/api/");
+          }
+        });
+        if (onlyApiProxy) return false;
+      }
       const newestFirst = [...items].reverse();
       setOptimisticJobs((prev) =>
         [job, ...prev.filter((item) => item.id !== job.id)].slice(0, 24),
@@ -879,9 +894,12 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
         return;
       }
       void (async () => {
-        const detailed = jobHasResolvableOutputs(job)
-          ? job
-          : await apiGet<GenerationJobPublic>(`/api/generation/jobs/${job.id}`, { fresh: true });
+        // Video preview needs signed OSS URLs from the detail endpoint when possible.
+        const needsDetail =
+          job.type === "IMAGE2VIDEO" || !jobHasResolvableOutputs(job);
+        const detailed = needsDetail
+          ? await apiGet<GenerationJobPublic>(`/api/generation/jobs/${job.id}`, { fresh: true })
+          : job;
         const mode = detailed.type === "IMAGE2VIDEO" ? "video" : "image";
         const items = resultsFromJob(detailed, detailed.prompt, mode);
         if (!items.length) return;

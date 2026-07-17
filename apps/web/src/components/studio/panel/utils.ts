@@ -943,6 +943,38 @@ export function playableVideoSrcCandidates(item: StudioResult) {
   ]);
 }
 
+/**
+ * URLs for studio preview `<video src>`.
+ * Prefer signed/direct playback (302→OSS is fine for media elements), then proxy as last resort.
+ */
+export function previewVideoSrcCandidates(item: StudioResult) {
+  const isApiPath = (src: string) => {
+    try {
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : "http://local";
+      const url = new URL(src, origin);
+      return url.pathname.startsWith("/api/");
+    } catch {
+      return src.startsWith("/api/");
+    }
+  };
+  const direct = [item.src, item.fallbackSrc, item.sourceSrc].filter(
+    (src): src is string => Boolean(src) && !isApiPath(src),
+  );
+  return dedupeUrls([
+    ...direct,
+    ...jobOutputContentCandidates(item),
+    providerOutputContentUrl(item),
+    item.src,
+    item.fallbackSrc,
+    item.sourceSrc,
+    ...jobOutputContentCandidates(item).map(withContentProxyDelivery),
+    providerOutputContentUrl(item)
+      ? withContentProxyDelivery(providerOutputContentUrl(item)!)
+      : null,
+  ]);
+}
+
 export function signUrlForAssetKey(key: string) {
   return `/api/oss/sign?key=${encodeURIComponent(key)}`;
 }
