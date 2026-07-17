@@ -269,9 +269,25 @@ export function VideoPreviewPanel({
         try {
           const blob = await fetchBlobFromUrl(src);
           if (!blob.size) continue;
-          const typed = blob.type.startsWith("video/")
-            ? blob
-            : new Blob([blob], { type: "video/mp4" });
+          if (blob.type.startsWith("image/")) continue;
+          const head = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
+          const isJpeg = head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+          const isPng =
+            head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47;
+          if (isJpeg || isPng) continue;
+          const isMp4 =
+            head.length >= 8 &&
+            head[4] === 0x66 &&
+            head[5] === 0x74 &&
+            head[6] === 0x79 &&
+            head[7] === 0x70;
+          const typed =
+            blob.type.startsWith("video/") || isMp4
+              ? blob.type.startsWith("video/")
+                ? blob
+                : new Blob([blob], { type: "video/mp4" })
+              : null;
+          if (!typed) continue;
           const url = URL.createObjectURL(typed);
           setBlobSrc(url);
           setVideoLoadFailed(false);

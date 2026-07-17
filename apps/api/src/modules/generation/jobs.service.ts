@@ -44,6 +44,7 @@ import {
   listGenerationOutputCount,
   publicProviderOutputUrls,
 } from "./generation-output-urls";
+import { isStillImageAsset } from "./media-bytes";
 import {
   formatImageSize,
   isBflImageEditParams,
@@ -1303,14 +1304,18 @@ export class JobsService {
           input,
         );
       }
-      const content = await this.oss.getAuthorizedAssetContent(asset.key, {
-        id: userId,
-      });
-      return {
-        content: content.content,
-        contentType: content.contentType,
-        sizeBytes: content.sizeBytes,
-      };
+      // Some Seedance/I2V runs persisted a cover JPEG as the "video" asset. Skip it and
+      // re-fetch the provider video URL so preview can recover existing jobs.
+      if (!(job.type === "IMAGE2VIDEO" && isStillImageAsset(asset))) {
+        const content = await this.oss.getAuthorizedAssetContent(asset.key, {
+          id: userId,
+        });
+        return {
+          content: content.content,
+          contentType: content.contentType,
+          sizeBytes: content.sizeBytes,
+        };
+      }
     }
 
     const providerUrl = providerOutputUrls[outputIndex] ?? null;
@@ -1341,6 +1346,7 @@ export class JobsService {
       select: {
         type: true,
         outputAssetIds: true,
+        providerOutputUrls: true,
       },
     });
     if (!job) throw new NotFoundException();
@@ -1353,6 +1359,10 @@ export class JobsService {
     });
     const asset = orderedAssetSlots(assetIds, assets)[outputIndex];
     if (!asset) return null;
+    if (job.type === "IMAGE2VIDEO" && isStillImageAsset(asset)) {
+      // Fall through to buffered provider fetch in the controller.
+      return null;
+    }
 
     return this.oss.getAuthorizedAssetStream(asset.key, { id: userId }, {
       range: input.range,
@@ -1417,6 +1427,11 @@ export class JobsService {
         userId,
         input,
       );
+    }
+
+    // Do not 302 the browser to a cover JPEG — force proxy/provider recovery instead.
+    if (job.type === "IMAGE2VIDEO" && isStillImageAsset(asset)) {
+      return null;
     }
 
     const url = await this.oss.signAuthorizedGet(asset.key, { id: userId }, 3600);

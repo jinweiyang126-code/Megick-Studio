@@ -328,15 +328,19 @@ export function parseBasicRouterVideoPollResult(
   const providerJobId =
     stringParam(data.taskId ?? data.task_id) ?? fallbackTaskId?.trim() ?? "";
 
-  const items: GeneratedItem[] = videoUrl
-    ? [
-        {
-          url: videoUrl,
-          contentType: "video/mp4",
-          providerJobId: providerJobId || undefined,
-        },
-      ]
-    : [];
+  // Reject cover/poster stills that some providers put in videoUrl.
+  const looksLikeStill = (url: string) =>
+    /\.(jpe?g|png|gif|webp|bmp|avif)(\?|#|$)/i.test(url);
+  const items: GeneratedItem[] =
+    videoUrl && !looksLikeStill(videoUrl)
+      ? [
+          {
+            url: videoUrl,
+            contentType: "video/mp4",
+            providerJobId: providerJobId || undefined,
+          },
+        ]
+      : [];
 
   const normalizedStatus = status?.trim().toLowerCase();
   const failed =

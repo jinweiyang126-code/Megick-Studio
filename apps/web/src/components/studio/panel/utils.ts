@@ -909,17 +909,33 @@ export function referenceCandidates(item: StudioResult) {
 }
 
 export function downloadCandidates(item: StudioResult) {
+  const looksLikeStill = (src: string | null | undefined) => {
+    if (!src?.trim()) return false;
+    try {
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : "http://local";
+      const url = new URL(src, origin);
+      if (url.pathname.startsWith("/api/generation/jobs/")) return false;
+      return /\.(jpe?g|png|gif|webp|bmp|avif)(\?|#|$)/i.test(
+        `${url.pathname}${url.search}`,
+      );
+    } catch {
+      return /\.(jpe?g|png|gif|webp|bmp|avif)(\?|#|$)/i.test(src);
+    }
+  };
   const assetStreams = [
     assetContentUrl(item.src),
     assetContentUrl(item.fallbackSrc),
-    assetContentUrl(item.sourceSrc),
   ];
-  const direct = [item.src, item.fallbackSrc, item.sourceSrc];
+  const direct = [item.src, item.fallbackSrc];
   // Merge/download use fetch(); upstream provider hosts (volces/dashscope/...) block CORS.
   // Prefer /api/oss/assets/content and delivery=proxy job content — never raw OSS URLs.
-  const safeDirect = direct.filter((src) => src && !isLikelyUpstreamProviderUrl(src));
+  // Skip sourceSrc / still-image URLs so video blob fallback never wraps a JPEG as mp4.
+  const safeDirect = direct.filter(
+    (src) => src && !isLikelyUpstreamProviderUrl(src) && !looksLikeStill(src),
+  );
   return dedupeUrls([
-    ...assetStreams,
+    ...assetStreams.filter((src) => src && !looksLikeStill(src)),
     ...jobOutputContentCandidates(item),
     providerOutputContentUrl(item),
     ...safeDirect,
@@ -943,6 +959,21 @@ export function playableVideoSrcCandidates(item: StudioResult) {
   ]);
 }
 
+/** Still-image URLs must never be offered to `<video src>` (I2V reference / cover leaks). */
+export function isLikelyStillImageUrl(src: string | undefined | null) {
+  if (!src?.trim()) return false;
+  try {
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "http://local";
+    const url = new URL(src, origin);
+    if (url.pathname.startsWith("/api/generation/jobs/")) return false;
+    const path = `${url.pathname}${url.search}`;
+    return /\.(jpe?g|png|gif|webp|bmp|avif)(\?|#|$)/i.test(path);
+  } catch {
+    return /\.(jpe?g|png|gif|webp|bmp|avif)(\?|#|$)/i.test(src);
+  }
+}
+
 /**
  * URLs for studio preview `<video src>`.
  * Prefer same-origin `delivery=proxy` (Range streaming) so Edge/OSS redirect quirks
@@ -959,8 +990,10 @@ export function previewVideoSrcCandidates(item: StudioResult) {
       return src.startsWith("/api/");
     }
   };
+  const playable = (src: string | undefined | null): src is string =>
+    Boolean(src) && !isLikelyStillImageUrl(src);
   const direct = [item.src, item.fallbackSrc, item.sourceSrc].filter(
-    (src): src is string => Boolean(src) && !isApiPath(src),
+    (src): src is string => playable(src) && !isApiPath(src),
   );
   return dedupeUrls([
     ...jobOutputContentCandidates(item).map(withContentProxyDelivery),
@@ -970,9 +1003,9 @@ export function previewVideoSrcCandidates(item: StudioResult) {
     ...direct,
     ...jobOutputContentCandidates(item),
     providerOutputContentUrl(item),
-    item.src,
-    item.fallbackSrc,
-    item.sourceSrc,
+    playable(item.src) ? item.src : null,
+    playable(item.fallbackSrc) ? item.fallbackSrc : null,
+    // sourceSrc is often the I2V reference still — never feed it to <video>.
   ]);
 }
 

@@ -11,6 +11,10 @@ import {
   generationErrorLogStack,
   loggedPublicGenerationErrorMessage,
 } from "../generation-errors";
+import {
+  sniffImageContentType,
+  sniffVideoContentType,
+} from "../media-bytes";
 
 const TERMINAL_STATUSES = new Set(["succeeded", "failed", "canceled"]);
 
@@ -215,11 +219,18 @@ export class Image2VideoProcessor {
             "Provider output could not be materialized for OSS persistence",
           );
         }
+        const videoType = sniffVideoContentType(materialized.bytes);
+        const imageType = sniffImageContentType(materialized.bytes);
+        if (!videoType) {
+          throw new Error(
+            `Provider returned non-video bytes for image2video (${imageType ?? materialized.contentType ?? "unknown"})`,
+          );
+        }
         try {
           const { asset } = await this.oss.putBuffer(
             `generations/${dbJob.userId}/${dbJob.id}`,
             materialized.bytes,
-            materialized.contentType ?? "video/mp4",
+            videoType,
             {
               userId: dbJob.userId,
               visibility: "PRIVATE",

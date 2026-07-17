@@ -20,6 +20,7 @@ import {
   resolveBasicRouterVideoStatusUrl,
   usesBasicRouterVideoApi,
 } from "./basicrouter.adapters";
+import { sniffImageContentType, sniffVideoContentType } from "./media-bytes";
 import {
   DIRECT_TEXT2IMAGE_ORIGINS_ENV,
   parseDirectText2ImageOrigins,
@@ -1125,10 +1126,13 @@ function parseVideoTaskResult(payload: unknown, fallbackTaskId?: string): VideoT
   const providerJobId =
     extractTaskId(payload) ??
     (fallbackTaskId && fallbackTaskId.trim() ? fallbackTaskId.trim() : "");
+  const urls = extractVideoUrls(payload).filter(
+    (url) => !/\.(jpe?g|png|gif|webp|bmp|avif)(\?|#|$)/i.test(url),
+  );
   return {
     providerJobId,
     status: extractStatus(payload),
-    items: extractVideoUrls(payload).map((url) => ({
+    items: urls.map((url) => ({
       url,
       contentType: "video/mp4",
       providerJobId: providerJobId || undefined,
@@ -2387,9 +2391,12 @@ export class GenerationProviderClient {
             responseType: "arraybuffer",
             timeout: 120_000,
           });
+          const bytes = Buffer.from(res.data);
+          const sniffed =
+            sniffVideoContentType(bytes) ?? sniffImageContentType(bytes);
           return {
-            bytes: Buffer.from(res.data),
-            contentType: String(
+            bytes,
+            contentType: sniffed ?? String(
               res.headers["content-type"] ?? fallbackContentType,
             ),
             url,

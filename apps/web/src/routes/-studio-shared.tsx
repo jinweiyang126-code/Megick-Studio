@@ -786,22 +786,33 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
         job.params && typeof job.params === "object" && !Array.isArray(job.params)
           ? job.params
           : {};
+      // Never pull params.imageUrls / params.images into video results — those are I2V
+      // reference stills. Promoting them (then reverse-selecting) made the preview play a JPEG.
       const fallbackUrls = [
         ...(Array.isArray(job.outputUrls) ? job.outputUrls : []),
         ...(Array.isArray(job.providerOutputUrls) ? job.providerOutputUrls : []),
         ...(Array.isArray(params.outputUrls) ? params.outputUrls : []),
         ...(Array.isArray(params.providerOutputUrls) ? params.providerOutputUrls : []),
-        ...(Array.isArray(params.imageUrls) ? params.imageUrls : []),
-        ...(Array.isArray(params.images) ? params.images : []),
+        ...(mode === "image"
+          ? [
+              ...(Array.isArray(params.imageUrls) ? params.imageUrls : []),
+              ...(Array.isArray(params.images) ? params.images : []),
+            ]
+          : []),
       ].filter((url): url is string => typeof url === "string" && url.trim().length > 0);
       const items = studioResultsFromJob(job, promptText, mode, messageId ?? job.id);
       const fallbackItems = fallbackUrls
         .filter((url) => {
           if (items.some((item) => studioResultCoversMediaUrl(item, url))) return false;
-          return mode === "video" || mediaKindFromUrl(url) === "image";
+          if (mode === "video") {
+            // Still-image extensions must not become video strip / preview entries.
+            return mediaKindFromUrl(url) !== "image" || !/\.(jpe?g|png|gif|webp|bmp|avif)(\?|#|$)/i.test(url);
+          }
+          return mediaKindFromUrl(url) === "image";
         })
         .map((url, index): StudioResult => {
-          const outputIndex = resolveJobOutputIndexForUrl(job, url, index);
+          // Only attach an output slot when the URL actually maps to a job output.
+          const outputIndex = resolveJobOutputIndexForUrl(job, url);
           return {
             id: `${job.id}-fallback-${index}`,
             src: url,
@@ -835,22 +846,17 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
     ) => {
       const items = resultsFromJob(job, message.text, message.settings.mode, message.id);
       if (!items.length) return false;
-      // Job-list payloads only expose /api/.../content proxy paths. <video> often fails on those
-      // until we load the signed detail URLs — ask the caller to fetch GET /jobs/:id first.
-      if (message.settings.mode === "video") {
-        const onlyApiProxy = items.every((item) => {
+      // Prefer canonical job outputs (and video-like srcs) over any leftover fallback stills.
+      const preferred =
+        items.find((item) => {
+          if (/-fallback-\d+$/.test(item.id)) return false;
           const src = item.src?.trim() ?? "";
-          if (!src) return true;
-          try {
-            const url = new URL(src, "http://local");
-            return url.pathname.startsWith("/api/");
-          } catch {
-            return src.startsWith("/api/");
-          }
-        });
-        if (onlyApiProxy) return false;
-      }
-      const newestFirst = [...items].reverse();
+          if (!src) return false;
+          if (message.settings.mode !== "video") return true;
+          if (/\/api\/generation\/jobs\//i.test(src)) return true;
+          return mediaKindFromUrl(src) === "video";
+        }) ?? items[0];
+      const ordered = [preferred, ...items.filter((item) => item.id !== preferred.id)];
       setOptimisticJobs((prev) =>
         [job, ...prev.filter((item) => item.id !== job.id)].slice(0, 24),
       );
@@ -862,10 +868,10 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
         ),
       );
       setResults((prev) =>
-        [...newestFirst, ...prev.filter((item) => item.jobId !== job.id)].slice(0, 24),
+        [...ordered, ...prev.filter((item) => item.jobId !== job.id)].slice(0, 24),
       );
       setSelectedJobId(null);
-      setSelectedId(newestFirst[0]?.id ?? null);
+      setSelectedId(preferred.id);
       refreshStudioQueries();
       return true;
     },
