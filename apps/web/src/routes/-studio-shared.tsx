@@ -1297,6 +1297,9 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
         return null;
       } finally {
         creatingSessionRef.current = false;
+        // New sessions skip loadSessionDetail (already marked hydrated), so clear
+        // the loading flag here — otherwise image→video handoff leaves preview/job strip spinning.
+        setSessionLoading(false);
       }
     },
     [
