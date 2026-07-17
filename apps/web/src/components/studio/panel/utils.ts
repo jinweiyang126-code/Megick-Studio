@@ -945,7 +945,8 @@ export function playableVideoSrcCandidates(item: StudioResult) {
 
 /**
  * URLs for studio preview `<video src>`.
- * Prefer signed/direct playback (302→OSS is fine for media elements), then proxy as last resort.
+ * Prefer same-origin `delivery=proxy` (Range streaming) so Edge/OSS redirect quirks
+ * cannot leave the media element with "no supported sources".
  */
 export function previewVideoSrcCandidates(item: StudioResult) {
   const isApiPath = (src: string) => {
@@ -962,16 +963,16 @@ export function previewVideoSrcCandidates(item: StudioResult) {
     (src): src is string => Boolean(src) && !isApiPath(src),
   );
   return dedupeUrls([
+    ...jobOutputContentCandidates(item).map(withContentProxyDelivery),
+    providerOutputContentUrl(item)
+      ? withContentProxyDelivery(providerOutputContentUrl(item)!)
+      : null,
     ...direct,
     ...jobOutputContentCandidates(item),
     providerOutputContentUrl(item),
     item.src,
     item.fallbackSrc,
     item.sourceSrc,
-    ...jobOutputContentCandidates(item).map(withContentProxyDelivery),
-    providerOutputContentUrl(item)
-      ? withContentProxyDelivery(providerOutputContentUrl(item)!)
-      : null,
   ]);
 }
 

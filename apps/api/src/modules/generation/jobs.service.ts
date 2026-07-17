@@ -1323,6 +1323,42 @@ export class JobsService {
     return this.fetchExternalOutputContent(providerUrl, job.type);
   }
 
+  /** Range-capable OSS stream for video/image preview when delivery=proxy. */
+  async getOutputStream(
+    userId: string,
+    jobId: string,
+    outputIndex: number,
+    input: { variant?: "thumbnail"; range?: string } = {},
+  ) {
+    if (!Number.isInteger(outputIndex) || outputIndex < 0) {
+      throw new BadRequestException("INVALID_OUTPUT_INDEX");
+    }
+    // Image thumbnails / watermarked variants still go through buffered media-center path.
+    if (input.variant === "thumbnail") return null;
+
+    const job = await this.prisma.generationJob.findFirst({
+      where: { id: jobId, userId },
+      select: {
+        type: true,
+        outputAssetIds: true,
+      },
+    });
+    if (!job) throw new NotFoundException();
+    if (job.type === "TEXT2IMAGE" || job.type === "IMAGE_EDIT") return null;
+
+    const assetIds = (job.outputAssetIds as string[] | null) ?? [];
+    if (!assetIds.length || outputIndex >= assetIds.length) return null;
+    const assets = await this.prisma.ossAsset.findMany({
+      where: { id: { in: assetIds } },
+    });
+    const asset = orderedAssetSlots(assetIds, assets)[outputIndex];
+    if (!asset) return null;
+
+    return this.oss.getAuthorizedAssetStream(asset.key, { id: userId }, {
+      range: input.range,
+    });
+  }
+
   async getProviderOutputContent(
     mediaId: string,
     userId: string,

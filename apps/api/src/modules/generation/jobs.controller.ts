@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Res, Sse } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, Res, Sse } from "@nestjs/common";
 import {
   ApiConsumes,
   ApiFoundResponse,
@@ -12,7 +12,7 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { IsOptional, IsString } from "class-validator";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import { interval, map, Observable, takeWhile } from "rxjs";
 import { CurrentUser, type AuthUserContext } from "@/common/decorators/current-user.decorator";
 import { JobsService, type CreateJobInput } from "./jobs.service";
@@ -411,9 +411,10 @@ export class JobsController {
     @Query("variant") variant: string | undefined,
     @Query("delivery") delivery: string | undefined,
     @CurrentUser() user: AuthUserContext,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
-    const variantOpt = variant === "thumbnail" ? "thumbnail" as const : undefined;
+    const variantOpt = variant === "thumbnail" ? ("thumbnail" as const) : undefined;
     const forceProxy = delivery === "proxy" || delivery === "stream";
     if (!forceProxy) {
       const redirectUrl = await this.jobs.getOutputRedirectUrl(
@@ -428,6 +429,36 @@ export class JobsController {
         return;
       }
     }
+
+    const range = typeof req.headers.range === "string" ? req.headers.range : undefined;
+    const streamed = await this.jobs.getOutputStream(user.id, id, Number(index), {
+      variant: variantOpt,
+      range,
+    });
+    if (streamed) {
+      res.setHeader("Content-Type", streamed.contentType);
+      res.setHeader("Accept-Ranges", "bytes");
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      if (streamed.contentRange) {
+        res.status(206);
+        res.setHeader("Content-Range", streamed.contentRange);
+      } else {
+        res.status(streamed.status >= 200 && streamed.status < 300 ? streamed.status : 200);
+      }
+      if (typeof streamed.sizeBytes === "number" && Number.isFinite(streamed.sizeBytes)) {
+        res.setHeader("Content-Length", String(streamed.sizeBytes));
+      }
+      streamed.stream.on("error", (err) => {
+        if (!res.headersSent) {
+          res.status(502).end();
+        } else {
+          res.destroy(err);
+        }
+      });
+      streamed.stream.pipe(res);
+      return;
+    }
+
     const asset = await this.jobs.getOutputContent(user.id, id, Number(index), {
       variant: variantOpt,
     });

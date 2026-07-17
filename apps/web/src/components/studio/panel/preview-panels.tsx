@@ -36,7 +36,7 @@ import type { StudioMode, StudioResult } from "@/routes/-dashboard-types";
 import { studioResultsFromJob } from "@/routes/-dashboard-types";
 import { formatDateTime, StatusBadge } from "@/routes/-dashboard-components";
 import { Progress } from "@/components/ui/progress";
-import { jobOutputContentUrl, mediaKindFromUrl, previewVideoSrcCandidates, videoModeLabelKey } from "./utils";
+import { jobOutputContentUrl, mediaKindFromUrl, previewVideoSrcCandidates, fetchBlobFromUrl, downloadCandidates, videoModeLabelKey } from "./utils";
 import { studioGenerationErrorNotice } from "./generation-error-presenter";
 import {
   PREVIEW_TOOL_ACCENT_BUTTON_CLASS,
@@ -235,16 +235,58 @@ export function VideoPreviewPanel({
   const [downloading, setDownloading] = useState(false);
   const [videoLoadFailed, setVideoLoadFailed] = useState(false);
   const [candidateIndex, setCandidateIndex] = useState(0);
+  const [blobSrc, setBlobSrc] = useState<string | null>(null);
+  const [resolvingBlob, setResolvingBlob] = useState(false);
   const [toolbarVisible, setToolbarVisible] = usePreviewToolbarVisibility();
   const playbackCandidates = useMemo(() => previewVideoSrcCandidates(result), [result]);
   const playbackSrc =
+    blobSrc ??
     playbackCandidates[Math.min(candidateIndex, Math.max(playbackCandidates.length - 1, 0))] ??
     result.src;
 
   useEffect(() => {
     setCandidateIndex(0);
     setVideoLoadFailed(false);
+    setResolvingBlob(false);
+    setBlobSrc((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
   }, [result.id, result.src, result.jobId, result.outputIndex, result.mediaId]);
+
+  useEffect(() => {
+    return () => {
+      if (blobSrc) URL.revokeObjectURL(blobSrc);
+    };
+  }, [blobSrc]);
+
+  const tryBlobFallback = useCallback(async () => {
+    if (resolvingBlob || blobSrc) return;
+    setResolvingBlob(true);
+    try {
+      let lastError: unknown;
+      for (const src of downloadCandidates(result)) {
+        try {
+          const blob = await fetchBlobFromUrl(src);
+          if (!blob.size) continue;
+          const typed = blob.type.startsWith("video/")
+            ? blob
+            : new Blob([blob], { type: "video/mp4" });
+          const url = URL.createObjectURL(typed);
+          setBlobSrc(url);
+          setVideoLoadFailed(false);
+          return;
+        } catch (err) {
+          lastError = err;
+        }
+      }
+      throw lastError instanceof Error ? lastError : new Error("Unable to load video");
+    } catch {
+      setVideoLoadFailed(true);
+    } finally {
+      setResolvingBlob(false);
+    }
+  }, [blobSrc, resolvingBlob, result]);
 
   const runDownload = async () => {
     if (downloading) return;
@@ -277,9 +319,9 @@ export function VideoPreviewPanel({
                 size="sm"
                 variant="ghost"
                 onClick={() => {
-                  if (!videoRef.current) return;
+                  if (!videoRef.current || videoLoadFailed) return;
                   videoRef.current.currentTime = 0;
-                  void videoRef.current.play();
+                  void videoRef.current.play().catch(() => undefined);
                 }}
                 title={t("studio.replayVideo")}
                 className={PREVIEW_TOOL_BUTTON_CLASS}
@@ -340,27 +382,38 @@ export function VideoPreviewPanel({
         </div>
       )}
       <div className="relative flex h-full min-h-0 w-full flex-1 items-center justify-center overflow-hidden p-3">
-        <video
-          ref={videoRef}
-          key={playbackSrc}
-          controls
-          src={playbackSrc}
-          muted={muted}
-          playsInline
-          preload="metadata"
-          onLoadedData={() => setVideoLoadFailed(false)}
-          onError={() => {
-            if (candidateIndex + 1 < playbackCandidates.length) {
-              setCandidateIndex((index) => index + 1);
-              return;
-            }
-            setVideoLoadFailed(true);
-          }}
-          className={cn(
-            "h-auto max-h-full w-auto max-w-full object-contain",
-            videoLoadFailed ? "opacity-20" : "",
-          )}
-        />
+        {resolvingBlob ? (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/55">
+            <Loader2 className="h-6 w-6 animate-spin text-white/80" />
+          </div>
+        ) : null}
+        {playbackSrc ? (
+          <video
+            ref={videoRef}
+            key={playbackSrc}
+            controls
+            src={playbackSrc}
+            muted={muted}
+            playsInline
+            preload="metadata"
+            onLoadedData={() => setVideoLoadFailed(false)}
+            onError={() => {
+              if (blobSrc) {
+                setVideoLoadFailed(true);
+                return;
+              }
+              if (candidateIndex + 1 < playbackCandidates.length) {
+                setCandidateIndex((index) => index + 1);
+                return;
+              }
+              void tryBlobFallback();
+            }}
+            className={cn(
+              "h-auto max-h-full w-auto max-w-full object-contain",
+              videoLoadFailed ? "opacity-20" : "",
+            )}
+          />
+        ) : null}
         {videoLoadFailed ? (
           <div className="absolute left-1/2 top-1/2 z-10 flex w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-lg border border-destructive/30 bg-black/75 px-5 py-4 text-center text-white shadow-lg backdrop-blur">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/20 text-destructive">
