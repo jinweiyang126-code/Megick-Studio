@@ -16,8 +16,18 @@ function mediaRecorderMimeType() {
   return candidates.find((type) => MediaRecorder.isTypeSupported(type)) ?? "";
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function waitAnimationFrame() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
+
+/** Push the current canvas bitmap into captureStream(0) recordings. */
+function requestCapturedFrame(stream: MediaStream) {
+  const track = stream.getVideoTracks()[0] as MediaStreamTrack & {
+    requestFrame?: () => void;
+  };
+  track?.requestFrame?.();
 }
 
 function waitForVideoMetadata(video: HTMLVideoElement, timeoutMs = 60_000) {
@@ -291,10 +301,21 @@ export async function exportMergedVideo(
     throw new Error("Browser video export APIs are unavailable");
   }
 
-  const stream = canvas.captureStream(30);
+  // frameRate 0: only emit a frame when we call requestFrame after a real draw —
+  // loading the next clip does not inject black / frozen empty time into the recording.
+  let stream = canvas.captureStream(0);
+  let manualFrames = typeof (
+    stream.getVideoTracks()[0] as MediaStreamTrack & { requestFrame?: () => void }
+  )?.requestFrame === "function";
+  if (!manualFrames) {
+    stream.getTracks().forEach((track) => track.stop());
+    stream = canvas.captureStream(30);
+  }
+
   const chunks: Blob[] = [];
   const mimeType = mediaRecorderMimeType();
   const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+  const canPauseRecorder = typeof recorder.pause === "function" && typeof recorder.resume === "function";
   const stopped = new Promise<Blob>((resolve, reject) => {
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) chunks.push(event.data);
@@ -312,45 +333,113 @@ export async function exportMergedVideo(
     const drawW = videoW * scale;
     const drawH = videoH * scale;
     ctx.drawImage(video, (canvas.width - drawW) / 2, (canvas.height - drawH) / 2, drawW, drawH);
+    if (manualFrames) requestCapturedFrame(stream);
+  };
+
+  const pauseRecording = () => {
+    if (canPauseRecorder && recorder.state === "recording") {
+      try {
+        recorder.pause();
+      } catch {
+        // ignore
+      }
+    }
+  };
+  const resumeRecording = () => {
+    if (canPauseRecorder && recorder.state === "paused") {
+      try {
+        recorder.resume();
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  /** Play one clip into the canvas; ends only after the last frame has been painted. */
+  const recordClip = async (video: HTMLVideoElement) => {
+    if (Math.abs(video.currentTime) > 0.01) {
+      const seeked = waitForVideoSeek(video);
+      video.currentTime = 0;
+      await seeked;
+    } else {
+      video.currentTime = 0;
+    }
+
+    let frameId = 0;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        let finishing = false;
+        const finish = async () => {
+          if (finishing) return;
+          finishing = true;
+          if (frameId) cancelAnimationFrame(frameId);
+          frameId = 0;
+          // Paint the terminal frame, then wait one display tick so captureStream sees it.
+          drawVideo(video);
+          await waitAnimationFrame();
+          drawVideo(video);
+          resolve();
+        };
+        const draw = () => {
+          drawVideo(video);
+          const duration = video.duration || 0;
+          const atEnd =
+            video.ended || (duration > 0 && video.currentTime >= duration - 1 / 60);
+          if (atEnd) {
+            void finish().catch(reject);
+            return;
+          }
+          frameId = requestAnimationFrame(draw);
+        };
+        video.addEventListener("error", () => reject(new Error("Video playback failed")), {
+          once: true,
+        });
+        void video
+          .play()
+          .then(() => {
+            draw();
+          })
+          .catch(reject);
+      });
+    } finally {
+      if (frameId) cancelAnimationFrame(frameId);
+      video.pause();
+    }
   };
 
   recorder.start(250);
   try {
-    for (const item of videos) {
+    // Prefetch clip i+1 while recording clip i so the recorder can stay paused
+    // (no empty frames) instead of sleeping between segments.
+    let prefetch: Promise<HTMLVideoElement> | null = null;
+    const prepareClip = async (item: StudioResult, index: number) => {
       const video = document.createElement("video");
       video.muted = true;
       videoElements.push(video);
-      if (item === videos[0]) {
+      if (index === 0) {
         bindVideoSource(video, firstSrc);
         await waitForVideoMetadata(video, 60_000);
       } else {
         await bindPlayableSource(video, item);
       }
-      video.currentTime = 0;
-      let frameId = 0;
-      try {
-        const frameDone = new Promise<void>((resolve, reject) => {
-          const draw = () => {
-            drawVideo(video);
-            if (video.ended || video.currentTime >= (video.duration || 0)) {
-              if (frameId) cancelAnimationFrame(frameId);
-              frameId = 0;
-              resolve();
-              return;
-            }
-            frameId = requestAnimationFrame(draw);
-          };
-          video.addEventListener("error", () => reject(new Error("Video playback failed")), {
-            once: true,
-          });
-          void video.play().then(draw).catch(reject);
-        });
-        await frameDone;
-      } finally {
-        if (frameId) cancelAnimationFrame(frameId);
-        video.pause();
+      return video;
+    };
+
+    for (let index = 0; index < videos.length; index += 1) {
+      const video =
+        index === 0
+          ? await prepareClip(videos[index], index)
+          : await (prefetch ?? prepareClip(videos[index], index));
+      prefetch = null;
+
+      if (index + 1 < videos.length) {
+        prefetch = prepareClip(videos[index + 1], index + 1);
       }
-      await sleep(80);
+
+      resumeRecording();
+      await recordClip(video);
+      // Stop emitting frames while the next source finishes loading.
+      pauseRecording();
     }
   } catch (err) {
     stream.getTracks().forEach((track) => track.stop());
