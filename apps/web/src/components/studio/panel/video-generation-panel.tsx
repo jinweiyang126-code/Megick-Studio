@@ -112,6 +112,9 @@ export function VideoGenerationPanel({
           ? t("studio.videoPanel.promptPlaceholder.edit")
           : t("studio.composer.videoPlaceholder");
 
+  const [modelOpen, setModelOpen] = useState(false);
+  const [promptExpanded, setPromptExpanded] = useState(false);
+
   const selectModel = (model: AIModelPublic) => {
     const locked = !hasAdvancedAccess && model.accessLevel === "PAID";
     if (locked) {
@@ -122,6 +125,7 @@ export function VideoGenerationPanel({
       return;
     }
     updateSettings({ model: model.code });
+    setModelOpen(false);
   };
 
   const selectVideoMode = (mode: VideoModelInputMode) => {
@@ -130,13 +134,11 @@ export function VideoGenerationPanel({
     });
   };
 
-  const [promptExpanded, setPromptExpanded] = useState(false);
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-b border-border p-3">
         <div className="flex items-center gap-2">
-          <Popover>
+          <Popover open={modelOpen} onOpenChange={setModelOpen}>
             <PopoverTrigger asChild>
               <button
                 type="button"
