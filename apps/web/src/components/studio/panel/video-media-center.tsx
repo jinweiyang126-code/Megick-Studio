@@ -30,6 +30,40 @@ function requestCapturedFrame(stream: MediaStream) {
   track?.requestFrame?.();
 }
 
+function createAudioContext(): AudioContext | null {
+  const Ctor =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctor) return null;
+  try {
+    return new Ctor();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Route element audio into a MediaStreamDestination (no speaker output).
+ * createMediaElementSource can only be called once per element.
+ */
+function connectVideoAudioToDestination(
+  audioCtx: AudioContext,
+  dest: MediaStreamAudioDestinationNode,
+  video: HTMLVideoElement,
+  previous: MediaElementAudioSourceNode | null,
+) {
+  try {
+    previous?.disconnect();
+  } catch {
+    // ignore
+  }
+  video.muted = false;
+  video.volume = 1;
+  const source = audioCtx.createMediaElementSource(video);
+  source.connect(dest);
+  return source;
+}
+
 function waitForVideoMetadata(video: HTMLVideoElement, timeoutMs = 60_000) {
   if (video.readyState >= 1) return Promise.resolve();
   return new Promise<void>((resolve, reject) => {
@@ -353,6 +387,17 @@ export async function exportMergedVideo(
     stream = canvas.captureStream(30);
   }
 
+  // Persistent audio track for MediaRecorder: route each clip through Web Audio so
+  // speakers stay silent (MediaElementSource hijacks element output) while audio is recorded.
+  const audioCtx = createAudioContext();
+  const audioDest = audioCtx?.createMediaStreamDestination() ?? null;
+  let clipAudioSource: MediaElementAudioSourceNode | null = null;
+  if (audioDest) {
+    for (const track of audioDest.stream.getAudioTracks()) {
+      stream.addTrack(track);
+    }
+  }
+
   const chunks: Blob[] = [];
   const mimeType = mediaRecorderMimeType();
   const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
@@ -396,8 +441,32 @@ export async function exportMergedVideo(
     }
   };
 
+  const attachClipAudio = async (video: HTMLVideoElement) => {
+    if (!audioCtx || !audioDest) return;
+    if (audioCtx.state === "suspended") {
+      try {
+        await audioCtx.resume();
+      } catch {
+        // ignore
+      }
+    }
+    try {
+      clipAudioSource = connectVideoAudioToDestination(
+        audioCtx,
+        audioDest,
+        video,
+        clipAudioSource,
+      );
+    } catch {
+      // Cross-origin / unsupported: keep merge video-only for this clip.
+      clipAudioSource = null;
+    }
+  };
+
   /** Play one clip into the canvas; ends only after the last frame has been painted. */
   const recordClip = async (video: HTMLVideoElement) => {
+    await attachClipAudio(video);
+
     if (Math.abs(video.currentTime) > 0.01) {
       const seeked = waitForVideoSeek(video);
       video.currentTime = 0;
@@ -445,6 +514,24 @@ export async function exportMergedVideo(
     } finally {
       if (frameId) cancelAnimationFrame(frameId);
       video.pause();
+      try {
+        clipAudioSource?.disconnect();
+      } catch {
+        // ignore
+      }
+      clipAudioSource = null;
+    }
+  };
+
+  const closeAudio = () => {
+    try {
+      clipAudioSource?.disconnect();
+    } catch {
+      // ignore
+    }
+    clipAudioSource = null;
+    if (audioCtx && audioCtx.state !== "closed") {
+      void audioCtx.close().catch(() => undefined);
     }
   };
 
@@ -455,6 +542,7 @@ export async function exportMergedVideo(
     let prefetch: Promise<HTMLVideoElement> | null = null;
     const prepareClip = async (item: StudioResult, index: number) => {
       const video = document.createElement("video");
+      // Start muted; attachClipAudio unmutes into Web Audio (no speaker leak).
       video.muted = true;
       videoElements.push(video);
       if (index === 0) {
@@ -491,6 +579,7 @@ export async function exportMergedVideo(
         // ignore
       }
     }
+    closeAudio();
     cleanupMedia();
     throw err;
   }
@@ -498,6 +587,7 @@ export async function exportMergedVideo(
   stream.getTracks().forEach((track) => track.stop());
   if (recorder.state !== "inactive") recorder.stop();
   const merged = await stopped;
+  closeAudio();
   cleanupMedia();
   return merged;
 }
