@@ -806,9 +806,9 @@ function isSameOriginUrl(src: string) {
 }
 
 /**
- * Force same-origin streaming for generation content URLs.
- * Default /content responses 302 to signed OSS; browser fetch of that OSS URL fails CORS
- * (including Megick's own aliyuncs bucket). `delivery=proxy` streams bytes via the API.
+ * Same-origin streaming for generation content URLs (merge / CORS fallback).
+ * Default /content responds 302 → signed OSS; use `delivery=proxy` when the browser
+ * must stay same-origin (canvas merge) or when OSS CORS is unavailable.
  */
 export function withContentProxyDelivery(src: string) {
   if (typeof window === "undefined") return src;
@@ -827,25 +827,26 @@ export function withContentProxyDelivery(src: string) {
   }
 }
 
+function isContentProxyDeliveryUrl(src: string) {
+  if (typeof window === "undefined") return false;
+  try {
+    const url = new URL(src, window.location.origin);
+    return url.searchParams.get("delivery") === "proxy" || url.searchParams.get("delivery") === "stream";
+  } catch {
+    return /[?&]delivery=(proxy|stream)(?:&|$)/.test(src);
+  }
+}
+
 /**
  * Download media as a Blob.
- * Prefer `delivery=proxy` on generation content URLs so the browser never follows a 302 to OSS.
- * Remaining same-origin redirects still use manual follow with credentials omitted.
+ * Prefer the URL as-is (signed OSS or /content → 302 → OSS). Do not force `delivery=proxy`;
+ * callers list proxy URLs last for merge / CORS fallback.
  */
 export async function fetchBlobFromUrl(src: string) {
-  const requestUrl = withContentProxyDelivery(src);
+  const requestUrl = src;
   const credentials = fetchCredentialsForUrl(requestUrl);
   const sameOrigin = isSameOriginUrl(requestUrl);
-  const alreadyProxied =
-    sameOrigin &&
-    typeof window !== "undefined" &&
-    (() => {
-      try {
-        return new URL(requestUrl, window.location.origin).searchParams.get("delivery") === "proxy";
-      } catch {
-        return false;
-      }
-    })();
+  const alreadyProxied = sameOrigin && isContentProxyDeliveryUrl(requestUrl);
 
   const res = await fetch(requestUrl, {
     credentials,
@@ -860,7 +861,19 @@ export async function fetchBlobFromUrl(src: string) {
       location,
       typeof window !== "undefined" ? window.location.origin : "http://local",
     ).href;
-    // Prefer same-origin asset stream when the redirect points at a Megick OSS object key.
+    // Prefer following the signed OSS/CDN URL directly (credentials omitted for CORS).
+    if (isLikelyUpstreamProviderUrl(absolute)) {
+      throw new Error("Upstream provider media is not browser-fetchable");
+    }
+    try {
+      const redirected = await fetch(absolute, {
+        credentials: "omit",
+        redirect: "follow",
+      });
+      if (redirected.ok) return redirected.blob();
+    } catch {
+      // Fall through to same-origin asset stream when OSS CORS is still blocked.
+    }
     const streamed = assetContentUrl(absolute);
     if (streamed) {
       const viaApi = await fetch(streamed, {
@@ -870,16 +883,7 @@ export async function fetchBlobFromUrl(src: string) {
       if (!viaApi.ok) throw new Error(`HTTP ${viaApi.status}`);
       return viaApi.blob();
     }
-    // Never follow redirects onto upstream provider hosts — they block browser CORS.
-    if (isLikelyUpstreamProviderUrl(absolute)) {
-      throw new Error("Upstream provider media is not browser-fetchable");
-    }
-    const redirected = await fetch(absolute, {
-      credentials: "omit",
-      redirect: "follow",
-    });
-    if (!redirected.ok) throw new Error(`HTTP ${redirected.status}`);
-    return redirected.blob();
+    throw new Error(`HTTP ${res.status}`);
   }
 
   if (res.type === "opaqueredirect") {
@@ -923,22 +927,29 @@ export function downloadCandidates(item: StudioResult) {
       return /\.(jpe?g|png|gif|webp|bmp|avif)(\?|#|$)/i.test(src);
     }
   };
+  // Video downloads must not pick I2V reference stills; image downloads keep image URLs.
+  const skipStills = item.kind === "video";
+  const direct = [item.src, item.fallbackSrc];
+  const safeDirect = direct.filter(
+    (src) =>
+      src &&
+      !isLikelyUpstreamProviderUrl(src) &&
+      !(skipStills && looksLikeStill(src)),
+  );
+  const jobContent = jobOutputContentCandidates(item);
+  const providerContent = providerOutputContentUrl(item);
   const assetStreams = [
     assetContentUrl(item.src),
     assetContentUrl(item.fallbackSrc),
-  ];
-  const direct = [item.src, item.fallbackSrc];
-  // Merge/download use fetch(); upstream provider hosts (volces/dashscope/...) block CORS.
-  // Prefer /api/oss/assets/content and delivery=proxy job content — never raw OSS URLs.
-  // Skip sourceSrc / still-image URLs so video blob fallback never wraps a JPEG as mp4.
-  const safeDirect = direct.filter(
-    (src) => src && !isLikelyUpstreamProviderUrl(src) && !looksLikeStill(src),
-  );
+  ].filter((src) => src && !(skipStills && looksLikeStill(src)));
+  // Prefer signed OSS / 302→OSS; keep same-origin proxy last when CORS still fails.
   return dedupeUrls([
-    ...assetStreams.filter((src) => src && !looksLikeStill(src)),
-    ...jobOutputContentCandidates(item),
-    providerOutputContentUrl(item),
     ...safeDirect,
+    ...jobContent,
+    providerContent,
+    ...assetStreams,
+    ...jobContent.map(withContentProxyDelivery),
+    providerContent ? withContentProxyDelivery(providerContent) : null,
   ]);
 }
 
@@ -946,6 +957,7 @@ export function downloadCandidates(item: StudioResult) {
  * URLs for `<video src>` during merge/export.
  * Must stay same-origin: 302→OSS plays in a preview tag, but without CORS it taints
  * canvas and MediaRecorder merge fails — then fetch fallback also dies on OSS CORS.
+ * Prefer `delivery=proxy` here; preview/download use direct OSS instead.
  */
 export function playableVideoSrcCandidates(item: StudioResult) {
   return dedupeUrls([
@@ -976,8 +988,8 @@ export function isLikelyStillImageUrl(src: string | undefined | null) {
 
 /**
  * URLs for studio preview `<video src>`.
- * Prefer same-origin `delivery=proxy` (Range streaming) so Edge/OSS redirect quirks
- * cannot leave the media element with "no supported sources".
+ * Prefer signed OSS / CDN (or /content 302→OSS). Same-origin `delivery=proxy` is last resort
+ * when direct playback fails (CORS / Edge quirks).
  */
 export function previewVideoSrcCandidates(item: StudioResult) {
   const isApiPath = (src: string) => {
@@ -992,20 +1004,19 @@ export function previewVideoSrcCandidates(item: StudioResult) {
   };
   const playable = (src: string | undefined | null): src is string =>
     Boolean(src) && !isLikelyStillImageUrl(src);
-  const direct = [item.src, item.fallbackSrc, item.sourceSrc].filter(
+  const direct = [item.src, item.fallbackSrc].filter(
     (src): src is string => playable(src) && !isApiPath(src),
   );
+  const jobContent = jobOutputContentCandidates(item);
+  const providerContent = providerOutputContentUrl(item);
   return dedupeUrls([
-    ...jobOutputContentCandidates(item).map(withContentProxyDelivery),
-    providerOutputContentUrl(item)
-      ? withContentProxyDelivery(providerOutputContentUrl(item)!)
-      : null,
     ...direct,
-    ...jobOutputContentCandidates(item),
-    providerOutputContentUrl(item),
+    ...jobContent,
+    providerContent,
     playable(item.src) ? item.src : null,
     playable(item.fallbackSrc) ? item.fallbackSrc : null,
-    // sourceSrc is often the I2V reference still — never feed it to <video>.
+    ...jobContent.map(withContentProxyDelivery),
+    providerContent ? withContentProxyDelivery(providerContent) : null,
   ]);
 }
 
