@@ -1,6 +1,7 @@
 import type { ChatSession, ChatSessionDetail, StudioResult } from "@/routes/-dashboard-types";
 import { studioMessageFromRecord } from "@/routes/-dashboard-types";
-import { api, apiGet } from "@/lib/api-client";
+import { api, apiGet, apiPost } from "@/lib/api-client";
+import { uploadDirectOssAsset } from "@/lib/oss-upload";
 import { fetchAllChatSessions } from "@/lib/chat-sessions";
 import { downloadCandidates, fetchBlobFromUrl } from "@/components/studio/panel/utils";
 import { processMediaAssets } from "@/megickcut/media/processing";
@@ -164,10 +165,10 @@ export async function saveExportBackToSession({
 }) {
   const blob = new Blob([buffer], { type: mimeType });
   const file = new File([blob], filename, { type: mimeType });
-  const form = new FormData();
-  form.set("file", file);
 
   if (sourceMessageId) {
+    const form = new FormData();
+    form.set("file", file);
     if (sourceResultId) form.set("sourceResultId", sourceResultId);
     return api(
       `/api/chats/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(sourceMessageId)}/edited-results`,
@@ -179,16 +180,34 @@ export async function saveExportBackToSession({
     );
   }
 
-  form.set("content", "Megick video edit");
-  form.set(
-    "metadata",
-    JSON.stringify({
-      status: "done",
-      edited: true,
-      label: "Megick edit",
-      sourceResultIds: sourceResultId ? [sourceResultId] : [],
-    }),
-  );
+  const content = "Megick video edit";
+  const metadata = {
+    status: "done",
+    edited: true,
+    label: "Megick edit",
+    sourceResultIds: sourceResultId ? [sourceResultId] : [],
+  };
+
+  const uploaded = await uploadDirectOssAsset({
+    file,
+    name: filename,
+    prefix: "studio-edits",
+    maxSizeBytes: 100 * 1024 * 1024,
+  });
+  if (uploaded?.key) {
+    return apiPost(`/api/chats/${encodeURIComponent(sessionId)}/media-results`, {
+      content,
+      metadata,
+      sourceResultId,
+      key: uploaded.key,
+      assetId: uploaded.asset.id,
+    });
+  }
+
+  const form = new FormData();
+  form.set("file", file);
+  form.set("content", content);
+  form.set("metadata", JSON.stringify(metadata));
   if (sourceResultId) form.set("sourceResultId", sourceResultId);
   return api(`/api/chats/${encodeURIComponent(sessionId)}/media-results`, {
     method: "POST",

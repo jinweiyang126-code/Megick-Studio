@@ -2357,17 +2357,12 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
       const content = t("studio.mergeVideos.resultPrompt", {
         count: sourceVideos.length,
       });
-      const form = new FormData();
-      form.set("content", content);
-      form.set(
-        "metadata",
-        JSON.stringify({
-          status: "done",
-          merged: true,
-          label: t("studio.mergeVideos.label"),
-          sourceResultIds: sourceVideos.map((video) => video.id),
-        }),
-      );
+      const metadata = {
+        status: "done" as const,
+        merged: true,
+        label: t("studio.mergeVideos.label"),
+        sourceResultIds: sourceVideos.map((video) => video.id),
+      };
       const rawType = (blob.type || "").toLowerCase();
       const extension = rawType.includes("webm")
         ? "webm"
@@ -2381,19 +2376,42 @@ export function useStudioSession(params: UseStudioSessionParams): StudioSharedSt
           : extension === "mov"
             ? "video/quicktime"
             : "video/mp4");
-      form.set(
-        "file",
-        new File([blob], `megick-merged-${Date.now()}.${extension}`, { type: mimeType }),
-      );
+      const file = new File([blob], `megick-merged-${Date.now()}.${extension}`, {
+        type: mimeType,
+      });
 
-      const saved = await api<StudioEditedResultPublic>(
-        `/api/chats/${encodeURIComponent(sessionId)}/media-results`,
-        {
-          method: "POST",
-          body: form,
-          headers: { Accept: "application/json" },
-        },
-      );
+      // Prefer browser → OSS direct upload so the API never re-uploads large merges.
+      let saved: StudioEditedResultPublic;
+      const uploaded = await uploadDirectOssAsset({
+        file,
+        name: file.name,
+        prefix: "studio-edits",
+        maxSizeBytes: 100 * 1024 * 1024,
+      });
+      if (uploaded?.key) {
+        saved = await apiPost<StudioEditedResultPublic>(
+          `/api/chats/${encodeURIComponent(sessionId)}/media-results`,
+          {
+            content,
+            metadata,
+            key: uploaded.key,
+            assetId: uploaded.asset.id,
+          },
+        );
+      } else {
+        const form = new FormData();
+        form.set("content", content);
+        form.set("metadata", JSON.stringify(metadata));
+        form.set("file", file);
+        saved = await api<StudioEditedResultPublic>(
+          `/api/chats/${encodeURIComponent(sessionId)}/media-results`,
+          {
+            method: "POST",
+            body: form,
+            headers: { Accept: "application/json" },
+          },
+        );
+      }
 
       const newResult: StudioResult = {
         id: saved.id,

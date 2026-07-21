@@ -137,6 +137,21 @@ class AppendMediaResultDto {
     example: "cmresult1,cmresult2",
   })
   @IsOptional() @IsString() sourceResultId?: string;
+
+  @ApiProperty({
+    description:
+      "OSS object key from a prior browser-direct upload (`POST /api/oss/sign` + `/api/oss/assets`). Prefer this over `file` for large merges.",
+    required: false,
+    example: "studio-edits/cmuser123/1710000000000-megick-merged.webm",
+  })
+  @IsOptional() @IsString() key?: string;
+
+  @ApiProperty({
+    description: "Registered OssAsset id from browser-direct upload. Alternative to `key`.",
+    required: false,
+    example: "cmasset123",
+  })
+  @IsOptional() @IsString() assetId?: string;
 }
 
 interface AdminChatsQuery extends PaginationQuery {
@@ -366,7 +381,7 @@ export class ChatsController {
   })
   @ApiBody({
     description:
-      "Multipart upload that creates an assistant message and persists one media result in that message metadata atomically.",
+      "Creates an assistant message and persists one media result. Prefer browser-direct OSS upload then pass `key`/`assetId`; legacy multipart `file` remains supported.",
     schema: {
       type: "object",
       properties: {
@@ -382,20 +397,28 @@ export class ChatsController {
           type: "string",
           description: "Optional source result ID(s) the new media was derived from.",
         },
+        key: {
+          type: "string",
+          description: "OSS key from a prior direct upload (preferred for large videos).",
+        },
+        assetId: {
+          type: "string",
+          description: "Registered OssAsset id from a prior direct upload.",
+        },
         file: {
           type: "string",
           format: "binary",
           description:
-            "Media file. Supported types: PNG, JPEG, WEBP, MP4, WEBM, MOV. Maximum size: 100 MB.",
+            "Legacy media upload. Supported types: PNG, JPEG, WEBP, MP4, WEBM, MOV. Maximum size: 100 MB.",
         },
       },
-      required: ["content", "file"],
+      required: ["content"],
     },
   })
   @ApiOperation(
     documentedOperation(
       "Upload a generated media result and append it to a session",
-      "Creates an assistant message containing the uploaded media result in metadata, so the Studio can restore the preview after refresh.",
+      "Creates an assistant message containing the media result in metadata. Clients may multipart-upload `file`, or register a browser-direct OSS object via `key`/`assetId`.",
     ),
   )
   @ApiOkResponseModel(
@@ -412,6 +435,8 @@ export class ChatsController {
       content: dto.content,
       metadata: dto.metadata,
       sourceResultId: dto.sourceResultId,
+      key: dto.key,
+      assetId: dto.assetId,
       file,
     });
   }

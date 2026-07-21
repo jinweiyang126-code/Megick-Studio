@@ -593,6 +593,30 @@ export class OssService {
     return "FILE";
   }
 
+  async getOwnedDirectUploadAsset(
+    userId: string,
+    input: { key?: string; assetId?: string },
+  ) {
+    if (input.assetId?.trim()) {
+      const asset = await this.prisma.ossAsset.findFirst({
+        where: { id: input.assetId.trim(), userId },
+      });
+      if (!asset) throw new NotFoundException();
+      return asset;
+    }
+
+    const key = this.normalizeAssetKey(input.key);
+    if (!key) throw new BadRequestException("INVALID_ASSET_KEY");
+    if (!this.isDirectUploadKeyForUser(key, userId)) {
+      throw new ForbiddenException();
+    }
+    const asset = await this.prisma.ossAsset.findUnique({ where: { key } });
+    if (!asset || (asset.userId && asset.userId !== userId)) {
+      throw new NotFoundException();
+    }
+    return asset;
+  }
+
   private normalizeAssetKey(value: string | null | undefined) {
     const key = value?.trim().replace(/^\/+/, "");
     if (!key || key.includes("..")) return null;

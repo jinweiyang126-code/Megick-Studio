@@ -487,29 +487,54 @@ export class ChatsService {
       content: string;
       metadata?: unknown;
       sourceResultId?: string;
+      key?: string;
+      assetId?: string;
       file?: UploadedMedia;
     },
   ) {
-    const file = input.file;
-    const contentType = resolveUploadedContentType(file, "video/webm");
-    if (!file?.buffer?.length)
-      throw new BadRequestException("MEDIA_FILE_REQUIRED");
-    if (!EDITABLE_MEDIA_TYPES.has(contentType))
-      throw new BadRequestException("UNSUPPORTED_MEDIA_TYPE");
-    const kind = EDITABLE_VIDEO_TYPES.has(contentType) ? "video" : "image";
-
     const session = await this.prisma.chatSession.findFirst({
       where: { id: sessionId, userId },
       select: { id: true },
     });
     if (!session) throw new NotFoundException();
 
-    const { key, asset } = await this.oss.putBuffer(
-      `studio-edits/${userId}/${sessionId}`,
-      file.buffer,
-      contentType,
-      { userId, visibility: "PRIVATE", requireUpload: true },
-    );
+    const file = input.file;
+    const hasFile = Boolean(file?.buffer?.length);
+    const hasDirectRef = Boolean(input.key?.trim() || input.assetId?.trim());
+    if (!hasFile && !hasDirectRef) {
+      throw new BadRequestException("MEDIA_FILE_REQUIRED");
+    }
+
+    let key: string;
+    let asset: OssAsset;
+    let contentType: string;
+
+    if (hasFile) {
+      contentType = resolveUploadedContentType(file, "video/webm");
+      if (!EDITABLE_MEDIA_TYPES.has(contentType)) {
+        throw new BadRequestException("UNSUPPORTED_MEDIA_TYPE");
+      }
+      const uploaded = await this.oss.putBuffer(
+        `studio-edits/${userId}/${sessionId}`,
+        file!.buffer!,
+        contentType,
+        { userId, visibility: "PRIVATE", requireUpload: true },
+      );
+      key = uploaded.key;
+      asset = uploaded.asset;
+    } else {
+      asset = await this.oss.getOwnedDirectUploadAsset(userId, {
+        key: input.key,
+        assetId: input.assetId,
+      });
+      key = asset.key;
+      contentType = normalizedContentType(asset.contentType, "video/webm");
+      if (!EDITABLE_MEDIA_TYPES.has(contentType)) {
+        throw new BadRequestException("UNSUPPORTED_MEDIA_TYPE");
+      }
+    }
+
+    const kind = EDITABLE_VIDEO_TYPES.has(contentType) ? "video" : "image";
     const createdAt = new Date();
     const src =
       (await this.oss.signGet(key, 24 * 3600)) ?? this.oss.contentUrl(key);
