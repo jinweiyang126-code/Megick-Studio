@@ -464,30 +464,61 @@ function isRedirectContentProxyUrl(src: string) {
   }
 }
 
-/** Prefer API streaming proxies over 302 redirect endpoints for canvas pixel access. */
+/** Prefer signed OSS / 302→OSS; same-origin byte proxy is last (CORS / canvas fallback). */
 export function canvasImageCandidates(item: StudioResult) {
   const jobOutputs = jobOutputContentCandidates(item);
-  const proxied = dedupeUrls([
+  const provider = providerOutputContentUrl(item);
+  const assetProxies = dedupeUrls([
     assetContentUrl(item.src),
     assetContentUrl(item.fallbackSrc),
     assetContentUrl(item.sourceSrc),
   ]);
   const refs = referenceCandidates(item);
-  const redirectProxies = refs.filter(
-    (url) => isRedirectContentProxyUrl(url) && !proxied.includes(url) && !jobOutputs.includes(url),
+  const safeDirect = refs.filter(
+    (url) =>
+      isExternalHttpUrl(url) &&
+      !isLikelyUpstreamProviderUrl(url) &&
+      !jobOutputs.includes(url) &&
+      url !== provider,
   );
-  const external = refs.filter(
-    (url) => isExternalHttpUrl(url) && !proxied.includes(url) && !jobOutputs.includes(url),
+  const signRedirects = refs.filter((url) => {
+    try {
+      const parsed = new URL(url, typeof window !== "undefined" ? window.location.origin : "http://local");
+      return (
+        parsed.pathname === "/api/oss/sign" &&
+        !safeDirect.includes(url) &&
+        !jobOutputs.includes(url)
+      );
+    } catch {
+      return false;
+    }
+  });
+  const redirectContent = refs.filter(
+    (url) =>
+      isRedirectContentProxyUrl(url) &&
+      !jobOutputs.includes(url) &&
+      url !== provider &&
+      !safeDirect.includes(url),
   );
   const sameOrigin = refs.filter(
     (url) =>
       !isExternalHttpUrl(url) &&
-      !proxied.includes(url) &&
+      !assetProxies.includes(url) &&
       !jobOutputs.includes(url) &&
+      url !== provider &&
+      !signRedirects.includes(url) &&
       !isStreamingAssetProxyUrl(url) &&
       !isRedirectContentProxyUrl(url),
   );
-  return dedupeUrls([...jobOutputs, ...proxied, ...sameOrigin, ...redirectProxies, ...external]);
+  return dedupeUrls([
+    ...safeDirect,
+    ...signRedirects,
+    ...jobOutputs,
+    provider,
+    ...sameOrigin,
+    ...redirectContent,
+    ...assetProxies,
+  ]);
 }
 
 export async function loadCanvasImageFromCandidates(candidates: string[]): Promise<HTMLImageElement> {
@@ -806,9 +837,9 @@ function isSameOriginUrl(src: string) {
 }
 
 /**
- * Same-origin streaming for generation content URLs (merge / CORS fallback).
+ * Same-origin streaming for generation content URLs (merge / canvas CORS fallback).
  * Default /content responds 302 → signed OSS; use `delivery=proxy` when the browser
- * must stay same-origin (canvas merge) or when OSS CORS is unavailable.
+ * must stay same-origin or when OSS CORS is unavailable.
  */
 export function withContentProxyDelivery(src: string) {
   if (typeof window === "undefined") return src;
@@ -955,19 +986,38 @@ export function downloadCandidates(item: StudioResult) {
 
 /**
  * URLs for `<video src>` during merge/export.
- * Must stay same-origin: 302→OSS plays in a preview tag, but without CORS it taints
- * canvas and MediaRecorder merge fails — then fetch fallback also dies on OSS CORS.
- * Prefer `delivery=proxy` here; preview/download use direct OSS instead.
+ * Prefer signed OSS / 302→OSS when bucket CORS allows crossOrigin canvas drawing.
+ * Same-origin `delivery=proxy` / asset stream is last resort if OSS CORS is missing.
  */
 export function playableVideoSrcCandidates(item: StudioResult) {
+  const looksLikeStill = (src: string | null | undefined) => {
+    if (!src?.trim()) return false;
+    try {
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : "http://local";
+      const url = new URL(src, origin);
+      if (url.pathname.startsWith("/api/generation/jobs/")) return false;
+      return /\.(jpe?g|png|gif|webp|bmp|avif)(\?|#|$)/i.test(
+        `${url.pathname}${url.search}`,
+      );
+    } catch {
+      return /\.(jpe?g|png|gif|webp|bmp|avif)(\?|#|$)/i.test(src);
+    }
+  };
+  const playable = (src: string | null | undefined): src is string =>
+    Boolean(src) && !looksLikeStill(src) && !isLikelyUpstreamProviderUrl(src);
+  const direct = [item.src, item.fallbackSrc, item.sourceSrc].filter(playable);
+  const jobContent = jobOutputContentCandidates(item);
+  const providerContent = providerOutputContentUrl(item);
   return dedupeUrls([
+    ...direct,
+    ...jobContent,
+    providerContent,
+    ...jobContent.map(withContentProxyDelivery),
+    providerContent ? withContentProxyDelivery(providerContent) : null,
     assetContentUrl(item.src),
     assetContentUrl(item.fallbackSrc),
     assetContentUrl(item.sourceSrc),
-    ...jobOutputContentCandidates(item).map(withContentProxyDelivery),
-    providerOutputContentUrl(item)
-      ? withContentProxyDelivery(providerOutputContentUrl(item)!)
-      : null,
   ]);
 }
 

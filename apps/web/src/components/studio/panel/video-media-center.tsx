@@ -82,13 +82,51 @@ async function asPlayableVideoBlob(blob: Blob) {
 }
 
 function bindVideoSource(video: HTMLVideoElement, src: string) {
-  // Do not set crossOrigin: Megick OSS signed URLs lack CORS. Media elements can still
-  // play after 302; canvas.captureStream recording does not need pixel readback.
-  // crossOrigin=anonymous was breaking merge loads and forcing slow full-file fetch.
-  video.removeAttribute("crossorigin");
+  // Cross-origin (or 302→OSS) sources need crossOrigin so canvas merge stays untainted.
+  // True same-origin proxy streams must not set it (cookies / credentials).
+  if (shouldUseCrossOriginForMerge(src)) {
+    video.crossOrigin = "anonymous";
+  } else {
+    video.removeAttribute("crossorigin");
+  }
   video.preload = "auto";
   video.playsInline = true;
   video.src = src;
+}
+
+/** True when the final media bytes may be cross-origin and canvas needs CORS. */
+function shouldUseCrossOriginForMerge(src: string) {
+  if (!src || src.startsWith("blob:") || src.startsWith("data:")) return false;
+  if (typeof window === "undefined") return /^https?:\/\//i.test(src);
+  try {
+    const url = new URL(src, window.location.origin);
+    if (url.origin !== window.location.origin) return true;
+    const delivery = url.searchParams.get("delivery");
+    if (delivery === "proxy" || delivery === "stream") return false;
+    if (url.pathname === "/api/oss/assets/content") return false;
+    if (url.pathname === "/api/oss/sign") return true;
+    return /\/api\/generation\/jobs\/[^/]+\/(?:output\/\d+|provider-output\/[^/]+)\/content$/i.test(
+      url.pathname,
+    );
+  } catch {
+    return /^https?:\/\//i.test(src);
+  }
+}
+
+/** Detect tainted canvas early so merge can fall back to same-origin proxy. */
+function videoAllowsCanvasPixelAccess(video: HTMLVideoElement) {
+  const probe = document.createElement("canvas");
+  probe.width = 2;
+  probe.height = 2;
+  const ctx = probe.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return true;
+  try {
+    ctx.drawImage(video, 0, 0, 2, 2);
+    ctx.getImageData(0, 0, 1, 1);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Detach media before revokeObjectURL — otherwise Chromium spams ERR_FILE_NOT_FOUND. */
@@ -246,7 +284,7 @@ export async function exportMergedVideo(
     releaseObjectUrls(objectUrls);
   };
 
-  /** Prefer same-origin streaming proxy. Never use 302→OSS for canvas merge. */
+  /** Prefer signed OSS / 302→OSS when CORS works; fall back to same-origin proxy stream. */
   const bindPlayableSource = async (video: HTMLVideoElement, item: StudioResult) => {
     const candidates = playableVideoSrcCandidates(item);
     let lastError: unknown;
@@ -256,6 +294,9 @@ export async function exportMergedVideo(
         await waitForVideoMetadata(video, 90_000);
         if ((video.videoWidth || 0) < 2 && (video.videoHeight || 0) < 2) {
           throw new Error("Video has no visible frames");
+        }
+        if (shouldUseCrossOriginForMerge(candidate) && !videoAllowsCanvasPixelAccess(video)) {
+          throw new Error("OSS CORS blocked canvas access");
         }
         return candidate;
       } catch (err) {
