@@ -369,12 +369,11 @@ export class AiModelsService implements OnModuleInit {
     const referenceConfig = this.normalizeReferenceConfig(input);
     const model = await this.prisma.$transaction(async (tx) => {
       if (input.isDefault) {
-        await tx.aIModel.updateMany({
-          where: {
-            category: input.category,
-            ...(input.id ? { id: { not: input.id } } : { code: { not: input.code } }),
-          },
-          data: { isDefault: false },
+        await this.clearCompetingDefaults(tx, {
+          category: input.category,
+          defaultParams,
+          excludeId: input.id ?? existing?.id ?? null,
+          excludeCode: input.code,
         });
       }
 
@@ -876,6 +875,59 @@ export class AiModelsService implements OnModuleInit {
 
   private explicitVideoInputMode(value: unknown): VideoInputMode | null {
     return value === "T2V" || value === "I2V" || value === "R2V" || value === "EDIT" ? value : null;
+  }
+
+  /**
+   * Default is unique per TEXT/TEXT2IMAGE category, and per videoInputMode
+   * (T2V / I2V / R2V / EDIT) within IMAGE2VIDEO.
+   */
+  private async clearCompetingDefaults(
+    tx: Prisma.TransactionClient,
+    input: {
+      category: AIModelCategory;
+      defaultParams: Record<string, unknown>;
+      excludeId?: string | null;
+      excludeCode: string;
+    },
+  ) {
+    const excludeWhere = input.excludeId
+      ? { id: { not: input.excludeId } }
+      : { code: { not: input.excludeCode } };
+
+    if (input.category !== "IMAGE2VIDEO") {
+      await tx.aIModel.updateMany({
+        where: {
+          category: input.category,
+          isDefault: true,
+          ...excludeWhere,
+        },
+        data: { isDefault: false },
+      });
+      return;
+    }
+
+    const mode = this.explicitVideoInputMode(input.defaultParams.videoInputMode);
+    const siblings = await tx.aIModel.findMany({
+      where: {
+        category: "IMAGE2VIDEO",
+        isDefault: true,
+        ...excludeWhere,
+      },
+      select: { id: true, defaultParams: true },
+    });
+    const idsToClear = siblings
+      .filter((row) => {
+        const rowMode = this.explicitVideoInputMode(
+          this.asRecord(row.defaultParams).videoInputMode,
+        );
+        return rowMode === mode;
+      })
+      .map((row) => row.id);
+    if (!idsToClear.length) return;
+    await tx.aIModel.updateMany({
+      where: { id: { in: idsToClear } },
+      data: { isDefault: false },
+    });
   }
 
   private explicitImageInputMode(value: unknown): ImageInputMode | null {

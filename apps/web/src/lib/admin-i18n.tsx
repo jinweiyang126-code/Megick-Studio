@@ -383,7 +383,7 @@ const en = {
 
   "page.aiModels.title": "AI Models",
   "page.aiModels.description":
-    "Connect upstream image and video generation APIs without exposing tokens.",
+    "Connect upstream image and video generation APIs without exposing tokens. For video, T2V / I2V / R2V / edit can each have their own default model.",
   "page.aiModels.imageTab": "Image generation",
   "page.aiModels.videoTab": "Video generation",
   "page.aiModels.newImage": "New image model",
@@ -1010,7 +1010,8 @@ const zh: AdminMessages = {
   "page.modelProviders.extra": "扩展默认参数（JSON）",
 
   "page.aiModels.title": "AI 模型",
-  "page.aiModels.description": "配置上游图像与视频生成 API，密钥不会暴露给用户。",
+  "page.aiModels.description":
+    "配置上游图像与视频生成 API，密钥不会暴露给用户。视频类可分别为文生视频、图生视频、参考生视频、视频编辑各设一个默认模型。",
   "page.aiModels.imageTab": "生图模型",
   "page.aiModels.videoTab": "生视频模型",
   "page.aiModels.newImage": "新建生图模型",
