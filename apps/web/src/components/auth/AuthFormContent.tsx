@@ -13,6 +13,7 @@ import { AUTH_CONFIG_QUERY_KEY, DEFAULT_AUTH_CONFIG } from "@/lib/auth-config";
 import type { AuthConfigResponse } from "@megick/api-types";
 
 type Tab = "signin" | "signup";
+type View = "auth" | "forgot" | "reset";
 type OAuthProvider = "google" | "github" | "apple";
 
 export interface AuthFormContentProps {
@@ -24,11 +25,16 @@ export interface AuthFormContentProps {
 export function AuthFormContent({ mode, redirectTo, onSuccess }: AuthFormContentProps) {
   const { hasExplicitPreference, locale, t } = useI18n();
   const [tab, setTab] = useState<Tab>(mode);
+  const [view, setView] = useState<View>("auth");
   const [submitting, setSubmitting] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [emailVerificationCode, setEmailVerificationCode] = useState("");
   const [emailVerificationId, setEmailVerificationId] = useState("");
+  const [passwordResetId, setPasswordResetId] = useState("");
+  const [passwordResetCode, setPasswordResetCode] = useState("");
   const [emailCodeSending, setEmailCodeSending] = useState(false);
   const [emailCodeCooldown, setEmailCodeCooldown] = useState(0);
   const queryClient = useQueryClient();
@@ -43,18 +49,18 @@ export function AuthFormContent({ mode, redirectTo, onSuccess }: AuthFormContent
     authConfig.registrationDisabledMessage || t("auth.registrationDisabled");
   const oauthProviders = new Set<OAuthProvider>(authConfig.oauthProviders as OAuthProvider[]);
   const hasOAuth = authConfig.oauthProviders.length > 0;
-  const showOAuth = (tab === "signin" || tab === "signup") && hasOAuth;
+  const showOAuth = view === "auth" && (tab === "signin" || tab === "signup") && hasOAuth;
   const canUsePassword = authConfig.passwordLoginEnabled;
   const registrationClosed = tab === "signup" && !authConfig.registrationEnabled;
   const emailVerificationRequired =
     tab === "signup" && authConfig.registrationEmailVerificationEnabled;
+  const passwordResetEnabled = Boolean(authConfig.passwordResetEnabled);
 
-  // Sync tab when mode changes (e.g., switching from signin to signup externally)
   useEffect(() => {
     setTab(mode);
+    setView("auth");
   }, [mode]);
 
-  // Cooldown timer for email verification code
   useEffect(() => {
     if (!emailCodeCooldown) return;
     const timer = window.setInterval(() => {
@@ -181,16 +187,221 @@ export function AuthFormContent({ mode, redirectTo, onSuccess }: AuthFormContent
     }
   };
 
+  const sendPasswordResetCode = async () => {
+    if (!email.trim()) {
+      toast.error(t("auth.emailRequired"));
+      return;
+    }
+    setEmailCodeSending(true);
+    try {
+      const result = await apiPost<{
+        ok: boolean;
+        passwordResetId?: string;
+        resendAfterSeconds?: number;
+      }>("/api/auth/password-reset-code", { email });
+      setPasswordResetCode("");
+      setPasswordResetId(result.passwordResetId ?? "");
+      setEmailCodeCooldown(result.resendAfterSeconds ?? 60);
+      setView("reset");
+      toast.success(t("auth.passwordResetCodeSent"));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("auth.passwordResetCodeFailed");
+      toast.error(message);
+    } finally {
+      setEmailCodeSending(false);
+    }
+  };
+
+  const handlePasswordReset = async (e: FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast.error(t("auth.passwordMismatch"));
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error(t("auth.passwordResetTooShort"));
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await apiPost("/api/auth/password-reset", {
+        email,
+        passwordResetId,
+        passwordResetCode,
+        newPassword,
+      });
+      toast.success(t("auth.passwordResetSuccess"));
+      setPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordResetCode("");
+      setPasswordResetId("");
+      setView("auth");
+      setTab("signin");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("auth.passwordResetFailed");
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const title =
+    view === "forgot"
+      ? t("auth.forgotPasswordTitle")
+      : view === "reset"
+        ? t("auth.resetPasswordTitle")
+        : tab === "signup"
+          ? t("auth.createAccount")
+          : t("auth.welcomeBack");
+  const subtitle =
+    view === "forgot"
+      ? t("auth.forgotPasswordSubtitle")
+      : view === "reset"
+        ? t("auth.resetPasswordSubtitle")
+        : tab === "signup"
+          ? t("auth.createSubtitle")
+          : t("auth.signInSubtitle");
+
   return (
     <>
-      <h2 className="text-center text-2xl font-semibold tracking-tight">
-        {tab === "signup" ? t("auth.createAccount") : t("auth.welcomeBack")}
-      </h2>
-      <p className="mt-2 text-center text-sm text-muted-foreground">
-        {tab === "signup" ? t("auth.createSubtitle") : t("auth.signInSubtitle")}
-      </p>
+      <h2 className="text-center text-2xl font-semibold tracking-tight">{title}</h2>
+      <p className="mt-2 text-center text-sm text-muted-foreground">{subtitle}</p>
 
-      <>
+      {view === "forgot" ? (
+        <form
+          className="mt-7 space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void sendPasswordResetCode();
+          }}
+        >
+          <div className="space-y-2">
+            <Label htmlFor="reset-email">{t("auth.email")}</Label>
+            <Input
+              id="reset-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={t("auth.emailPlaceholder")}
+              required
+              className="border-white/10 bg-background/55 shadow-inner focus-visible:bg-background/70"
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={emailCodeSending || emailCodeCooldown > 0}
+            size="lg"
+            className="w-full bg-gradient-primary shadow-glow transition hover:-translate-y-0.5 hover:opacity-95"
+          >
+            {emailCodeSending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {emailCodeCooldown > 0
+              ? t("auth.emailCodeCooldown", { seconds: String(emailCodeCooldown) })
+              : t("auth.sendResetCode")}
+          </Button>
+          <p className="text-center text-sm text-muted-foreground">
+            <button
+              type="button"
+              className="font-medium text-foreground hover:text-gradient"
+              onClick={() => setView("auth")}
+            >
+              {t("auth.backToSignIn")}
+            </button>
+          </p>
+        </form>
+      ) : view === "reset" ? (
+        <form onSubmit={handlePasswordReset} className="mt-7 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="reset-email-readonly">{t("auth.email")}</Label>
+            <Input
+              id="reset-email-readonly"
+              type="email"
+              value={email}
+              readOnly
+              className="border-white/10 bg-background/55 shadow-inner"
+            />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="reset-code">{t("auth.resetCode")}</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground hover:bg-transparent hover:text-foreground"
+                disabled={emailCodeSending || emailCodeCooldown > 0}
+                onClick={() => void sendPasswordResetCode()}
+              >
+                {emailCodeSending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                {emailCodeCooldown > 0
+                  ? t("auth.emailCodeCooldown", { seconds: String(emailCodeCooldown) })
+                  : t("auth.resendResetCode")}
+              </Button>
+            </div>
+            <InputOTP
+              id="reset-code"
+              maxLength={6}
+              value={passwordResetCode}
+              onChange={setPasswordResetCode}
+              containerClassName="w-full justify-between"
+            >
+              <InputOTPGroup className="w-full">
+                {Array.from({ length: 6 }, (_, index) => (
+                  <InputOTPSlot key={index} index={index} className="h-10 flex-1" />
+                ))}
+              </InputOTPGroup>
+            </InputOTP>
+            <p className="text-xs text-muted-foreground">{t("auth.resetCodeHelp")}</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="new-password">{t("auth.newPassword")}</Label>
+            <Input
+              id="new-password"
+              type="password"
+              minLength={8}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder={t("auth.newPasswordPlaceholder")}
+              required
+              className="border-white/10 bg-background/55 shadow-inner focus-visible:bg-background/70"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-password">{t("auth.confirmPassword")}</Label>
+            <Input
+              id="confirm-password"
+              type="password"
+              minLength={8}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder={t("auth.confirmPasswordPlaceholder")}
+              required
+              className="border-white/10 bg-background/55 shadow-inner focus-visible:bg-background/70"
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={
+              submitting || !passwordResetId || passwordResetCode.length !== 6 || !newPassword
+            }
+            size="lg"
+            className="w-full bg-gradient-primary shadow-glow transition hover:-translate-y-0.5 hover:opacity-95"
+          >
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {t("auth.submitResetPassword")}
+          </Button>
+          <p className="text-center text-sm text-muted-foreground">
+            <button
+              type="button"
+              className="font-medium text-foreground hover:text-gradient"
+              onClick={() => setView("auth")}
+            >
+              {t("auth.backToSignIn")}
+            </button>
+          </p>
+        </form>
+      ) : (
+        <>
           {registrationClosed ? (
             <div className="rounded-2xl border border-border bg-secondary/50 p-4 text-sm text-muted-foreground">
               {registrationDisabledMessage}
@@ -214,7 +425,18 @@ export function AuthFormContent({ mode, redirectTo, onSuccess }: AuthFormContent
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">{t("auth.password")}</Label>
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="password">{t("auth.password")}</Label>
+                  {tab === "signin" && passwordResetEnabled ? (
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                      onClick={() => setView("forgot")}
+                    >
+                      {t("auth.forgotPassword")}
+                    </button>
+                  ) : null}
+                </div>
                 <Input
                   id="password"
                   type="password"
@@ -315,6 +537,7 @@ export function AuthFormContent({ mode, redirectTo, onSuccess }: AuthFormContent
             </p>
           )}
         </>
+      )}
     </>
   );
 }

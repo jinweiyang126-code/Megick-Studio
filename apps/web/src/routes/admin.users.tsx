@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, type FormEvent } from "react";
-import { BarChart3, Clock, Mail, Sparkles, WalletCards } from "lucide-react";
+import { BarChart3, Clock, KeyRound, Mail, Sparkles, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -67,6 +67,11 @@ interface AdminUserRow {
 interface CreditAdjustmentDialogState {
   mode: "single" | "bulk";
   userIds: string[];
+  label: string;
+}
+
+interface ResetPasswordDialogState {
+  userId: string;
   label: string;
 }
 
@@ -152,6 +157,13 @@ function AdminUsers() {
     reason: t("page.users.reasonDefault"),
     notifyUser: true,
   });
+  const [resetPasswordDialog, setResetPasswordDialog] = useState<ResetPasswordDialogState | null>(
+    null,
+  );
+  const [resetPasswordDraft, setResetPasswordDraft] = useState({
+    newPassword: "",
+    confirmPassword: "",
+  });
   const queryClient = useQueryClient();
 
   const usersQ = useQuery({
@@ -194,6 +206,19 @@ function AdminUsers() {
       if (statsUserId) {
         queryClient.invalidateQueries({ queryKey: ["admin", "users", statsUserId, "dashboard"] });
       }
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const resetPasswordMut = useMutation({
+    mutationFn: (input: { userId: string; newPassword: string }) =>
+      apiPost(`/api/admin/users/${input.userId}/password`, {
+        newPassword: input.newPassword,
+      }),
+    onSuccess: () => {
+      toast.success(t("page.users.passwordReset"));
+      setResetPasswordDialog(null);
+      setResetPasswordDraft({ newPassword: "", confirmPassword: "" });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
@@ -321,6 +346,22 @@ function AdminUsers() {
             }
           >
             {t("page.users.adjustCredits")}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setResetPasswordDraft({ newPassword: "", confirmPassword: "" });
+              setResetPasswordDialog({
+                userId: u.id,
+                label: u.profile?.displayName
+                  ? `${u.profile.displayName} · ${u.email}`
+                  : u.email,
+              });
+            }}
+          >
+            <KeyRound className="h-4 w-4" />
+            {t("page.users.resetPassword")}
           </Button>
         </div>
       ),
@@ -540,6 +581,77 @@ function AdminUsers() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={!!resetPasswordDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setResetPasswordDialog(null);
+            setResetPasswordDraft({ newPassword: "", confirmPassword: "" });
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("page.users.resetPasswordTitle")}</DialogTitle>
+            <DialogDescription>{resetPasswordDialog?.label ?? ""}</DialogDescription>
+          </DialogHeader>
+          <form className="flex flex-col gap-4" onSubmit={handleResetPasswordSubmit}>
+            <p className="text-sm text-muted-foreground">{t("page.users.resetPasswordHelp")}</p>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="admin-reset-password">{t("page.users.newPassword")}</Label>
+              <Input
+                id="admin-reset-password"
+                type="password"
+                autoComplete="new-password"
+                value={resetPasswordDraft.newPassword}
+                onChange={(event) =>
+                  setResetPasswordDraft((current) => ({
+                    ...current,
+                    newPassword: event.target.value,
+                  }))
+                }
+                required
+                minLength={8}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="admin-reset-password-confirm">{t("page.users.confirmPassword")}</Label>
+              <Input
+                id="admin-reset-password-confirm"
+                type="password"
+                autoComplete="new-password"
+                value={resetPasswordDraft.confirmPassword}
+                onChange={(event) =>
+                  setResetPasswordDraft((current) => ({
+                    ...current,
+                    confirmPassword: event.target.value,
+                  }))
+                }
+                required
+                minLength={8}
+              />
+            </div>
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setResetPasswordDialog(null);
+                  setResetPasswordDraft({ newPassword: "", confirmPassword: "" });
+                }}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" disabled={resetPasswordMut.isPending}>
+                {resetPasswordMut.isPending
+                  ? t("common.loading")
+                  : t("page.users.submitResetPassword")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
@@ -562,6 +674,26 @@ function AdminUsers() {
       delta,
       reason,
       notifyUser: creditDraft.notifyUser,
+    });
+  }
+
+  function handleResetPasswordSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!resetPasswordDialog) return;
+
+    const newPassword = resetPasswordDraft.newPassword.trim();
+    const confirmPassword = resetPasswordDraft.confirmPassword.trim();
+    if (newPassword.length < 8) {
+      toast.error(t("page.users.passwordTooShort"));
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error(t("page.users.passwordMismatch"));
+      return;
+    }
+    resetPasswordMut.mutate({
+      userId: resetPasswordDialog.userId,
+      newPassword,
     });
   }
 

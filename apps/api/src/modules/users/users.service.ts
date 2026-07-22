@@ -3,6 +3,7 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { PrismaService } from "nestjs-prisma";
 import type { Prisma } from "@prisma/client";
 import type { Queue } from "bullmq";
+import * as argon2 from "argon2";
 import { normalizeLocale } from "@/common/locale";
 import {
   ADMIN_CREDIT_NOTIFICATION_JOB,
@@ -285,6 +286,46 @@ export class UsersService {
       after: { status: updated.status },
     });
     return updated;
+  }
+
+  async adminResetPassword(
+    userId: string,
+    newPassword: string,
+    auditCtx?: AdminAuditRequestContext,
+  ) {
+    const password = newPassword?.trim() ?? "";
+    if (password.length < 8) {
+      throw new BadRequestException("NEW_PASSWORD_TOO_SHORT");
+    }
+    if (password.length > 128) {
+      throw new BadRequestException("NEW_PASSWORD_TOO_LONG");
+    }
+    const before = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, passwordHash: true },
+    });
+    if (!before) throw new NotFoundException();
+
+    const passwordHash = await argon2.hash(password);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+    await this.audit.logExplicit(auditCtx, {
+      action: "UPDATE",
+      targetType: "user",
+      targetId: userId,
+      before: {
+        email: before.email,
+        hadPassword: Boolean(before.passwordHash),
+      },
+      after: {
+        email: before.email,
+        passwordReset: true,
+        hadPassword: true,
+      },
+    });
+    return { ok: true };
   }
 
   async adjustCredits(

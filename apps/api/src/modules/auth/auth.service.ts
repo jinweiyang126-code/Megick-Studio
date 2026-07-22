@@ -58,6 +58,8 @@ const authMessages = {
     emailVerificationExpired: "邮箱验证码已失效，请重新发送",
     emailVerificationInvalidSession: "邮箱验证码校验失败，请重新发送",
     emailVerificationIncorrect: "邮箱验证码错误，请重试",
+    passwordResetUnavailable: "密码重置暂不可用，请联系管理员配置邮件服务",
+    passwordResetInvalid: "重置验证码无效或已过期，请重新获取",
   },
   "zh-TW": {
     registrationDisabled:
@@ -85,6 +87,8 @@ const authMessages = {
     emailVerificationExpired: "電子郵件驗證碼已失效，請重新發送",
     emailVerificationInvalidSession: "電子郵件驗證失敗，請重新發送驗證碼",
     emailVerificationIncorrect: "電子郵件驗證碼錯誤，請重試",
+    passwordResetUnavailable: "目前無法重設密碼，請聯絡管理員設定郵件服務",
+    passwordResetInvalid: "重設驗證碼無效或已過期，請重新取得",
   },
   en: {
     registrationDisabled:
@@ -112,6 +116,9 @@ const authMessages = {
     emailVerificationExpired: "The email verification code has expired. Please request a new one.",
     emailVerificationInvalidSession: "Email verification failed. Please request a new code.",
     emailVerificationIncorrect: "Incorrect email verification code. Please try again.",
+    passwordResetUnavailable:
+      "Password reset is unavailable. Ask an admin to configure email delivery.",
+    passwordResetInvalid: "The reset code is invalid or expired. Please request a new one.",
   },
   ja: {
     registrationDisabled:
@@ -139,6 +146,9 @@ const authMessages = {
     emailVerificationExpired: "メール確認コードの有効期限が切れました。新しいコードを取得してください。",
     emailVerificationInvalidSession: "メール確認に失敗しました。新しいコードを取得してください。",
     emailVerificationIncorrect: "メール確認コードが正しくありません。もう一度お試しください。",
+    passwordResetUnavailable:
+      "パスワード再設定は利用できません。管理者にメール設定を依頼してください。",
+    passwordResetInvalid: "再設定コードが無効または期限切れです。新しいコードを取得してください。",
   },
   fr: {
     registrationDisabled:
@@ -166,6 +176,9 @@ const authMessages = {
     emailVerificationExpired: "Le code de vérification e-mail a expiré. Demandez-en un nouveau.",
     emailVerificationInvalidSession: "La vérification e-mail a échoué. Demandez un nouveau code.",
     emailVerificationIncorrect: "Code de vérification e-mail incorrect. Veuillez réessayer.",
+    passwordResetUnavailable:
+      "La réinitialisation du mot de passe est indisponible. Demandez à un administrateur de configurer l'e-mail.",
+    passwordResetInvalid: "Le code de réinitialisation est invalide ou expiré. Demandez-en un nouveau.",
   },
   de: {
     registrationDisabled:
@@ -193,6 +206,10 @@ const authMessages = {
     emailVerificationExpired: "Der E-Mail-Bestätigungscode ist abgelaufen. Bitte fordern Sie einen neuen an.",
     emailVerificationInvalidSession: "E-Mail-Bestätigung fehlgeschlagen. Bitte fordern Sie einen neuen Code an.",
     emailVerificationIncorrect: "Falscher E-Mail-Bestätigungscode. Bitte versuchen Sie es erneut.",
+    passwordResetUnavailable:
+      "Passwort-Zurücksetzung ist nicht verfügbar. Bitten Sie einen Admin, E-Mail einzurichten.",
+    passwordResetInvalid:
+      "Der Zurücksetzungscode ist ungültig oder abgelaufen. Bitte fordern Sie einen neuen an.",
   },
 };
 
@@ -212,6 +229,15 @@ interface RegistrationEmailVerificationRecord {
   attempts: number;
 }
 
+interface PasswordResetRecord {
+  code: string;
+  email: string;
+  tracker: string;
+  attempts: number;
+  /** Null when no eligible account exists (anti-enumeration placeholder). */
+  userId: string | null;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -227,12 +253,14 @@ export class AuthService {
       passwordLoginEnabled,
       registrationEnabled,
       emailVerificationEnabled,
+      passwordResetMailEnabled,
       providers,
     ] =
       await Promise.all([
         this.booleanSetting(AUTH_PASSWORD_LOGIN_KEY, true),
         this.booleanSetting(AUTH_REGISTRATION_KEY, true),
         this.registrationEmailVerificationEnabled(),
+        this.smtp.isPasswordResetMailEnabled(),
         this.prisma.oAuthProviderConfig.findMany({
           where: {
             isActive: true,
@@ -247,6 +275,7 @@ export class AuthService {
       passwordLoginEnabled,
       registrationEnabled,
       registrationEmailVerificationEnabled: emailVerificationEnabled,
+      passwordResetEnabled: passwordLoginEnabled && passwordResetMailEnabled,
       registrationDisabledMessage: authText(locale, "registrationDisabled"),
       oauthProviders: providers.map((p) => p.provider.toLowerCase()),
       oauthProviderClientIds: Object.fromEntries(
@@ -432,6 +461,162 @@ export class AuthService {
     return { ok: true };
   }
 
+  /**
+   * Send a password-reset email code. Response shape is identical whether or not
+   * the email exists, to avoid account enumeration.
+   */
+  async issuePasswordResetCode(
+    email: string,
+    tracker: string,
+    locale: AppLocale = DEFAULT_LOCALE,
+  ) {
+    const passwordLoginEnabled = await this.booleanSetting(AUTH_PASSWORD_LOGIN_KEY, true);
+    if (!passwordLoginEnabled) {
+      throw new ForbiddenException(authText(locale, "passwordLoginDisabled"));
+    }
+    if (!(await this.smtp.isPasswordResetMailEnabled())) {
+      throw new BadRequestException(authText(locale, "passwordResetUnavailable"));
+    }
+
+    const normalizedEmail = this.normalizeEmail(email);
+    if (!normalizedEmail) {
+      throw new BadRequestException(authText(locale, "emailRequired"));
+    }
+
+    const cooldownKey = this.passwordResetCooldownKey(normalizedEmail, tracker);
+    const coolingDown = await this.redis.client.get(cooldownKey);
+    if (coolingDown) {
+      throw new BadRequestException(authText(locale, "emailCodeCooldown"));
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true, status: true },
+    });
+    const eligible = Boolean(user && user.status === "ACTIVE");
+
+    const passwordResetId = randomId(24);
+    const code = this.generateEmailVerificationCode();
+    const payload: PasswordResetRecord = {
+      code,
+      email: normalizedEmail,
+      tracker,
+      attempts: 0,
+      userId: eligible ? user!.id : null,
+    };
+
+    if (eligible) {
+      await this.smtp.sendPasswordResetCode(normalizedEmail, code, locale);
+    }
+
+    await this.redis.client.set(
+      this.passwordResetVerificationKey(passwordResetId),
+      JSON.stringify(payload),
+      "EX",
+      EMAIL_VERIFICATION_TTL_SECONDS,
+    );
+    await this.redis.client.set(cooldownKey, "1", "EX", EMAIL_VERIFICATION_RESEND_SECONDS);
+
+    return {
+      ok: true,
+      passwordResetId,
+      expiresInSeconds: EMAIL_VERIFICATION_TTL_SECONDS,
+      resendAfterSeconds: EMAIL_VERIFICATION_RESEND_SECONDS,
+    };
+  }
+
+  async resetPasswordWithCode(input: {
+    email: string;
+    passwordResetId: unknown;
+    passwordResetCode: unknown;
+    newPassword: string;
+    tracker?: string;
+    locale?: AppLocale;
+  }) {
+    const locale = input.locale ?? DEFAULT_LOCALE;
+    const passwordLoginEnabled = await this.booleanSetting(AUTH_PASSWORD_LOGIN_KEY, true);
+    if (!passwordLoginEnabled) {
+      throw new ForbiddenException(authText(locale, "passwordLoginDisabled"));
+    }
+    if (input.newPassword.length < 8) {
+      throw new BadRequestException(authText(locale, "newPasswordTooShort"));
+    }
+    if (input.newPassword.length > 128) {
+      throw new BadRequestException(authText(locale, "newPasswordTooLong"));
+    }
+
+    const normalizedEmail = this.normalizeEmail(input.email);
+    if (!normalizedEmail) {
+      throw new BadRequestException(authText(locale, "emailRequired"));
+    }
+
+    if (
+      typeof input.passwordResetId !== "string" ||
+      typeof input.passwordResetCode !== "string" ||
+      !input.passwordResetId.trim() ||
+      !input.passwordResetCode.trim()
+    ) {
+      throw new BadRequestException(authText(locale, "passwordResetInvalid"));
+    }
+
+    const key = this.passwordResetVerificationKey(input.passwordResetId.trim());
+    const raw = await this.redis.client.get(key);
+    if (!raw) {
+      throw new BadRequestException(authText(locale, "passwordResetInvalid"));
+    }
+
+    const payload = JSON.parse(raw) as Partial<PasswordResetRecord>;
+    const expectedTracker = input.tracker ?? "";
+    if (
+      typeof payload.code !== "string" ||
+      typeof payload.email !== "string" ||
+      typeof payload.tracker !== "string" ||
+      payload.email !== normalizedEmail ||
+      payload.tracker !== expectedTracker
+    ) {
+      await this.redis.client.del(key);
+      throw new BadRequestException(authText(locale, "passwordResetInvalid"));
+    }
+
+    if (this.normalizeSignupCaptcha(payload.code) !== this.normalizeSignupCaptcha(input.passwordResetCode)) {
+      const attempts = Number(payload.attempts ?? 0) + 1;
+      if (attempts >= 5) {
+        await this.redis.client.del(key);
+      } else {
+        await this.redis.client.set(
+          key,
+          JSON.stringify({ ...payload, attempts }),
+          "EX",
+          EMAIL_VERIFICATION_TTL_SECONDS,
+        );
+      }
+      throw new BadRequestException(authText(locale, "passwordResetInvalid"));
+    }
+
+    if (!payload.userId || typeof payload.userId !== "string") {
+      await this.redis.client.del(key);
+      throw new BadRequestException(authText(locale, "passwordResetInvalid"));
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: payload.userId } });
+    if (!user || user.email !== normalizedEmail) {
+      await this.redis.client.del(key);
+      throw new BadRequestException(authText(locale, "passwordResetInvalid"));
+    }
+    if (user.status !== "ACTIVE") {
+      await this.redis.client.del(key);
+      throw new UnauthorizedException(authText(locale, "accountDisabled"));
+    }
+
+    const passwordHash = await argon2.hash(input.newPassword);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+    await this.redis.client.del(key);
+    return { ok: true };
+  }
+
   async adminLoginWithPassword(email: string, password: string, locale: AppLocale = DEFAULT_LOCALE) {
     return this.verifyPasswordUser(this.normalizeEmail(email), password, locale);
   }
@@ -608,6 +793,14 @@ export class AuthService {
 
   private registrationEmailCooldownKey(email: string, tracker: string) {
     return `mg:auth:registration-email-verification-cooldown:${this.normalizeEmail(email)}:${tracker}`;
+  }
+
+  private passwordResetVerificationKey(passwordResetId: string) {
+    return `mg:auth:password-reset:${passwordResetId}`;
+  }
+
+  private passwordResetCooldownKey(email: string, tracker: string) {
+    return `mg:auth:password-reset-cooldown:${this.normalizeEmail(email)}:${tracker}`;
   }
 
   private captchaDataUrl(code: string, label: string) {

@@ -236,6 +236,13 @@ export class AuthConfigResponseDto {
 
   @ApiProperty({
     description:
+      "Whether forgot/reset password is available. Requires password login and active SMTP.",
+    example: true,
+  })
+  passwordResetEnabled!: boolean;
+
+  @ApiProperty({
+    description:
       "Message shown to end users when registration is disabled. Safe to display directly in client UI.",
     example: "注册功能已关闭，获取注册邀请请邮件：register-invite@megick.com",
   })

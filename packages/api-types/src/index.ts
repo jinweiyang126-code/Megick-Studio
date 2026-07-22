@@ -138,6 +138,8 @@ export interface AuthConfigResponse {
   passwordLoginEnabled: boolean;
   registrationEnabled: boolean;
   registrationEmailVerificationEnabled: boolean;
+  /** True when password login and SMTP are both available for forgot-password. */
+  passwordResetEnabled: boolean;
   registrationDisabledMessage: string;
   oauthProviders: Array<Lowercase<OAuthProvider>>;
   oauthProviderClientIds: Partial<Record<Lowercase<OAuthProvider>, string>>;

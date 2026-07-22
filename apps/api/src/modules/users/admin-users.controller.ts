@@ -9,6 +9,8 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  MaxLength,
+  MinLength,
 } from "class-validator";
 import { Roles } from "@/common/decorators/roles.decorator";
 import { CurrentUser, type AuthUserContext } from "@/common/decorators/current-user.decorator";
@@ -29,6 +31,7 @@ import {
   ApiPaginationQueries,
   ApiSessionCookieAuth,
   ApiValidationErrorResponse,
+  OkResponseDto,
   documentedOperation,
 } from "@/common/swagger/api-docs";
 
@@ -76,6 +79,18 @@ class StatusDto {
     example: "DISABLED",
   })
   @IsString() status!: "ACTIVE" | "DISABLED" | "PENDING";
+}
+
+class AdminResetPasswordDto {
+  @ApiProperty({
+    description: "Temporary password to set for the user. Minimum length is 8 characters.",
+    minLength: 8,
+    example: "TempPass123",
+  })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  newPassword!: string;
 }
 
 interface AdminUsersQuery extends PaginationQuery {
@@ -254,6 +269,31 @@ export class AdminUsersController {
     @Req() req: Request & { user?: AuthUserContext },
   ) {
     return this.users.setStatus(id, dto.status, adminAuditRequestContext(req));
+  }
+
+  @Post(":id/password")
+  @ApiParam({
+    name: "id",
+    description: "Target user ID.",
+    example: "cmuser123",
+  })
+  @ApiOperation(
+    documentedOperation(
+      "Reset user password",
+      "Sets a new password hash for the target user. Useful when an admin needs to restore access without going through the email reset flow.",
+    ),
+  )
+  @ApiOkResponseModel(OkResponseDto, "User password reset successfully.")
+  resetPassword(
+    @Param("id") id: string,
+    @Body() dto: AdminResetPasswordDto,
+    @Req() req: Request & { user?: AuthUserContext },
+  ) {
+    return this.users.adminResetPassword(
+      id,
+      dto.newPassword,
+      adminAuditRequestContext(req),
+    );
   }
 
   @Post(":id/credits/adjust")

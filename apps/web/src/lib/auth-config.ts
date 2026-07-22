@@ -4,6 +4,7 @@ export const DEFAULT_AUTH_CONFIG: AuthConfigResponse = {
   passwordLoginEnabled: true,
   registrationEnabled: true,
   registrationEmailVerificationEnabled: false,
+  passwordResetEnabled: false,
   registrationDisabledMessage: "",
   oauthProviders: [],
   oauthProviderClientIds: {},

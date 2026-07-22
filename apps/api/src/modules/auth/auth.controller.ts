@@ -119,6 +119,53 @@ class ChangePasswordDto {
   newPassword!: string;
 }
 
+class PasswordResetCodeDto {
+  @ApiProperty({
+    description: "Account email that should receive the password reset code.",
+    example: "creator@example.com",
+  })
+  @IsEmail()
+  @MaxLength(191)
+  email!: string;
+}
+
+class ResetPasswordDto {
+  @ApiProperty({
+    description: "Account email used when requesting the reset code.",
+    example: "creator@example.com",
+  })
+  @IsEmail()
+  @MaxLength(191)
+  email!: string;
+
+  @ApiProperty({
+    description: "Reset ID returned by `POST /api/auth/password-reset-code`.",
+    example: "WbX0jKf8kE4mA1x5tR2vP9dN",
+  })
+  @IsString()
+  @MaxLength(64)
+  passwordResetId!: string;
+
+  @ApiProperty({
+    description: "One-time password reset code from email.",
+    example: "294173",
+  })
+  @IsString()
+  @MinLength(4)
+  @MaxLength(16)
+  passwordResetCode!: string;
+
+  @ApiProperty({
+    description: "New password. Minimum length is 8 characters.",
+    minLength: 8,
+    example: "Megick456",
+  })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  newPassword!: string;
+}
+
 @ApiTags("auth")
 @ApiValidationErrorResponse()
 @Controller("api/auth")
@@ -246,6 +293,48 @@ export class AuthController {
       dto.newPassword,
       localeFromAcceptLanguage(req.get("accept-language")),
     );
+  }
+
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 600_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post("password-reset-code")
+  @ApiOperation(
+    documentedOperation(
+      "Send a password reset email code",
+      "Sends a one-time reset code when SMTP is configured and password login is enabled. The response shape is the same whether or not the email exists.",
+    ),
+  )
+  passwordResetCode(@Body() dto: PasswordResetCodeDto, @Req() req: Request) {
+    return this.auth.issuePasswordResetCode(
+      dto.email,
+      this.registrationVerificationTracker(req),
+      localeFromAcceptLanguage(req.get("accept-language")),
+    );
+  }
+
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 600_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post("password-reset")
+  @ApiOperation(
+    documentedOperation(
+      "Reset password with email code",
+      "Verifies the reset code from email and sets a new password for the account. Does not issue a session cookie; the client should sign in afterwards.",
+    ),
+  )
+  @ApiOkResponseModel(OkResponseDto, "Password reset successfully.")
+  resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+    return this.auth.resetPasswordWithCode({
+      email: dto.email,
+      passwordResetId: dto.passwordResetId,
+      passwordResetCode: dto.passwordResetCode,
+      newPassword: dto.newPassword,
+      tracker: this.registrationVerificationTracker(req),
+      locale: localeFromAcceptLanguage(req.get("accept-language")),
+    });
   }
 
   @Public()

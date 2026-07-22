@@ -10,6 +10,69 @@ import { AdminAuditService } from "@/modules/admin/admin-audit.service";
 const SMTP_CONFIG_NAME = "default";
 const KEEP_EXISTING = "__KEEP_EXISTING__";
 
+function passwordResetEmailCopy(locale: AppLocale) {
+  const htmlLang = locale === "zh-CN" ? "zh-CN" : locale === "zh-TW" ? "zh-TW" : FALLBACK_LOCALE;
+  if (htmlLang === FALLBACK_LOCALE) {
+    return {
+      subject: (code: string) => `Megick password reset code: ${code}`,
+      text: (code: string) => [
+        `Your Megick password reset code is ${code}.`,
+        "The code expires in 10 minutes. If you did not request a password reset, you can ignore this email.",
+      ],
+      htmlLang,
+      title: "Megick password reset",
+      headerLabel: "Password reset",
+      badge: "Password reset",
+      heading: "Reset your Megick password",
+      intro: (email: string) =>
+        `We received a request to reset the password for <strong style="color:#111827;font-weight:700;">${email}</strong>. Enter the code below on the reset page to continue.`,
+      validTitle: "Valid for 10 minutes",
+      security:
+        "To keep your account safe, do not forward or share this code. Megick staff will never ask for it.",
+      ignore:
+        "If you did not request a password reset, you can safely ignore this email. The code will expire automatically.",
+    };
+  }
+  if (htmlLang === "zh-TW") {
+    return {
+      subject: (code: string) => `Megick 密碼重設驗證碼：${code}`,
+      text: (code: string) => [
+        `您的 Megick 密碼重設驗證碼是 ${code}。`,
+        "驗證碼將在 10 分鐘後失效。若非本人操作，請忽略本郵件。",
+      ],
+      htmlLang,
+      title: "Megick 密碼重設",
+      headerLabel: "密碼重設",
+      badge: "Password reset",
+      heading: "重設您的 Megick 密碼",
+      intro: (email: string) =>
+        `我們收到了為 <strong style="color:#111827;font-weight:700;">${email}</strong> 重設密碼的請求。請在重設頁面輸入以下驗證碼繼續。`,
+      validTitle: "10 分鐘內有效",
+      security:
+        "為了保護帳戶安全，請勿向任何人轉寄或透露此驗證碼。Megick 工作人員不會向您索取驗證碼。",
+      ignore: "若您沒有發起密碼重設請求，可以安全忽略本郵件；該驗證碼會自動失效。",
+    };
+  }
+  return {
+    subject: (code: string) => `Megick 密码重置验证码：${code}`,
+    text: (code: string) => [
+      `您的 Megick 密码重置验证码是 ${code}。`,
+      "验证码将在 10 分钟后失效。若非本人操作，请忽略本邮件。",
+    ],
+    htmlLang,
+    title: "Megick 密码重置",
+    headerLabel: "密码重置",
+    badge: "Password reset",
+    heading: "重置您的 Megick 密码",
+    intro: (email: string) =>
+      `我们收到了为 <strong style="color:#111827;font-weight:700;">${email}</strong> 重置密码的请求。请在重置页面输入以下验证码继续。`,
+    validTitle: "10 分钟内有效",
+    security:
+      "为了保护账户安全，请勿向任何人转发或透露此验证码。Megick 工作人员不会向您索要验证码。",
+    ignore: "若您没有发起密码重置请求，可以安全忽略本邮件；该验证码会自动失效。",
+  };
+}
+
 function registrationEmailCopy(locale: AppLocale) {
   const htmlLang = locale === "zh-CN" ? "zh-CN" : locale === "zh-TW" ? "zh-TW" : FALLBACK_LOCALE;
   if (htmlLang === FALLBACK_LOCALE) {
@@ -208,6 +271,11 @@ export class SmtpService {
     return summary.isActive && summary.hasConfig;
   }
 
+  /** Password reset requires an active SMTP configuration. */
+  async isPasswordResetMailEnabled() {
+    return this.isRegistrationVerificationEnabled();
+  }
+
   async upsert(input: SmtpConfigInput, isActive = false, auditCtx?: AdminAuditRequestContext) {
     const before = await this.getSummary();
     const existing = await this.prisma.smtpConfig.findUnique({ where: { name: SMTP_CONFIG_NAME } });
@@ -251,6 +319,16 @@ export class SmtpService {
       subject: copy.subject(code),
       text: copy.text(code).join("\n"),
       html: this.buildRegistrationCodeEmailHtml(to, code, locale),
+    });
+  }
+
+  async sendPasswordResetCode(to: string, code: string, locale: AppLocale = DEFAULT_LOCALE) {
+    const copy = passwordResetEmailCopy(locale);
+    await this.sendMail({
+      to,
+      subject: copy.subject(code),
+      text: copy.text(code).join("\n"),
+      html: this.buildPasswordResetCodeEmailHtml(to, code, locale),
     });
   }
 
@@ -330,6 +408,98 @@ export class SmtpService {
                         <tr>
                           <td align="center" style="background:#0f172a;border-radius:20px;border:1px solid #1e293b;padding:28px 16px;">
                             <div style="color:#93a4bd;font-size:13px;line-height:18px;font-weight:700;text-transform:uppercase;">Verification code</div>
+                            <div style="margin-top:10px;color:#ffffff;font-size:38px;line-height:46px;font-weight:800;letter-spacing:8px;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;word-break:break-all;">${escapedCode}</div>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:18px 40px 0 40px;">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;">
+                        <tr>
+                          <td width="42" valign="top" style="padding:18px 0 18px 18px;">
+                            <div style="width:30px;height:30px;border-radius:10px;background:#dcfce7;color:#047857;text-align:center;font-size:18px;line-height:30px;font-weight:800;">✓</div>
+                          </td>
+                          <td style="padding:18px 18px 18px 12px;color:#475569;font-size:14px;line-height:22px;">
+                            <strong style="display:block;color:#111827;font-size:15px;line-height:22px;margin-bottom:2px;">${copy.validTitle}</strong>
+                            ${copy.security}
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:26px 40px 38px 40px;color:#64748b;font-size:14px;line-height:24px;">
+                      ${copy.ignore}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:22px 10px 0 10px;color:#7c8ca5;font-size:12px;line-height:20px;">
+                © Megick AI Creations. This is an automated message, please do not reply.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+  }
+
+  private buildPasswordResetCodeEmailHtml(to: string, code: string, locale: AppLocale = DEFAULT_LOCALE) {
+    const copy = passwordResetEmailCopy(locale);
+    const escapedCode = this.escapeHtml(code);
+    const escapedEmail = this.escapeHtml(to);
+    return `<!doctype html>
+<html lang="${copy.htmlLang}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
+    <title>${copy.title}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f7fb;font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;color:#172033;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#f4f7fb;margin:0;padding:0;">
+      <tr>
+        <td align="center" style="padding:36px 16px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:640px;border-collapse:collapse;">
+            <tr>
+              <td style="padding:0 0 18px 0;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td align="left" style="font-size:0;">
+                      <span style="display:inline-block;width:42px;height:42px;border-radius:14px;background:#111827;color:#ffffff;text-align:center;font-size:20px;line-height:42px;font-weight:800;vertical-align:middle;">M</span>
+                      <span style="display:inline-block;padding-left:12px;color:#111827;font-size:20px;line-height:42px;font-weight:800;vertical-align:middle;">Megick</span>
+                    </td>
+                    <td align="right" style="color:#60708a;font-size:13px;line-height:20px;">${copy.headerLabel}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;overflow:hidden;box-shadow:0 18px 48px rgba(15,23,42,0.10);">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="height:8px;background:#2563eb;font-size:0;line-height:0;">&nbsp;</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:40px 40px 18px 40px;">
+                      <div style="display:inline-block;padding:7px 12px;border-radius:999px;background:#eef6ff;color:#1d4ed8;font-size:13px;line-height:18px;font-weight:700;">${copy.badge}</div>
+                      <h1 style="margin:22px 0 10px 0;color:#111827;font-size:28px;line-height:36px;font-weight:800;letter-spacing:0;">${copy.heading}</h1>
+                      <p style="margin:0;color:#475569;font-size:16px;line-height:26px;">${copy.intro(escapedEmail)}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:20px 40px 8px 40px;">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:separate;border-spacing:0;">
+                        <tr>
+                          <td align="center" style="background:#0f172a;border-radius:20px;border:1px solid #1e293b;padding:28px 16px;">
+                            <div style="color:#93a4bd;font-size:13px;line-height:18px;font-weight:700;text-transform:uppercase;">Reset code</div>
                             <div style="margin-top:10px;color:#ffffff;font-size:38px;line-height:46px;font-weight:800;letter-spacing:8px;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;word-break:break-all;">${escapedCode}</div>
                           </td>
                         </tr>
