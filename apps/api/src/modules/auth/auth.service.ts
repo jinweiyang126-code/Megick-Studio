@@ -60,6 +60,8 @@ const authMessages = {
     emailVerificationIncorrect: "邮箱验证码错误，请重试",
     passwordResetUnavailable: "密码重置暂不可用，请联系管理员配置邮件服务",
     passwordResetInvalid: "重置验证码无效或已过期，请重新获取",
+    passwordResetExpired: "重置验证码已失效，请重新获取",
+    passwordResetIncorrect: "重置验证码错误，请重试",
   },
   "zh-TW": {
     registrationDisabled:
@@ -89,6 +91,8 @@ const authMessages = {
     emailVerificationIncorrect: "電子郵件驗證碼錯誤，請重試",
     passwordResetUnavailable: "目前無法重設密碼，請聯絡管理員設定郵件服務",
     passwordResetInvalid: "重設驗證碼無效或已過期，請重新取得",
+    passwordResetExpired: "重設驗證碼已失效，請重新取得",
+    passwordResetIncorrect: "重設驗證碼錯誤，請重試",
   },
   en: {
     registrationDisabled:
@@ -119,6 +123,8 @@ const authMessages = {
     passwordResetUnavailable:
       "Password reset is unavailable. Ask an admin to configure email delivery.",
     passwordResetInvalid: "The reset code is invalid or expired. Please request a new one.",
+    passwordResetExpired: "The reset code has expired. Please request a new one.",
+    passwordResetIncorrect: "Incorrect reset code. Please try again.",
   },
   ja: {
     registrationDisabled:
@@ -149,6 +155,8 @@ const authMessages = {
     passwordResetUnavailable:
       "パスワード再設定は利用できません。管理者にメール設定を依頼してください。",
     passwordResetInvalid: "再設定コードが無効または期限切れです。新しいコードを取得してください。",
+    passwordResetExpired: "再設定コードの有効期限が切れました。新しいコードを取得してください。",
+    passwordResetIncorrect: "再設定コードが正しくありません。もう一度お試しください。",
   },
   fr: {
     registrationDisabled:
@@ -179,6 +187,8 @@ const authMessages = {
     passwordResetUnavailable:
       "La réinitialisation du mot de passe est indisponible. Demandez à un administrateur de configurer l'e-mail.",
     passwordResetInvalid: "Le code de réinitialisation est invalide ou expiré. Demandez-en un nouveau.",
+    passwordResetExpired: "Le code de réinitialisation a expiré. Demandez-en un nouveau.",
+    passwordResetIncorrect: "Code de réinitialisation incorrect. Veuillez réessayer.",
   },
   de: {
     registrationDisabled:
@@ -210,6 +220,9 @@ const authMessages = {
       "Passwort-Zurücksetzung ist nicht verfügbar. Bitten Sie einen Admin, E-Mail einzurichten.",
     passwordResetInvalid:
       "Der Zurücksetzungscode ist ungültig oder abgelaufen. Bitte fordern Sie einen neuen an.",
+    passwordResetExpired:
+      "Der Zurücksetzungscode ist abgelaufen. Bitte fordern Sie einen neuen an.",
+    passwordResetIncorrect: "Falscher Zurücksetzungscode. Bitte versuchen Sie es erneut.",
   },
 };
 
@@ -505,10 +518,7 @@ export class AuthService {
       userId: eligible ? user!.id : null,
     };
 
-    if (eligible) {
-      await this.smtp.sendPasswordResetCode(normalizedEmail, code, locale);
-    }
-
+    // Persist before email so a delivered code always has a verifiable session.
     await this.redis.client.set(
       this.passwordResetVerificationKey(passwordResetId),
       JSON.stringify(payload),
@@ -516,6 +526,16 @@ export class AuthService {
       EMAIL_VERIFICATION_TTL_SECONDS,
     );
     await this.redis.client.set(cooldownKey, "1", "EX", EMAIL_VERIFICATION_RESEND_SECONDS);
+
+    if (eligible) {
+      try {
+        await this.smtp.sendPasswordResetCode(normalizedEmail, code, locale);
+      } catch (err) {
+        await this.redis.client.del(this.passwordResetVerificationKey(passwordResetId));
+        await this.redis.client.del(cooldownKey);
+        throw err;
+      }
+    }
 
     return {
       ok: true,
@@ -562,35 +582,37 @@ export class AuthService {
     const key = this.passwordResetVerificationKey(input.passwordResetId.trim());
     const raw = await this.redis.client.get(key);
     if (!raw) {
-      throw new BadRequestException(authText(locale, "passwordResetInvalid"));
+      throw new BadRequestException(authText(locale, "passwordResetExpired"));
     }
 
     const payload = JSON.parse(raw) as Partial<PasswordResetRecord>;
-    const expectedTracker = input.tracker ?? "";
+    // Bind to email + resetId only. IP/UA trackers are brittle behind Cloudflare
+    // proxies and would invalidate a just-delivered email code.
     if (
       typeof payload.code !== "string" ||
       typeof payload.email !== "string" ||
-      typeof payload.tracker !== "string" ||
-      payload.email !== normalizedEmail ||
-      payload.tracker !== expectedTracker
+      payload.email !== normalizedEmail
     ) {
       await this.redis.client.del(key);
       throw new BadRequestException(authText(locale, "passwordResetInvalid"));
     }
 
-    if (this.normalizeSignupCaptcha(payload.code) !== this.normalizeSignupCaptcha(input.passwordResetCode)) {
+    if (this.normalizeEmailCode(payload.code) !== this.normalizeEmailCode(input.passwordResetCode)) {
       const attempts = Number(payload.attempts ?? 0) + 1;
       if (attempts >= 5) {
         await this.redis.client.del(key);
       } else {
+        const ttl = await this.redis.client.pttl(key);
+        const expireSeconds =
+          ttl > 0 ? Math.ceil(ttl / 1000) : EMAIL_VERIFICATION_TTL_SECONDS;
         await this.redis.client.set(
           key,
           JSON.stringify({ ...payload, attempts }),
           "EX",
-          EMAIL_VERIFICATION_TTL_SECONDS,
+          expireSeconds,
         );
       }
-      throw new BadRequestException(authText(locale, "passwordResetInvalid"));
+      throw new BadRequestException(authText(locale, "passwordResetIncorrect"));
     }
 
     if (!payload.userId || typeof payload.userId !== "string") {
@@ -776,6 +798,10 @@ export class AuthService {
 
   private normalizeSignupCaptcha(value: string) {
     return value.trim().toUpperCase();
+  }
+
+  private normalizeEmailCode(value: string) {
+    return value.replace(/\D/g, "");
   }
 
   private normalizeEmail(value: string) {
