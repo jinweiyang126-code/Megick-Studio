@@ -669,6 +669,18 @@ export const deMessages = {
     "Das Referenzbild kann eine reale Person oder private Informationen enthalten. Bitte verwenden Sie ein anderes Bild und versuchen Sie es erneut.",
   "studio.referenceImagePrivacyBlockedDesc":
     "Einige Videoanbieter schränken Referenzbilder ein, die identifizierbare Personen oder datenschutzrelevante Inhalte enthalten können.",
+  "studio.referenceImageTooLarge":
+    "Das Referenzbild ist zu groß. Bitte komprimieren Sie es und versuchen Sie es erneut.",
+  "studio.referenceImageTooLargeDesc":
+    "Upstream-Modelle begrenzen Referenzbilder typischerweise auf etwa 30 MB. Komprimieren oder verkleinern Sie das Bild und versuchen Sie es erneut.",
+  "studio.referenceVideoTooLarge":
+    "Das Referenzvideo ist zu groß. Bitte komprimieren Sie es und versuchen Sie es erneut.",
+  "studio.referenceVideoTooLargeDesc":
+    "Upstream-Modelle begrenzen die Größe von Referenzvideos. Komprimieren oder kürzen Sie das Video und versuchen Sie es erneut.",
+  "studio.providerInvalidParameter":
+    "Die Anfrage erfüllt die Upstream-Modelleinschränkungen nicht.",
+  "studio.providerInvalidParameterDesc":
+    "Prüfen Sie Referenzmedien, Dauer, Auflösung und andere Einstellungen und versuchen Sie es erneut.",
   "studio.versionSaved": "Als neue Version",
   "studio.versionSaveFailed": "Die neue Version",
   "studio.maxRefs": "Maximal 5 Referenzen erlaubt",

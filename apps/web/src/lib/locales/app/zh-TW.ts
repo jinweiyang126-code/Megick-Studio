@@ -602,6 +602,12 @@ export const zhTWMessages = {
   "studio.referenceImagePrivacyBlocked": "參考影像可能包含真人或私人資訊。請使用其他圖像並重試。",
   "studio.referenceImagePrivacyBlockedDesc":
     "一些影片提供者限制可能包含可辨識人物或隱私敏感內容的參考影像。",
+  "studio.referenceImageTooLarge": "參考圖體積過大，請壓縮後重試。",
+  "studio.referenceImageTooLargeDesc": "上游模型限制單張參考圖不超過約 30MB，請壓縮或縮小圖片後再生成。",
+  "studio.referenceVideoTooLarge": "參考影片體積過大，請壓縮後重試。",
+  "studio.referenceVideoTooLargeDesc": "上游模型對參考影片大小有限制，請壓縮或縮短影片後再生成。",
+  "studio.providerInvalidParameter": "請求參數不符合上游模型限制。",
+  "studio.providerInvalidParameterDesc": "請檢查參考素材、時長、解析度等設定後重試。",
   "studio.versionSaved": "儲存為新版本",
   "studio.versionSaveFailed": "無法儲存新版本",
   "studio.maxRefs": "最多允許 5 個引用",

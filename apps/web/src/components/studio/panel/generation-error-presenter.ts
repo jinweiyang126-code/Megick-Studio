@@ -14,6 +14,9 @@ const STUDIO_GENERATION_ERROR_MESSAGE_KEYS = [
   ["REFERENCE_IMAGE_REQUIRED", "studio.referenceImageRequired"],
   ["MODEL_DOES_NOT_SUPPORT_REFERENCE_IMAGES", "studio.modelNoReferenceImages"],
   ["TOO_MANY_REFERENCE_IMAGES", "studio.referenceImageTooMany"],
+  ["REFERENCE_IMAGE_TOO_LARGE", "studio.referenceImageTooLarge"],
+  ["REFERENCE_VIDEO_TOO_LARGE", "studio.referenceVideoTooLarge"],
+  ["PROVIDER_INVALID_PARAMETER", "studio.providerInvalidParameter"],
   ["GENERATION_SAFETY_BLOCKED", "studio.generationSafetyBlocked"],
   ["REFERENCE_IMAGE_PRIVACY_BLOCKED", "studio.referenceImagePrivacyBlocked"],
 ] as const satisfies ReadonlyArray<readonly [string, TranslationKey]>;
@@ -28,6 +31,9 @@ const LEGACY_GENERATION_SERVICE_BUSY_MESSAGES = new Set([
 ]);
 
 const STUDIO_GENERATION_ERROR_DESCRIPTION_KEYS = [
+  ["REFERENCE_IMAGE_TOO_LARGE", "studio.referenceImageTooLargeDesc"],
+  ["REFERENCE_VIDEO_TOO_LARGE", "studio.referenceVideoTooLargeDesc"],
+  ["PROVIDER_INVALID_PARAMETER", "studio.providerInvalidParameterDesc"],
   ["GENERATION_SAFETY_BLOCKED", "studio.generationSafetyBlockedDesc"],
   ["REFERENCE_IMAGE_PRIVACY_BLOCKED", "studio.referenceImagePrivacyBlockedDesc"],
 ] as const satisfies ReadonlyArray<readonly [string, TranslationKey]>;

@@ -645,6 +645,18 @@ export const jaMessages = {
     "参考画像には実在の人物や個人情報が含まれる場合があります。別の画像を使用して再試行してください。",
   "studio.referenceImagePrivacyBlockedDesc":
     "一部のビデオプロバイダーは、特定可能な人物やプライバシーに配慮したコンテンツが含まれる可能性のある参照画像を制限しています。",
+  "studio.referenceImageTooLarge":
+    "参照画像が大きすぎます。圧縮してから再試行してください。",
+  "studio.referenceImageTooLargeDesc":
+    "上流モデルは参照画像を通常約 30MB までに制限します。画像を圧縮または縮小してから再生成してください。",
+  "studio.referenceVideoTooLarge":
+    "参照動画が大きすぎます。圧縮してから再試行してください。",
+  "studio.referenceVideoTooLargeDesc":
+    "上流モデルは参照動画のサイズを制限します。動画を圧縮または短くしてから再生成してください。",
+  "studio.providerInvalidParameter":
+    "リクエストが上流モデルの制限を満たしていません。",
+  "studio.providerInvalidParameterDesc":
+    "参照素材、長さ、解像度などの設定を確認してから再試行してください。",
   "studio.versionSaved": "新しいバージョン",
   "studio.versionSaveFailed": "新しいバージョン",
   "studio.maxRefs": "最大 5 つの参照が許可されます",

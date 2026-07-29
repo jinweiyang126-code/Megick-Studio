@@ -662,6 +662,18 @@ export const frMessages = {
     "L'image de référence peut contenir une personne réelle ou des informations privées. Veuillez utiliser une autre image et réessayer.",
   "studio.referenceImagePrivacyBlockedDesc":
     "Certains fournisseurs de vidéos restreignent les images de référence pouvant inclure des personnes identifiables ou du contenu sensible à la vie privée.",
+  "studio.referenceImageTooLarge":
+    "L'image de référence est trop volumineuse. Compressez-la puis réessayez.",
+  "studio.referenceImageTooLargeDesc":
+    "Les modèles en amont limitent généralement chaque image de référence à environ 30 Mo. Compressez ou redimensionnez l'image, puis réessayez.",
+  "studio.referenceVideoTooLarge":
+    "La vidéo de référence est trop volumineuse. Compressez-la puis réessayez.",
+  "studio.referenceVideoTooLargeDesc":
+    "Les modèles en amont limitent la taille des vidéos de référence. Compressez ou raccourcissez la vidéo, puis réessayez.",
+  "studio.providerInvalidParameter":
+    "La requête ne respecte pas les contraintes du modèle en amont.",
+  "studio.providerInvalidParameterDesc":
+    "Vérifiez les médias de référence, la durée, la résolution et les autres paramètres, puis réessayez.",
   "studio.versionSaved": "Enregistré en tant que nouvelle version",
   "studio.versionSaveFailed": "Impossible d'enregistrer la nouvelle version",
   "studio.maxRefs": "Maximum 5 références autorisées",

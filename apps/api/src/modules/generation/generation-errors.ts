@@ -16,6 +16,9 @@ const PUBLIC_GENERATION_ERROR_CODES = new Set([
   "REFERENCE_IMAGE_REQUIRED",
   "MODEL_DOES_NOT_SUPPORT_REFERENCE_IMAGES",
   "TOO_MANY_REFERENCE_IMAGES",
+  "REFERENCE_IMAGE_TOO_LARGE",
+  "REFERENCE_VIDEO_TOO_LARGE",
+  "PROVIDER_INVALID_PARAMETER",
   "GENERATION_SAFETY_BLOCKED",
   "REFERENCE_IMAGE_PRIVACY_BLOCKED",
 ] as const);
@@ -56,10 +59,55 @@ function providerStatusFromRawMessage(message: string) {
 }
 
 function providerCodeFromRawMessage(message: string) {
-  const jsonCodeMatch = message.match(/\\"code\\"\s*:\s*\\"([^"\\]+)\\"/i);
-  if (jsonCodeMatch?.[1]) return jsonCodeMatch[1].trim();
-  const codeMatch = message.match(/["']?code["']?\s*:\s*["']([^"']+)["']/i);
-  if (codeMatch?.[1]) return codeMatch[1].trim();
+  const codes: string[] = [];
+  const escapedCodePattern = /\\+"code\\+"\s*:\s*\\+"([^"\\]+)\\+"/gi;
+  for (const match of message.matchAll(escapedCodePattern)) {
+    if (match[1]) codes.push(match[1].trim());
+  }
+  const plainCodePattern = /["']code["']\s*:\s*["']([^"']+)["']/gi;
+  for (const match of message.matchAll(plainCodePattern)) {
+    if (match[1]) codes.push(match[1].trim());
+  }
+  // Prefer dotted vendor codes such as InvalidParameter.OversizeImage.
+  const preferred =
+    codes.find((code) => code.includes(".")) ??
+    codes.find((code) => !/^\d+$/.test(code));
+  return preferred ?? codes[0] ?? null;
+}
+
+function classifyProviderConstraintError(message: string, providerCode: string | null) {
+  const normalizedCode = providerCode?.trim() ?? "";
+  const normalizedMessage = message.toLowerCase();
+
+  if (
+    /oversizeimage/i.test(normalizedCode) ||
+    /oversizeimage/i.test(message) ||
+    /size of the input image[^\n]*exceeds the limit/i.test(message) ||
+    /input image[^\n]*exceeds the limit/i.test(normalizedMessage) ||
+    /输入图像[^\n]*超过/i.test(message) ||
+    /参考图[^\n]*(过大|超过)/i.test(message)
+  ) {
+    return "REFERENCE_IMAGE_TOO_LARGE";
+  }
+
+  if (
+    /oversizevideo/i.test(normalizedCode) ||
+    /size of the input video[^\n]*exceeds the limit/i.test(message) ||
+    /input video[^\n]*exceeds the limit/i.test(normalizedMessage) ||
+    /输入视频[^\n]*超过/i.test(message) ||
+    /参考视频[^\n]*(过大|超过)/i.test(message)
+  ) {
+    return "REFERENCE_VIDEO_TOO_LARGE";
+  }
+
+  if (
+    normalizedCode.startsWith("InvalidParameter") ||
+    /invalidparameter/i.test(normalizedCode) ||
+    /invalid parameter/i.test(normalizedMessage)
+  ) {
+    return "PROVIDER_INVALID_PARAMETER";
+  }
+
   return null;
 }
 
@@ -87,6 +135,8 @@ export function classifyPublicGenerationError(error: unknown) {
   ) {
     return "REFERENCE_IMAGE_PRIVACY_BLOCKED";
   }
+  const constraintError = classifyProviderConstraintError(message, providerCode);
+  if (constraintError) return constraintError;
   return null;
 }
 

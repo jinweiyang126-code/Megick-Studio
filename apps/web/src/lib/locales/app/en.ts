@@ -671,6 +671,18 @@ export const enMessages = {
     "The reference image may contain a real person or private information. Please use another image and try again.",
   "studio.referenceImagePrivacyBlockedDesc":
     "Some video providers restrict reference images that may include identifiable people or privacy-sensitive content.",
+  "studio.referenceImageTooLarge":
+    "The reference image is too large. Please compress it and try again.",
+  "studio.referenceImageTooLargeDesc":
+    "Upstream models typically limit each reference image to about 30MB. Compress or resize the image, then retry.",
+  "studio.referenceVideoTooLarge":
+    "The reference video is too large. Please compress it and try again.",
+  "studio.referenceVideoTooLargeDesc":
+    "Upstream models limit reference video size. Compress or shorten the video, then retry.",
+  "studio.providerInvalidParameter":
+    "The request does not meet upstream model constraints.",
+  "studio.providerInvalidParameterDesc":
+    "Check reference media, duration, resolution, and other settings, then try again.",
   "studio.versionSaved": "Saved as new version",
   "studio.versionSaveFailed": "Unable to save new version",
   "studio.maxRefs": "Maximum 5 references allowed",
