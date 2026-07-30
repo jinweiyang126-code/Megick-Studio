@@ -94,6 +94,7 @@ export function MegickCutEditorShell({
         : t("editor.project.defaultName"),
       sourceMessageId,
       sourceResultId,
+      embedded,
       returnToStudio: embedded ? undefined : (returnTo ?? (() => {})),
     }),
     [sessionId, sessionTitle, sourceMessageId, sourceResultId, returnTo, embedded, t],
@@ -124,7 +125,7 @@ export function MegickCutEditorShell({
             <div
               className={cn(
                 "megick-editor-shell flex flex-col overflow-hidden bg-background text-foreground",
-                embedded ? "h-full w-full rounded-lg border border-border" : "h-screen w-screen",
+                embedded ? "h-full w-full rounded-2xl border border-border" : "h-screen w-screen",
               )}
             >
               <DegradedRendererBanner />
