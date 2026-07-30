@@ -1042,7 +1042,7 @@ export function VideoStudioPanel({
           maxSize={stackedLayout ? 75 : 58}
           className={cn("min-h-0", !stackedLayout && "min-w-[320px]")}
         >
-          <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card">
+          <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card">
             <VideoGenerationPanel
               prompt={activeVideoPrompt}
               setPrompt={setActiveVideoPrompt}
@@ -1089,7 +1089,7 @@ export function VideoStudioPanel({
           minSize={stackedLayout ? 25 : 32}
           className={cn("min-h-0", !stackedLayout && "min-w-[280px]")}
         >
-          <section className="flex h-full min-h-0 min-w-0 flex-col rounded-lg border border-border bg-card">
+          <section className="flex h-full min-h-0 min-w-0 flex-col rounded-2xl border border-border bg-card">
             <div className="flex min-h-0 flex-1 overflow-y-auto">
               {sessionLoading ? (
                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">

@@ -64,7 +64,7 @@ function applyDocumentTheme(theme: AppTheme) {
   root.classList.toggle("dark", theme === "dark");
   root.style.colorScheme = theme;
 
-  const themeColor = theme === "dark" ? "#110f0a" : "#f5f5f5";
+  const themeColor = theme === "dark" ? "#0a0a0b" : "#f5f7fa";
   const metaThemeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (metaThemeColor) {
     metaThemeColor.content = themeColor;

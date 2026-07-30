@@ -48,7 +48,12 @@ export function templateSearchSchema(input: unknown): TemplateSearch {
 }
 
 type TemplateCardMode = "default" | "select";
-type TemplateBasePath = "/" | "/dashboard/template" | "/dashboard/templates" | "/templates";
+type TemplateBasePath =
+  | "/"
+  | "/dashboard/template"
+  | "/dashboard/templates"
+  | "/dashboard/inspiration"
+  | "/templates";
 
 const TEMPLATE_PAGE_SIZE = 20;
 const TEMPLATE_PAGE_GRID_CLASSNAME =
@@ -63,7 +68,7 @@ export const Route = createFileRoute("/dashboard/templates/")({
     }),
   validateSearch: templateSearchSchema,
   beforeLoad: ({ search }) => {
-    throw redirect({ to: "/dashboard/template", search });
+    throw redirect({ to: "/dashboard/inspiration", search });
   },
 });
 
@@ -137,6 +142,7 @@ export function TemplateCenterPage({
   initialVideoGenerationEnabled,
   className,
   gridClassName,
+  generateLabelKey = "studio.generate",
 }: {
   search: TemplateSearch;
   basePath?: TemplateBasePath;
@@ -151,6 +157,7 @@ export function TemplateCenterPage({
   initialVideoGenerationEnabled?: boolean;
   className?: string;
   gridClassName?: string;
+  generateLabelKey?: TranslationKey;
 }) {
   const { locale, t } = useI18n();
   const navigate = useNavigate();
@@ -353,9 +360,9 @@ export function TemplateCenterPage({
 
   const openTemplateDetail = (templateId: string) => {
     const detailPath =
-      basePath === "/dashboard/template"
-        ? "/dashboard/template/$templateId"
-        : "/dashboard/templates/$templateId";
+      basePath === "/dashboard/templates"
+        ? "/dashboard/templates/$templateId"
+        : "/dashboard/template/$templateId";
     void navigate({
       to: detailPath,
       params: { templateId },
@@ -493,6 +500,7 @@ export function TemplateCenterPage({
                   onGenerate={
                     cardMode === "default" ? () => startGenerating(template) : undefined
                   }
+                  generateLabelKey={generateLabelKey}
                 />
               ))}
             </div>
@@ -530,6 +538,7 @@ function TemplateCard({
   onSelect,
   onOpenDetail,
   onGenerate,
+  generateLabelKey = "studio.generate",
 }: {
   template: PromptTemplatePublic;
   mode: TemplateCardMode;
@@ -537,6 +546,7 @@ function TemplateCard({
   onSelect?: () => void;
   onOpenDetail?: () => void;
   onGenerate?: () => void;
+  generateLabelKey?: TranslationKey;
 }) {
   const { locale, t } = useI18n();
   const templateKind = templateMode(template);
@@ -674,7 +684,7 @@ function TemplateCard({
             </Button>
             <Button type="button" className="bg-gradient-primary" onClick={onGenerate}>
               <Wand2 className="h-4 w-4" />
-              {t("studio.generate")}
+              {t(generateLabelKey)}
             </Button>
           </div>
         ) : null}
