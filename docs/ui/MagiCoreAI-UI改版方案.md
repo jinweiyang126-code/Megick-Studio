@@ -434,7 +434,7 @@ flowchart LR
 - [x] 仅 `apps/web`（及 `docs/ui`）改动  
 - [x] 无新 API 约定、无密钥入库  
 - [x] i18n 键齐全（至少 zh-CN / en；zh-TW 已补）  
-- [ ] 分支 `v0.0.2-ui_design-20260729` 可审 PR（开 PR 时附截图）  
+- [x] 分支 `v0.0.2-ui_design-20260729` 可审 PR（开 PR 时附截图） → https://github.com/jinweiyang126-code/Megick-Studio/pull/1  
 
 ---
 
