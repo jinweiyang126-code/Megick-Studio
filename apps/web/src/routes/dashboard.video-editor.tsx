@@ -27,8 +27,8 @@ function videoEditorSearchSchema(input: unknown): {
 export const Route = createFileRoute("/dashboard/video-editor")({
   head: () =>
     noIndexHead({
-      title: translate(getInitialLocale(), "dashboard.nav.videoEditor.label"),
-      description: translate(getInitialLocale(), "dashboard.nav.videoEditor.description"),
+      title: translate(getInitialLocale(), "editor.meta.title"),
+      description: translate(getInitialLocale(), "editor.meta.description"),
     }),
   validateSearch: videoEditorSearchSchema,
   component: VideoEditorGateway,
@@ -58,7 +58,7 @@ function VideoEditorGateway() {
     creatingRef.current = true;
 
     apiPost<ChatSession>("/api/chats", {
-      title: translate(getInitialLocale(), "dashboard.nav.videoEditor.label"),
+      title: translate(getInitialLocale(), "studio.shell.edit.title"),
     })
       .then((s) => {
         apiPost(`/api/chats/${s.id}/messages`, {
@@ -98,7 +98,7 @@ function VideoEditorGateway() {
   }
 
   return (
-    <div className="h-full min-h-0">
+    <div className="h-full min-h-0 overflow-hidden">
       <MegickCutEditorShell
         sessionId={session.id}
         sessionTitle={displayChatTitle(session.title, t)}

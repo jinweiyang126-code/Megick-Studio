@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import {
   Check,
   Crown,
@@ -133,6 +133,8 @@ export function TemplateCenterPage({
   basePath = "/dashboard/templates",
   showControls = true,
   showSummary = true,
+  controlsVariant = "default",
+  publishSlot,
   cardMode = "default",
   selectedTemplateId,
   onTemplateSelect,
@@ -143,11 +145,14 @@ export function TemplateCenterPage({
   className,
   gridClassName,
   generateLabelKey = "studio.generate",
+  cardVariant = "default",
 }: {
   search: TemplateSearch;
   basePath?: TemplateBasePath;
   showControls?: boolean;
   showSummary?: boolean;
+  controlsVariant?: "default" | "inspiration";
+  publishSlot?: ReactNode;
   cardMode?: TemplateCardMode;
   selectedTemplateId?: string | null;
   onTemplateSelect?: (template: PromptTemplatePublic) => void;
@@ -158,6 +163,8 @@ export function TemplateCenterPage({
   className?: string;
   gridClassName?: string;
   generateLabelKey?: TranslationKey;
+  /** Figma 灵感池：纯图瀑布流 + hover「做同款」 */
+  cardVariant?: "default" | "inspiration";
 }) {
   const { locale, t } = useI18n();
   const navigate = useNavigate();
@@ -380,56 +387,136 @@ export function TemplateCenterPage({
   return (
     <section className={cn("space-y-5", className)}>
       {showControls ? (
-        <section className="rounded-lg border border-border bg-card">
-          <div className="space-y-4 p-4 sm:p-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <form onSubmit={submitSearch} className="relative min-w-0 flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={keyword}
-                  onChange={(event) => setKeyword(event.target.value)}
-                  placeholder={t("templates.searchPlaceholder")}
-                  className="h-10 bg-background pl-9"
-                />
-              </form>
+        <section
+          className={cn(
+            controlsVariant === "inspiration" ? "space-y-3" : "rounded-lg border border-border bg-card",
+          )}
+        >
+          <div className={cn("space-y-4", controlsVariant === "inspiration" ? "p-0" : "p-4 sm:p-5")}>
+            <div
+              className={cn(
+                "flex flex-col gap-3",
+                controlsVariant === "inspiration"
+                  ? "lg:flex-row lg:items-center lg:justify-between"
+                  : "lg:flex-row lg:items-center lg:justify-between",
+              )}
+            >
+              {controlsVariant === "inspiration" ? (
+                <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                  <Tabs
+                    value={type}
+                    onValueChange={(value) => updateSearch({ type: value as TemplateSearch["type"] })}
+                  >
+                    <TabsList className="h-7 gap-1 rounded-lg border border-[#26272c] bg-[#1b1c21] p-0.5">
+                      <TabsTrigger
+                        value="all"
+                        className="h-6 rounded-md px-2.5 text-xs data-[state=active]:bg-[#1e2025] data-[state=active]:text-white data-[state=inactive]:text-[#8b8e94]"
+                      >
+                        {t("templates.type.all")}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="image"
+                        className="h-6 rounded-md px-2.5 text-xs data-[state=active]:bg-[#1e2025] data-[state=active]:text-white data-[state=inactive]:text-[#8b8e94]"
+                      >
+                        {t("studio.mode.image")}
+                      </TabsTrigger>
+                      {videoGenerationEnabled ? (
+                        <TabsTrigger
+                          value="video"
+                          className="h-6 rounded-md px-2.5 text-xs data-[state=active]:bg-[#1e2025] data-[state=active]:text-white data-[state=inactive]:text-[#8b8e94]"
+                        >
+                          {t("studio.mode.video")}
+                        </TabsTrigger>
+                      ) : null}
+                    </TabsList>
+                  </Tabs>
 
-              <Tabs
-                value={type}
-                onValueChange={(value) => updateSearch({ type: value as TemplateSearch["type"] })}
-              >
-                <TabsList
-                  className={cn(
-                    "grid w-full",
-                    videoGenerationEnabled ? "grid-cols-3" : "grid-cols-2",
-                    "lg:w-auto",
-                  )}
+                  <form
+                    onSubmit={submitSearch}
+                    className="relative min-w-0 w-full sm:w-[300px] sm:shrink-0"
+                  >
+                    <Input
+                      value={keyword}
+                      onChange={(event) => setKeyword(event.target.value)}
+                      placeholder={t("templates.searchPlaceholder")}
+                      className="h-7 border-[#26272c] bg-transparent pr-10 pl-4 text-xs placeholder:text-[#8b8e94]"
+                    />
+                    <Search className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8b8e94]" />
+                  </form>
+                </div>
+              ) : null}
+
+              {controlsVariant === "inspiration" ? publishSlot : null}
+
+              {controlsVariant !== "inspiration" ? (
+                <form
+                  onSubmit={submitSearch}
+                  className="relative min-w-0 flex-1"
                 >
-                  <TabsTrigger value="all" className="px-2">
-                    {t("templates.type.all")}
-                  </TabsTrigger>
-                  <TabsTrigger value="image" className="px-2">
-                    <ImageIcon className="mr-1.5 h-3.5 w-3.5" />
-                    {t("studio.mode.image")}
-                  </TabsTrigger>
-                  {videoGenerationEnabled ? (
-                    <TabsTrigger value="video" className="px-2">
-                      <Video className="mr-1.5 h-3.5 w-3.5" />
-                      {t("studio.mode.video")}
+                  <Input
+                    value={keyword}
+                    onChange={(event) => setKeyword(event.target.value)}
+                    placeholder={t("templates.searchPlaceholder")}
+                    className="h-7 bg-[#1b1c21] pl-9 text-xs"
+                  />
+                  <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                </form>
+              ) : null}
+
+              {controlsVariant !== "inspiration" ? (
+                <Tabs
+                  value={type}
+                  onValueChange={(value) => updateSearch({ type: value as TemplateSearch["type"] })}
+                >
+                  <TabsList
+                    className={cn(
+                      "grid w-full",
+                      videoGenerationEnabled ? "grid-cols-3" : "grid-cols-2",
+                      "lg:w-auto",
+                    )}
+                  >
+                    <TabsTrigger value="all" className="px-2">
+                      {t("templates.type.all")}
                     </TabsTrigger>
-                  ) : null}
-                </TabsList>
-              </Tabs>
+                    <TabsTrigger value="image" className="px-2">
+                      <ImageIcon className="mr-1.5 h-3.5 w-3.5" />
+                      {t("studio.mode.image")}
+                    </TabsTrigger>
+                    {videoGenerationEnabled ? (
+                      <TabsTrigger value="video" className="px-2">
+                        <Video className="mr-1.5 h-3.5 w-3.5" />
+                        {t("studio.mode.video")}
+                      </TabsTrigger>
+                    ) : null}
+                  </TabsList>
+                </Tabs>
+              ) : null}
             </div>
 
-            <div className="flex max-w-full flex-wrap gap-2">
+            <div
+              className={cn(
+                "flex max-w-full flex-wrap",
+                controlsVariant === "inspiration" ? "gap-x-6 gap-y-2" : "gap-2",
+              )}
+            >
               <button
                 type="button"
                 onClick={() => updateSearch({ category: undefined })}
                 className={cn(
-                  "min-h-8 rounded-md border px-3 py-1.5 text-xs transition",
-                  !search.category
-                    ? "border-primary bg-primary/15 text-foreground"
-                    : "border-border bg-background/40 text-muted-foreground hover:text-foreground",
+                  "transition",
+                  controlsVariant === "inspiration"
+                    ? cn(
+                        "text-[12px] leading-none tracking-wide",
+                        !search.category
+                          ? "text-foreground"
+                          : "text-[#8b8e94] hover:text-foreground",
+                      )
+                    : cn(
+                        "min-h-8 rounded-md border px-3 py-1.5 text-xs",
+                        !search.category
+                          ? "border-primary bg-primary/15 text-foreground"
+                          : "border-border bg-background/40 text-muted-foreground hover:text-foreground",
+                      ),
                 )}
               >
                 {t("templates.category.all")}
@@ -440,10 +527,20 @@ export function TemplateCenterPage({
                   type="button"
                   onClick={() => updateSearch({ category: category.name })}
                   className={cn(
-                    "min-h-8 rounded-md border px-3 py-1.5 text-xs transition",
-                    search.category === category.name
-                      ? "border-primary bg-primary/15 text-foreground"
-                      : "border-border bg-background/40 text-muted-foreground hover:text-foreground",
+                    "transition",
+                    controlsVariant === "inspiration"
+                      ? cn(
+                          "text-[12px] leading-none tracking-wide",
+                          search.category === category.name
+                            ? "text-foreground"
+                            : "text-[#8b8e94] hover:text-foreground",
+                        )
+                      : cn(
+                          "min-h-8 rounded-md border px-3 py-1.5 text-xs",
+                          search.category === category.name
+                            ? "border-primary bg-primary/15 text-foreground"
+                            : "border-border bg-background/40 text-muted-foreground hover:text-foreground",
+                        ),
                   )}
                 >
                   {templateCategoryLabel(category.name, locale)}
@@ -472,9 +569,13 @@ export function TemplateCenterPage({
         )}
       >
         {templatesQ.isLoading ? (
-          <section className="rounded-lg border border-border bg-card">
-            <LoadingRows />
-          </section>
+          controlsVariant === "inspiration" ? (
+            <div className="py-16 text-center text-sm text-[#8b8e94]">{t("common.loading")}</div>
+          ) : (
+            <section className="rounded-lg border border-border bg-card">
+              <LoadingRows />
+            </section>
+          )
         ) : templates.length ? (
           <>
             <div
@@ -488,6 +589,7 @@ export function TemplateCenterPage({
                   key={template.id}
                   template={template}
                   mode={cardMode}
+                  variant={cardVariant}
                   selected={selectedTemplateId === template.id}
                   onSelect={
                     cardMode === "select" && onTemplateSelect
@@ -534,6 +636,7 @@ export function TemplateCenterPage({
 function TemplateCard({
   template,
   mode,
+  variant = "default",
   selected = false,
   onSelect,
   onOpenDetail,
@@ -542,6 +645,7 @@ function TemplateCard({
 }: {
   template: PromptTemplatePublic;
   mode: TemplateCardMode;
+  variant?: "default" | "inspiration";
   selected?: boolean;
   onSelect?: () => void;
   onOpenDetail?: () => void;
@@ -549,7 +653,6 @@ function TemplateCard({
   generateLabelKey?: TranslationKey;
 }) {
   const { locale, t } = useI18n();
-  const templateKind = templateMode(template);
   const previewUrl = template.exampleUrl ?? template.referenceUrls[0] ?? "";
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -566,7 +669,10 @@ function TemplateCard({
         muted
         playsInline
         preload="metadata"
-        className="h-full w-full object-cover"
+        className={cn(
+          "w-full object-cover",
+          variant === "inspiration" ? "h-auto" : "h-full",
+        )}
       />
     ) : (
       <img
@@ -575,14 +681,46 @@ function TemplateCard({
         loading="lazy"
         decoding="async"
         referrerPolicy="no-referrer"
-        className="h-full w-full object-cover"
+        className={cn(
+          "w-full object-cover",
+          variant === "inspiration" ? "h-auto" : "h-full",
+        )}
       />
     )
   ) : (
-    <div className="flex h-48 items-center justify-center text-muted-foreground">
+    <div
+      className={cn(
+        "flex items-center justify-center text-muted-foreground",
+        variant === "inspiration" ? "aspect-[3/4] bg-[#1b1c21]" : "h-48",
+      )}
+    >
       <LayoutTemplate className="h-10 w-10" />
     </div>
   );
+
+  if (variant === "inspiration" && mode === "default") {
+    return (
+      <article className="group relative mb-1 inline-block w-full break-inside-avoid overflow-hidden rounded-xl bg-[#1b1c21]">
+        <button
+          type="button"
+          onClick={onGenerate}
+          className="relative block w-full overflow-hidden text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+          aria-label={t(generateLabelKey)}
+        >
+          {media}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
+          <span className="pointer-events-none absolute bottom-3 right-3 inline-flex h-8 items-center gap-1.5 rounded-full bg-white px-3 text-xs font-medium text-[#0a0a0a] opacity-0 shadow-sm transition group-hover:opacity-100">
+            <img
+              src="/brand/magicore/icons/composer-generate.svg"
+              alt=""
+              className="h-3.5 w-3.5"
+            />
+            {t(generateLabelKey)}
+          </span>
+        </button>
+      </article>
+    );
+  }
 
   const cardClassName = cn(
     "mb-3 inline-flex w-full break-inside-avoid flex-col overflow-hidden rounded-lg border bg-card transition",

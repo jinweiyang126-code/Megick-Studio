@@ -124,8 +124,10 @@ export function MegickCutEditorShell({
             ) : null}
             <div
               className={cn(
-                "megick-editor-shell flex flex-col overflow-hidden bg-background text-foreground",
-                embedded ? "h-full w-full rounded-2xl border border-border" : "h-screen w-screen",
+                "megick-editor-shell flex flex-col overflow-hidden bg-[#1b1c21] text-foreground",
+                embedded
+                  ? "h-full min-h-0 w-full rounded-2xl"
+                  : "h-screen w-screen",
               )}
             >
               <DegradedRendererBanner />
@@ -490,7 +492,7 @@ export function EditorLayout({
             />
           </ResizablePanel>
 
-          <ResizableHandle withHandle />
+          <ResizableHandle withHandle className="bg-transparent after:bg-border" />
 
           <ResizablePanel
             defaultSize={panels.preview}
@@ -504,7 +506,7 @@ export function EditorLayout({
             />
           </ResizablePanel>
 
-          <ResizableHandle withHandle />
+          <ResizableHandle withHandle className="bg-transparent after:bg-border" />
 
           <ResizablePanel
             defaultSize={panels.properties}
@@ -517,7 +519,7 @@ export function EditorLayout({
         </ResizablePanelGroup>
       </ResizablePanel>
 
-      <ResizableHandle withHandle />
+      <ResizableHandle withHandle className="bg-transparent after:bg-border" />
 
       <ResizablePanel
         defaultSize={panels.timeline}

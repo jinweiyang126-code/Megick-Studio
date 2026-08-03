@@ -21,8 +21,8 @@ export const Route = createFileRoute("/")({
       description: translate(locale, "home.meta.description"),
       path: "/",
       locale,
-      imagePath: "/index-preview.webp",
-      imageAlt: "Megick Studio desktop app preview",
+      imagePath: "/brand/magicore/home/product-showcase.png",
+      imageAlt: "MagiCoreAI product showcase",
     });
     return {
       ...head,
@@ -31,10 +31,8 @@ export const Route = createFileRoute("/")({
         {
           rel: "preload",
           as: "image",
-          href: "/index-preview.webp",
-          type: "image/webp",
-          imageSrcSet: "/index-preview.webp 884w, /index-preview@2x.webp 1768w",
-          imageSizes: "(min-width: 1024px) 48vw, 100vw",
+          href: "/brand/magicore/home/product-showcase.png",
+          type: "image/png",
           fetchPriority: "high",
         },
       ],

@@ -11,7 +11,8 @@ import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { CommandIcon, Logout05Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft, BookOpen, Images } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { MagiCoreIcon, magiCoreIcons } from "@/components/brand/MagiCoreIcon";
 import { Button } from "@/megickcut/components/ui/button";
 import {
 	DropdownMenu,
@@ -33,15 +34,15 @@ export function EditorHeader() {
 	const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
 	return (
-		<header className="bg-background flex h-[3.4rem] shrink-0 items-center justify-between gap-2 border-b border-border px-3">
+		<header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-[#1b1c21] px-4 sm:px-6">
 			<div className="flex min-w-0 items-center gap-2">
 				{exitControls.hasReturnToSession ? <ReturnToSessionButton {...exitControls} /> : null}
 				{!embedded ? (
 					<div className="hidden min-w-0 sm:block">
-						<p className="truncate text-sm font-semibold tracking-tight">
+						<p className="truncate text-base font-medium tracking-tight text-white">
 							{t("studio.shell.edit.title")}
 						</p>
-						<p className="truncate text-xs text-muted-foreground">
+						<p className="mt-0.5 truncate text-xs text-[#8b8e94]">
 							{t("studio.shell.edit.subtitle")}
 						</p>
 					</div>
@@ -56,15 +57,20 @@ export function EditorHeader() {
 							type="button"
 							variant="outline"
 							size="sm"
-							className="hidden h-8 gap-1.5 px-2.5 text-xs sm:inline-flex"
+							className="hidden h-10 gap-2 rounded-xl border-border bg-[#1b1c21] px-4 text-sm text-foreground hover:bg-[#1b1c21]/90 sm:inline-flex"
 							onClick={() => setShortcutsOpen(true)}
 						>
-							<BookOpen className="size-3.5" />
+							<MagiCoreIcon src={magiCoreIcons.guide} className="h-3.5 w-3.5" />
 							{t("studio.shell.guide")}
 						</Button>
-						<Button asChild variant="outline" size="sm" className="hidden h-8 gap-1.5 px-2.5 text-xs sm:inline-flex">
+						<Button
+							asChild
+							variant="outline"
+							size="sm"
+							className="hidden h-10 gap-2 rounded-xl border-border bg-[#1b1c21] px-4 text-sm text-foreground hover:bg-[#1b1c21]/90 sm:inline-flex"
+						>
 							<Link to="/dashboard/media-center">
-								<Images className="size-3.5" />
+								<MagiCoreIcon src={magiCoreIcons.asset} className="h-3.5 w-3.5" />
 								{t("studio.shell.assets")}
 							</Link>
 						</Button>
@@ -116,12 +122,12 @@ function ReturnToSessionButton({
 			size="sm"
 			onClick={() => void exitToStudio()}
 			disabled={isExiting}
-			className="h-8 shrink-0 items-center justify-center gap-1.5 rounded-sm px-2.5"
+			className="h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border-border bg-[#17181d] px-3"
 			title={label}
 			aria-label={label}
 		>
 			<ArrowLeft className="size-3.5" />
-			<span className="text-xs font-medium">{label}</span>
+			<span className="text-sm font-medium">{label}</span>
 		</Button>
 	);
 }
@@ -139,7 +145,7 @@ function ProjectDropdown({
 				<Button
 					variant="ghost"
 					size="icon"
-					className="h-8 w-auto rounded-sm px-2 py-1 text-[10px] font-bold tracking-tight text-primary"
+					className="h-10 w-auto rounded-xl px-3 py-1 text-xs font-bold tracking-tight text-primary"
 					aria-label="MagiCoreAI"
 				>
 					<span aria-hidden="true">M</span>
@@ -232,7 +238,7 @@ function EditableProjectName() {
 				defaultValue={projectName}
 				onBlur={() => void saveEdit()}
 				onKeyDown={onKeyDown}
-				className="bg-secondary/50 h-8 max-w-[14rem] truncate rounded-md border border-border px-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+				className="h-8 max-w-[14rem] truncate rounded-xl border border-border bg-[#17181d] px-3 text-sm text-white outline-none focus-visible:ring-1 focus-visible:ring-ring"
 				style={{ fieldSizing: "content" } as CSSProperties}
 			/>
 		);
@@ -243,7 +249,7 @@ function EditableProjectName() {
 			type="button"
 			onDoubleClick={startEditing}
 			className={cn(
-				"hover:bg-secondary/50 max-w-[14rem] truncate rounded-md px-2 py-1 text-left text-sm font-medium transition",
+				"max-w-[14rem] truncate rounded-xl px-3 py-1.5 text-left text-sm font-medium text-white transition hover:bg-[#17181d]",
 			)}
 			title={projectName}
 		>

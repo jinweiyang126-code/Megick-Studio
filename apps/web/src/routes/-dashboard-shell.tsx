@@ -2,7 +2,6 @@ import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Bell,
-  BookOpen,
   History,
   Image as ImageIcon,
   Images,
@@ -27,6 +26,7 @@ import type { GenerationJobPublic } from "@megick/api-types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MagiCoreIcon, magiCoreIcons, primaryRailIconSrc } from "@/components/brand/MagiCoreIcon";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -160,8 +160,16 @@ const PRIMARY_NAV_ORDER = [
   "video-editor",
 ] as const;
 
+/** Secondary pages under「更多」— MagiCore top chrome (title + subtitle), same as studio. */
+const MORE_NAV_ORDER = ["media-center", "history", "chats", "profile"] as const;
+
 function isPrimaryNavValue(value: string) {
   return (PRIMARY_NAV_ORDER as readonly string[]).includes(value);
+}
+
+function moreNavRank(value: string) {
+  const idx = (MORE_NAV_ORDER as readonly string[]).indexOf(value);
+  return idx === -1 ? MORE_NAV_ORDER.length : idx;
 }
 
 const dashboardIconMap = {
@@ -191,6 +199,13 @@ function normalizeMenuHref(href: string) {
 
 function isDashboardNavPath(value: string): value is DashboardNavPath {
   const href = normalizeMenuHref(value);
+  if (
+    href === "/dashboard/template" ||
+    href === "/dashboard/templates" ||
+    href === "/dashboard/inspiration"
+  ) {
+    return true;
+  }
   return navItems.some((item) => normalizeMenuHref(item.to) === href);
 }
 
@@ -200,24 +215,45 @@ function dashboardNavItemFromMenu(item: NavigationMenuItem): DashboardNavItem | 
   const fallback =
     navItems.find((navItem) => navItem.value === item.code) ??
     navItems.find((navItem) => normalizeMenuHref(navItem.to) === href);
+
+  // MagiCoreAI: API still ships templates → /dashboard/template; map to inspiration home.
+  const isTemplatesMenu =
+    item.code === "templates" ||
+    href === "/dashboard/template" ||
+    href === "/dashboard/templates";
+  if (isTemplatesMenu) {
+    const inspiration = navItems.find((navItem) => navItem.value === "templates");
+    if (!inspiration) return null;
+    return {
+      ...inspiration,
+      requiresAuth: item.requiresAuth,
+    };
+  }
+
   const studioMode =
     item.metadata?.studioMode === "video" || item.href.endsWith("/video")
       ? "video"
       : item.metadata?.studioMode === "image" || item.href.endsWith("/image")
         ? "image"
         : fallback?.studioMode;
+  const value = item.code || fallback?.value || item.href;
+  // Primary rail uses MagiCore i18n labels (ignore English API menu copy).
+  const useLocalPrimaryCopy = isPrimaryNavValue(value);
+
   return {
-    to: href,
+    to: (fallback?.to && useLocalPrimaryCopy ? fallback.to : href) as DashboardNavPath,
     studioMode,
     requiresAuth: item.requiresAuth,
-    value: item.code || fallback?.value || item.href,
+    value,
     labelKey: fallback?.labelKey ?? "dashboard.nav.custom.label",
     descriptionKey: fallback?.descriptionKey ?? "dashboard.nav.custom.description",
     icon:
-      item.icon && item.icon in dashboardIconMap
-        ? dashboardIconMap[item.icon as keyof typeof dashboardIconMap]
-        : (fallback?.icon ?? Wand2),
-    menuItem: item,
+      useLocalPrimaryCopy && fallback?.icon
+        ? fallback.icon
+        : item.icon && item.icon in dashboardIconMap
+          ? dashboardIconMap[item.icon as keyof typeof dashboardIconMap]
+          : (fallback?.icon ?? Wand2),
+    menuItem: useLocalPrimaryCopy ? undefined : item,
   };
 }
 
@@ -388,7 +424,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     return sessionId ? { sessionId } : undefined;
   };
   const isNavActive = (item: (typeof navItems)[number]) => {
-    if (item.to === "/dashboard/inspiration") {
+    if (item.value === "templates" || item.to === "/dashboard/inspiration") {
       return (
         location.pathname.startsWith("/dashboard/inspiration") ||
         location.pathname.startsWith("/dashboard/template") ||
@@ -397,9 +433,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     }
     if (item.studioMode) {
       return (
-        (location.pathname.startsWith(item.to) ||
-          location.pathname.startsWith("/dashboard/studio")) &&
-        currentStudioMode === item.studioMode
+        location.pathname.startsWith(item.to) && currentStudioMode === item.studioMode
       );
     }
     return location.pathname.startsWith(item.to);
@@ -443,7 +477,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         byValue.delete(item.value);
       }
     }
-    const more = visibleNavItems.filter((item) => !primary.includes(item));
+    const more = visibleNavItems
+      .filter((item) => !primary.includes(item))
+      .sort((a, b) => moreNavRank(a.value) - moreNavRank(b.value));
     return { primaryNavItems: primary, moreNavItems: more };
   }, [visibleNavItems]);
   const activeNav =
@@ -464,8 +500,16 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const isImageStudio = location.pathname.startsWith("/dashboard/studio/image");
   const isVideoStudio = location.pathname.startsWith("/dashboard/studio/video");
   const isVideoEditor = location.pathname.startsWith("/dashboard/video-editor");
+  const isInspiration = location.pathname.startsWith("/dashboard/inspiration");
+  const isMediaCenter = location.pathname.startsWith("/dashboard/media-center");
+  const isHistoryPage = location.pathname.startsWith("/dashboard/history");
+  const isChatsPage = location.pathname.startsWith("/dashboard/chats");
+  const isProfilePage = location.pathname.startsWith("/dashboard/profile");
   const isGenerationStudio = isImageStudio || isVideoStudio;
   const isChromeStudio = isGenerationStudio || isVideoEditor;
+  const hideShellHeaderDesktop =
+    isInspiration || isMediaCenter || isHistoryPage || isChatsPage || isProfilePage;
+  const isMagiCoreChrome = isChromeStudio || hideShellHeaderDesktop;
   const shellTitle = isImageStudio
     ? t("studio.shell.image.title")
     : isVideoStudio
@@ -483,13 +527,30 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   const renderRailNavItem = (item: DashboardNavItem) => {
     const isActive = isNavActive(item);
+    const figmaIcon = primaryRailIconSrc(item.value, isActive);
     const className = cn(
-      "flex h-11 w-11 items-center justify-center rounded-xl transition",
+      "flex h-16 w-[62px] flex-col items-center justify-center gap-1.5 rounded-lg p-1 transition",
       isActive
-        ? "bg-primary/20 text-primary"
-        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+        ? "bg-primary/10 text-primary"
+        : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
     );
-    const icon = <item.icon className="h-5 w-5 shrink-0" />;
+    const body = (
+      <>
+        {figmaIcon ? (
+          <MagiCoreIcon src={figmaIcon} className="h-[22px] w-[22px] shrink-0" />
+        ) : (
+          <item.icon className="h-[22px] w-[22px] shrink-0" strokeWidth={1.75} />
+        )}
+        <span
+          className={cn(
+            "max-w-full truncate text-center text-[12px] leading-none",
+            isActive ? "text-primary" : "text-foreground",
+          )}
+        >
+          {navLabel(item)}
+        </span>
+      </>
+    );
     const trigger =
       item.requiresAuth && !user ? (
         <button
@@ -502,7 +563,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           className={className}
           aria-label={navLabel(item)}
         >
-          {icon}
+          {body}
         </button>
       ) : (
         <Link
@@ -515,20 +576,20 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           aria-label={navLabel(item)}
           aria-current={isActive ? "page" : undefined}
         >
-          {icon}
+          {body}
         </Link>
       );
 
     return (
-      <Tooltip key={item.value}>
-        <TooltipTrigger asChild>{trigger}</TooltipTrigger>
-        <TooltipContent side="right">{navLabel(item)}</TooltipContent>
-      </Tooltip>
+      <div key={item.value} className="flex justify-center">
+        {trigger}
+      </div>
     );
   };
 
   const renderMobileNavItem = (item: DashboardNavItem) => {
     const isActive = isNavActive(item);
+    const figmaIcon = primaryRailIconSrc(item.value, isActive);
     const className = cn(
       "flex min-h-12 w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition",
       isActive
@@ -537,7 +598,11 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     );
     const body = (
       <>
-        <item.icon className="h-4 w-4 shrink-0" />
+        {figmaIcon ? (
+          <MagiCoreIcon src={figmaIcon} className="h-4 w-4 shrink-0" />
+        ) : (
+          <item.icon className="h-4 w-4 shrink-0" />
+        )}
         <span className="min-w-0">
           <span className="block truncate text-sm font-medium">{navLabel(item)}</span>
           <span className="block truncate text-xs text-muted-foreground">
@@ -618,24 +683,32 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         <div ref={shellRef} className="flex h-full min-h-0">
           <aside
             className={cn(
-              "fixed inset-y-0 left-0 z-40 flex w-[min(18rem,85vw)] shrink-0 flex-col border-r border-border bg-sidebar transition-transform duration-200 lg:relative lg:inset-auto lg:w-[var(--dashboard-rail-width)] lg:translate-x-0",
+              "fixed inset-y-0 left-0 z-40 flex w-[min(18rem,85vw)] shrink-0 flex-col bg-sidebar transition-transform duration-200 lg:relative lg:inset-auto lg:w-[var(--dashboard-rail-width)] lg:translate-x-0 lg:items-center lg:justify-between",
               sidebarOpen ? "translate-x-0" : "-translate-x-full",
             )}
           >
-            <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-3 lg:justify-center lg:px-0">
+            <div className="relative flex h-[78px] w-full shrink-0 items-center justify-center">
               <Link
                 to="/"
-                className="text-sm font-bold tracking-tight text-primary lg:text-xs"
+                className="flex size-full items-center justify-center overflow-hidden"
                 aria-label="MagiCoreAI"
               >
-                <span className="lg:hidden">MagiCoreAI</span>
-                <span className="hidden lg:inline">M</span>
+                <img
+                  src="/brand/magicore/rail-mark.png?v=4"
+                  alt=""
+                  width={47}
+                  height={23}
+                  className="hidden h-[23px] w-[47px] object-contain lg:block"
+                />
+                <span className="px-3 text-sm font-bold tracking-tight text-primary lg:hidden">
+                  MagiCoreAI
+                </span>
               </Link>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="lg:hidden"
+                className="absolute right-2 top-1/2 -translate-y-1/2 lg:hidden"
                 onClick={() => setSidebarOpen(false)}
                 aria-label={t("dashboard.closeNavigation")}
               >
@@ -644,51 +717,109 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             </div>
 
             <TooltipProvider delayDuration={150}>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-3 lg:px-0">
-                <nav className="hidden flex-col items-center gap-2 lg:flex">
-                  {primaryNavItems.map(renderRailNavItem)}
-                </nav>
-                <nav className="flex flex-col gap-1 lg:hidden">
-                  {primaryNavItems.map(renderMobileNavItem)}
-                  {moreNavItems.length ? (
-                    <>
-                      <p className="mt-3 px-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                        {t("dashboard.nav.more")}
-                      </p>
-                      {moreNavItems.map(renderMobileNavItem)}
-                    </>
-                  ) : null}
-                </nav>
+            {/* Desktop: Figma sidebar uses justify-between — logo / nav / footer */}
+            <nav className="hidden w-[62px] shrink-0 flex-col items-center gap-2 lg:flex">
+              {primaryNavItems.map(renderRailNavItem)}
+            </nav>
+
+            {/* Mobile: scrollable list under the logo */}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-3 lg:hidden">
+              <nav className="flex flex-col gap-1">
+                {primaryNavItems.map(renderMobileNavItem)}
+                {moreNavItems.length ? (
+                  <>
+                    <p className="mt-3 px-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {t("dashboard.nav.more")}
+                    </p>
+                    {moreNavItems.map(renderMobileNavItem)}
+                  </>
+                ) : null}
+              </nav>
             </div>
 
-            <div className="hidden shrink-0 flex-col items-center gap-2 border-t border-sidebar-border py-3 lg:flex">
+            <div className="hidden w-full shrink-0 flex-col items-center gap-4 pb-6 lg:flex">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex h-11 w-11 flex-col items-center justify-center rounded-xl text-[10px] font-semibold tabular-nums text-primary">
-                    <Sparkles className="mb-0.5 h-3.5 w-3.5" />
+                  <div className="flex h-8 w-full items-center justify-center gap-1 text-xs tabular-nums text-foreground">
+                    <MagiCoreIcon
+                      src={magiCoreIcons.pointsGradient}
+                      className="h-4 w-4 shrink-0"
+                    />
                     {formatNumber(credits)}
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="right">{t("profile.credits")}</TooltipContent>
               </Tooltip>
 
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex size-8 items-center justify-center overflow-hidden rounded-2xl border-[0.5px] border-border bg-[#17181d] outline-none"
+                    aria-label={t("auth.userMenu.open")}
+                  >
+                    <Avatar className="size-8">
+                      <AvatarImage src={user.avatarUrl ?? undefined} alt={profileName} />
+                      <AvatarFallback className="bg-transparent text-xs font-bold text-primary">
+                        {initial}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="right" align="end" className="w-56">
+                  <DropdownMenuLabel className="font-normal">
+                    <p className="text-sm font-medium">{profileName}</p>
+                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link to="/dashboard/profile">
+                      <Settings className="mr-2 h-4 w-4" />
+                      {t("dashboard.menu.profile")}
+                    </Link>
+                  </DropdownMenuItem>
+                  {user.isSuperAdmin ? (
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin" className="cursor-pointer">
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                        {t("dashboard.menu.admin")}
+                      </Link>
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => void signOut()}
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    {t("dashboard.menu.signOut")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="relative h-11 w-11 rounded-xl"
+                    className="relative size-8 rounded-lg"
                     aria-label={t("dashboard.notifications")}
                   >
-                    <Bell className="h-4 w-4" />
+                    <Bell className="h-3.5 w-3.5" />
                     {unreadNotificationCount > 0 ? (
-                      <span className="absolute right-2 top-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold text-primary-foreground">
+                      <span className="absolute right-1 top-1 flex h-3 min-w-3 items-center justify-center rounded-full bg-primary px-0.5 text-[8px] font-semibold text-primary-foreground">
                         {Math.min(unreadNotificationCount, 9)}
                       </span>
                     ) : null}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="start" side="right" className="w-80 p-0">
+                <PopoverContent
+                  align="end"
+                  side="right"
+                  sideOffset={8}
+                  collisionPadding={12}
+                  className="w-80 p-0"
+                >
                   <div className="flex items-center justify-between border-b border-border p-4">
                     <p className="font-semibold text-sm">{t("dashboard.notifications")}</p>
                     <button
@@ -700,7 +831,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                       {t("dashboard.markRead")}
                     </button>
                   </div>
-                  <div className="flex max-h-80 flex-col overflow-y-auto py-2">
+                  <div className="flex max-h-[min(20rem,calc(100vh-6rem))] flex-col overflow-y-auto py-2">
                     {notificationJobs.length ? (
                       notificationJobs.map((job) => (
                         <Link
@@ -745,62 +876,16 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 </PopoverContent>
               </Popover>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="rounded-full outline-none"
-                    aria-label={t("auth.userMenu.open")}
-                  >
-                    <Avatar className="h-9 w-9 border border-border">
-                      <AvatarImage src={user.avatarUrl ?? undefined} alt={profileName} />
-                      <AvatarFallback className="bg-primary/20 text-xs font-bold text-primary">
-                        {initial}
-                      </AvatarFallback>
-                    </Avatar>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent side="right" align="end" className="w-56">
-                  <DropdownMenuLabel className="font-normal">
-                    <p className="text-sm font-medium">{profileName}</p>
-                    <p className="text-xs text-muted-foreground">{user.email}</p>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link to="/dashboard/profile">
-                      <Settings className="mr-2 h-4 w-4" />
-                      {t("dashboard.menu.profile")}
-                    </Link>
-                  </DropdownMenuItem>
-                  {user.isSuperAdmin ? (
-                    <DropdownMenuItem asChild>
-                      <Link to="/admin" className="cursor-pointer">
-                        <ShieldCheck className="mr-2 h-4 w-4" />
-                        {t("dashboard.menu.admin")}
-                      </Link>
-                    </DropdownMenuItem>
-                  ) : null}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => void signOut()}
-                    className="cursor-pointer text-destructive focus:text-destructive"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    {t("dashboard.menu.signOut")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
               {moreNavItems.length ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-11 w-11 rounded-xl"
+                      className="size-8 rounded-lg"
                       aria-label={t("dashboard.nav.more")}
                     >
-                      <MoreHorizontal className="h-4 w-4" />
+                      <MoreHorizontal className="h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="right" align="end" className="w-56">
@@ -846,7 +931,16 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           ) : null}
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <header className="z-20 flex min-h-14 shrink-0 items-center justify-between gap-1.5 border-b border-border bg-background/95 px-2 py-2 backdrop-blur-xl sm:gap-2 sm:px-5">
+            <header
+              className={cn(
+                "z-20 flex shrink-0 items-center justify-between gap-1.5 bg-background/95 backdrop-blur-xl",
+                isInspiration || isMediaCenter || isHistoryPage || isChatsPage || isProfilePage
+                  ? "min-h-12 border-b border-transparent px-2 py-2 sm:gap-2 sm:px-5 lg:hidden"
+                  : isChromeStudio
+                    ? "items-start justify-between border-b border-transparent px-6 py-6"
+                    : "min-h-14 border-b border-border px-2 py-2 sm:gap-2 sm:px-5",
+              )}
+            >
               <div className="flex min-w-0 items-center gap-1 sm:gap-3">
                 <Button
                   type="button"
@@ -858,27 +952,53 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 >
                   <Menu />
                 </Button>
-                <div className="hidden min-w-0 sm:block">
-                  <p className="truncate text-sm font-semibold tracking-tight">{shellTitle}</p>
-                  <p className="truncate text-xs text-muted-foreground">{shellSubtitle}</p>
-                </div>
+                {!hideShellHeaderDesktop ? (
+                  <div className="hidden min-w-0 sm:block">
+                    <p
+                      className={cn(
+                        "truncate tracking-tight text-foreground",
+                        isChromeStudio
+                          ? "text-base font-medium"
+                          : "text-sm font-semibold",
+                      )}
+                    >
+                      {shellTitle}
+                    </p>
+                    <p
+                      className={cn(
+                        "truncate text-muted-foreground",
+                        isChromeStudio
+                          ? "mt-1 text-xs text-[#8b8e94]"
+                          : "text-xs",
+                      )}
+                    >
+                      {shellSubtitle}
+                    </p>
+                  </div>
+                ) : null}
               </div>
 
-              <div className="flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-2">
+              <div className="flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-4">
                 {user && isChromeStudio ? (
                   <>
                     <OnboardingTourEntryButton label={t("studio.shell.guide")} />
-                    <Button asChild variant="outline" size="sm" className="hidden h-9 px-3 text-xs sm:inline-flex">
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="hidden h-10 gap-2 rounded-xl border-border bg-[#1b1c21] px-4 text-sm text-foreground hover:bg-[#1b1c21]/90 sm:inline-flex"
+                    >
                       <Link to="/dashboard/media-center" preload="intent">
-                        <Images className="h-3.5 w-3.5" />
-                        <span className="hidden lg:inline">{t("studio.shell.assets")}</span>
+                        <MagiCoreIcon src={magiCoreIcons.asset} className="h-3.5 w-3.5" />
+                        <span>{t("studio.shell.assets")}</span>
                       </Link>
                     </Button>
                   </>
-                ) : user ? (
+                ) : null}
+                {user && !isMagiCoreChrome ? (
                   <OnboardingTourEntryButton label={t("onboarding.entry")} />
                 ) : null}
-                {user && !isChromeStudio ? (
+                {user && !isMagiCoreChrome ? (
                   <form
                     className="hidden h-9 min-w-0 max-w-[14rem] flex-1 items-center gap-2 rounded-md border border-border bg-secondary/30 px-3 text-xs text-muted-foreground transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-ring md:flex xl:max-w-[16rem]"
                     onSubmit={(e) => {
@@ -900,13 +1020,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     />
                   </form>
                 ) : null}
-                {!isChromeStudio ? (
+                {!isMagiCoreChrome ? (
                   <>
                     <LanguageSwitcher variant="outline" />
                     <ThemeToggle variant="outline" />
                   </>
                 ) : null}
-                {user ? (
+                {user && !isMagiCoreChrome ? (
                   <>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -1069,7 +1189,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </>
-                ) : (
+                ) : null}
+                {!user ? (
                   <>
                     <Button variant="ghost" size="sm" onClick={() => requireAuth()}>
                       {t("nav.signIn")}
@@ -1082,17 +1203,15 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                       {t("nav.getStarted")}
                     </Button>
                   </>
-                )}
+                ) : null}
               </div>
             </header>
 
             <main
               className={cn(
                 "min-h-0 flex-1",
-                isGenerationStudio
-                  ? "overflow-y-auto px-2 py-2 sm:px-3 sm:py-3 lg:overflow-hidden lg:px-3 lg:py-3"
-                  : isVideoEditor
-                    ? "overflow-hidden p-0 lg:p-0"
+                isGenerationStudio || isVideoEditor
+                  ? "overflow-y-auto px-3 py-2 sm:px-4 sm:py-3 lg:overflow-hidden lg:px-6 lg:pb-6 lg:pt-0"
                   : isStudioWorkspace
                     ? "overflow-y-auto px-2 py-2 sm:px-3 sm:py-3 lg:overflow-hidden lg:px-5 lg:py-4"
                     : "overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 lg:px-5",
@@ -1121,13 +1240,13 @@ function OnboardingTourEntryButton({ label }: { label: string }) {
       type="button"
       variant="outline"
       size="sm"
-      className="hidden h-9 shrink-0 gap-1.5 px-2.5 text-xs sm:inline-flex"
+      className="hidden h-10 shrink-0 gap-2 rounded-xl border-border bg-[#1b1c21] px-4 text-sm text-foreground hover:bg-[#1b1c21]/90 sm:inline-flex"
       onClick={startTour}
       aria-label={label}
       title={label}
     >
-      <BookOpen className="h-3.5 w-3.5" />
-      <span className="hidden lg:inline">{label}</span>
+      <MagiCoreIcon src={magiCoreIcons.guide} className="h-3.5 w-3.5" />
+      <span>{label}</span>
     </Button>
   );
 }

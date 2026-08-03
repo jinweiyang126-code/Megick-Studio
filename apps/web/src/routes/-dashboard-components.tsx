@@ -5,21 +5,35 @@ import type { GenerationJobPublic } from "@megick/api-types";
 import { studioPathForJob, studioSearchForJob } from "./-dashboard-types";
 import { LayoutDashboard } from "lucide-react";
 import { localeToIntl, useI18n, type AppLocale, type TranslationKey } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 export function PanelHeader({
   title,
   description,
   action,
 }: {
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
   action?: React.ReactNode;
 }) {
+  if (!title && !description) {
+    if (!action) return null;
+    return (
+      <div className="flex flex-col items-stretch justify-end gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:p-5">
+        <div className="flex w-full shrink-0 sm:w-auto sm:justify-end [&>*]:w-full sm:[&>*]:w-auto">
+          {action}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-start justify-between gap-4 border-b border-border p-4 sm:flex-row sm:p-5">
       <div className="min-w-0">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        {title ? <h2 className="text-lg font-semibold">{title}</h2> : null}
+        {description ? (
+          <p className={cn("text-sm text-muted-foreground", title ? "mt-1" : "")}>{description}</p>
+        ) : null}
       </div>
       {action ? (
         <div className="flex w-full shrink-0 sm:w-auto [&>*]:w-full sm:[&>*]:w-auto">

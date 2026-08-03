@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 type LanguageSwitcherProps = {
   variant?: "ghost" | "outline" | "header";
   showLabel?: boolean;
+  /** Globe only — hide locale short code (EN / 简 / …) */
+  iconOnly?: boolean;
   className?: string;
 };
 
@@ -39,6 +41,7 @@ function localizedLanguageName(locale: AppLocale, target: AppLocale) {
 export function LanguageSwitcher({
   variant = "ghost",
   showLabel = false,
+  iconOnly = false,
   className,
 }: LanguageSwitcherProps) {
   const { locale, setLocale, t } = useI18n();
@@ -68,13 +71,13 @@ export function LanguageSwitcher({
         type="button"
         className={cn(
           "group/language inline-flex items-center justify-center rounded-full border text-xs font-semibold shadow-sm transition-[background-color,border-color,color,opacity] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-          showLabel ? "gap-2" : "gap-1.5",
+          iconOnly ? "gap-0" : showLabel ? "gap-2" : "gap-1.5",
           variant === "header"
             ? "border-[color-mix(in_oklab,var(--theme-text)_14%,transparent)] bg-[color-mix(in_oklab,var(--theme-surface)_82%,transparent)] text-[color:var(--theme-text)] shadow-[0_10px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl hover:bg-[color-mix(in_oklab,var(--theme-surface)_94%,var(--theme-primary)_6%)]"
             : variant === "outline"
               ? "border-border bg-background/90 hover:bg-accent"
               : "border-transparent bg-transparent hover:bg-accent hover:text-accent-foreground",
-          "h-9 px-2.5",
+          iconOnly ? "h-9 w-9 px-0" : "h-9 px-2.5",
           className,
         )}
         aria-expanded={open}
@@ -84,7 +87,7 @@ export function LanguageSwitcher({
         onClick={() => setOpen((current) => !current)}
       >
         <Globe2 className="h-4 w-4 shrink-0 opacity-80 transition-opacity group-hover/language:opacity-100" />
-        {showLabel ? (
+        {iconOnly ? null : showLabel ? (
           <>
             <span className="hidden max-w-24 truncate lg:inline">{localeLabels[locale]}</span>
             <span className="tabular-nums lg:hidden">{localeShortLabels[locale]}</span>
@@ -92,12 +95,14 @@ export function LanguageSwitcher({
         ) : (
           <span className="tabular-nums">{localeShortLabels[locale]}</span>
         )}
-        <ChevronDown
-          className={cn(
-            "h-3.5 w-3.5 shrink-0 opacity-55 transition-transform duration-200",
-            open ? "rotate-180" : "",
-          )}
-        />
+        {iconOnly ? null : (
+          <ChevronDown
+            className={cn(
+              "h-3.5 w-3.5 shrink-0 opacity-55 transition-transform duration-200",
+              open ? "rotate-180" : "",
+            )}
+          />
+        )}
       </button>
 
       {open ? (

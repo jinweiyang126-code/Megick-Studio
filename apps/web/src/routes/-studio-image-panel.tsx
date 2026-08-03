@@ -12,22 +12,17 @@ import {
   ChevronUp,
   Copy,
   Hash,
-  Image as ImageIcon,
-  ImagePlus,
   Layers,
   Loader2,
   Lock,
-  Maximize2,
-  MessageSquare,
   Repeat,
   RotateCcw,
-  Send,
   Settings2,
-  Sparkles,
   X,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { MagiCoreIcon, magiCoreIcons, magiCorePillClass } from "@/components/brand/MagiCoreIcon";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -74,6 +69,7 @@ import {
   resolveVideoHandoffReference,
   templateReferenceUrls,
   writeStudioHandoff,
+  readStudioHandoff,
 } from "@/components/studio/panel/utils";
 import { studioGenerationErrorNotice } from "@/components/studio/panel/generation-error-presenter";
 import type {
@@ -477,6 +473,43 @@ export function ImageStudioPanel({
     }
   };
 
+  // Apply inspiration / external handoff references into the image composer.
+  useEffect(() => {
+    const handoff = handoffId ? readStudioHandoff(handoffId) : null;
+    const direct = sourceImage?.trim()
+      ? { src: sourceImage.trim(), name: sourceImageName }
+      : null;
+    const incoming = handoff?.refs?.length
+      ? handoff.refs
+      : handoff?.src
+        ? [{ src: handoff.src, name: handoff.name }]
+        : direct
+          ? [{ src: direct.src, name: direct.name }]
+          : [];
+    if (!incoming.length) return;
+
+    const key = `${handoffId ?? "direct"}:${incoming.map((item) => item.src).join("|")}`;
+    if (handoffAppliedRef.current === key) return;
+    handoffAppliedRef.current = key;
+
+    if (handoff?.prompt?.trim()) {
+      setPrompt(handoff.prompt.trim());
+    }
+
+    const next = incoming.map((item, index) => {
+      const kind = mediaKindFromUrl(item.src);
+      return {
+        id: newStudioId(),
+        src: item.src,
+        name: item.name || handoffReferenceName("image", t),
+        kind,
+        mediaType: referenceMediaTypeFor(undefined, kind, index),
+      };
+    });
+    studioRefsRef.current = next;
+    setStudioRefs(next);
+  }, [handoffId, setPrompt, sourceImage, sourceImageName, t]);
+
   // ── Actions ─────────────────────────────────────────────────────
   const addResult = useCallback(
     (items: StudioResult[]) => {
@@ -762,7 +795,10 @@ export function ImageStudioPanel({
     };
   }, [applyTemplate, templateId, t]);
 
-  const imageEditMenu = (result: StudioResult) => {
+  const imageEditMenu = (
+    result: StudioResult,
+    variant: "compact" | "toolbar" = "compact",
+  ) => {
     if (result.kind !== "image") return null;
     const modes = imageEditModesQ.data ?? [];
     return (
@@ -771,10 +807,15 @@ export function ImageStudioPanel({
           <button
             type="button"
             data-onboarding-target="image-ai-edit"
-            className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-fuchsia-500 via-violet-500 to-cyan-400 px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-[0_8px_24px_rgba(168,85,247,0.35)] transition hover:scale-[1.02] hover:shadow-[0_10px_30px_rgba(34,211,238,0.32)]"
+            className={
+              variant === "toolbar"
+                ? "inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-primary bg-transparent px-4 text-sm font-medium text-primary transition hover:bg-primary/10"
+                : "inline-flex h-7 items-center justify-center gap-1 rounded-xl border border-primary px-2 text-xs font-medium text-primary transition hover:bg-primary/10"
+            }
             title={t("studio.aiEdit")}
           >
-            <Sparkles className="h-3 w-3" /> {t("studio.aiEdit")}
+            <MagiCoreIcon src={magiCoreIcons.pointsGradient} className="h-4 w-4" />
+            {t("studio.aiEdit")}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-52">
@@ -908,18 +949,18 @@ export function ImageStudioPanel({
     >
       <ResizablePanelGroup
         direction={stackedLayout ? "vertical" : "horizontal"}
-        className={cn("flex-1 gap-3 sm:gap-4", stackedLayout ? "min-h-[1500px]" : "h-full min-h-0")}
+        className={cn("flex-1 gap-3", stackedLayout ? "min-h-[1500px]" : "h-full min-h-0")}
       >
         <ResizablePanel
-          defaultSize={stackedLayout ? 55 : 38}
+          defaultSize={stackedLayout ? 55 : 37}
           minSize={stackedLayout ? 45 : 28}
-          maxSize={stackedLayout ? 75 : 58}
+          maxSize={stackedLayout ? 75 : 50}
           className={cn("min-h-0", !stackedLayout && "min-w-[320px]")}
         >
-          <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card">
-            {/* Title bar */}
-            <div className="flex shrink-0 items-center gap-3 border-b border-border px-3 py-2.5">
-              <div className="min-w-0 flex-1">
+          <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[#1b1c21]">
+            {/* Title bar — Figma 163:2144 */}
+            <div className="group/title flex shrink-0 items-center justify-between gap-3 border-b border-border px-6 pb-4 pt-6">
+              <div className="min-w-0 flex-1 space-y-2">
                 <div className="flex min-w-0 items-center gap-1.5">
                   {titleEditing ? (
                     <Input
@@ -941,14 +982,14 @@ export function ImageStudioPanel({
                       }}
                       disabled={titleSaving}
                       aria-label={t("studio.sessionTitle")}
-                      className="h-7 min-w-0 max-w-[18rem] flex-1 px-2 text-sm font-medium"
+                      className="h-7 min-w-0 max-w-[18rem] flex-1 px-2 text-base"
                       maxLength={191}
                     />
                   ) : (
                     <button
                       type="button"
                       onDoubleClick={startTitleEdit}
-                      className="min-w-0 truncate rounded-sm text-left text-sm font-medium outline-none transition hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+                      className="min-w-0 truncate rounded-sm text-left text-base uppercase text-white outline-none transition hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
                       title={sessionTitle}
                     >
                       {sessionTitle}
@@ -960,7 +1001,7 @@ export function ImageStudioPanel({
                     variant="ghost"
                     onClick={startTitleEdit}
                     disabled={sessionLoading || titleSaving}
-                    className="size-7 shrink-0 text-muted-foreground"
+                    className="size-7 shrink-0 text-muted-foreground opacity-0 transition group-hover/title:opacity-100 focus-visible:opacity-100"
                     title={t("studio.renameConversation")}
                     aria-label={t("studio.renameConversation")}
                   >
@@ -974,10 +1015,10 @@ export function ImageStudioPanel({
                 <button
                   type="button"
                   onClick={() => setAdvancedOpen(true)}
-                  className="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full bg-secondary/60 px-2 py-0.5 text-[11px] text-muted-foreground transition hover:text-foreground"
+                  className="inline-flex max-w-full items-center gap-1.5 rounded-xl text-xs text-[#8b8e94] transition hover:text-foreground"
                   title={t("studio.currentModel")}
                 >
-                  <Layers className="h-3 w-3 shrink-0" />
+                  <MagiCoreIcon src={magiCoreIcons.composerModelMuted} className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">{currentModelLabel}</span>
                   {currentModel ? (
                     <span className="shrink-0">
@@ -996,20 +1037,18 @@ export function ImageStudioPanel({
                   ) : null}
                 </button>
               </div>
-              <Button
+              <button
                 type="button"
-                size="sm"
-                variant="outline"
                 onClick={startNewSessionFromHook}
-                className="shrink-0"
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm text-white transition hover:border-primary/50"
               >
-                <MessageSquare className="h-4 w-4" />
+                <MagiCoreIcon src={magiCoreIcons.fileAdd} className="h-3.5 w-3.5" />
                 {t("studio.new")}
-              </Button>
+              </button>
             </div>
 
             {/* Messages scroll area */}
-            <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4">
+            <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-6">
               {sessionLoading ? (
                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1018,7 +1057,7 @@ export function ImageStudioPanel({
               ) : messages.length === 0 ? (
                 <EmptyState title={t("studio.empty.title")} detail={t("studio.empty.detail")} />
               ) : (
-                <div className="flex min-w-0 flex-col gap-4">
+                <div className="flex min-w-0 flex-col gap-6">
                   {messages.map((message) => {
                     if (message.role === "user") {
                       const messageRefs = Array.isArray(message.metadata?.refs)
@@ -1039,8 +1078,8 @@ export function ImageStudioPanel({
                           : trimmedText;
                       return (
                         <div key={message.id} className="flex min-w-0 justify-end">
-                          <div className="max-w-[85%] min-w-0 space-y-2">
-                            <div className="rounded-2xl rounded-tr-sm bg-gradient-primary px-3.5 py-2.5 text-sm text-primary-foreground shadow-glow">
+                          <div className="flex w-[min(402px,100%)] min-w-0 flex-col items-end gap-3">
+                            <div className="rounded-xl bg-[#26272c] p-3 text-xs leading-normal text-white">
                               <span className="[overflow-wrap:anywhere]">{displayText}</span>
                               {promptIsLong ? (
                                 <button
@@ -1053,7 +1092,7 @@ export function ImageStudioPanel({
                                       return next;
                                     })
                                   }
-                                  className="mt-1 inline-flex items-center gap-1 rounded text-[11px] text-primary-foreground/65 hover:text-primary-foreground transition"
+                                  className="mt-1 inline-flex items-center gap-1 text-[11px] text-[#8b8e94] transition hover:text-white"
                                 >
                                   {promptExpandedInMsg ? (
                                     <>
@@ -1076,21 +1115,21 @@ export function ImageStudioPanel({
                                     key={r.id}
                                     src={ossThumbnailUrl(r.src)}
                                     alt={r.name}
-                                    className="h-12 w-12 rounded-md border border-white/20 object-cover shadow-sm"
+                                    className="h-12 w-12 rounded-md object-cover"
                                   />
                                 ))}
                               </div>
                             ) : null}
-                            <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 text-[10px] text-muted-foreground">
+                            <div className="flex min-w-0 flex-wrap items-center justify-end gap-3 px-3 text-xs text-[#8b8e94]">
                               {isEdit ? (
                                 editModeName ? (
-                                  <span className="rounded-full bg-secondary/60 px-1.5 py-0.5">
-                                    {editModeName}
-                                  </span>
+                                  <span>{editModeName}</span>
                                 ) : null
                               ) : (
                                 <>
-                                  <span className="max-w-full rounded-full bg-secondary/60 px-1.5 py-0.5 [overflow-wrap:anywhere]">{`${message.settings.model || t("studio.model")} · ${t(styleLabelKey(message.settings.style))} · ${message.settings.ratio} · ×${formatNumber(message.settings.count)}`}</span>
+                                  <span className="max-w-full [overflow-wrap:anywhere]">
+                                    {`${message.settings.model || t("studio.model")} · ${t(styleLabelKey(message.settings.style))} · ${message.settings.ratio} · x${formatNumber(message.settings.count)}`}
+                                  </span>
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -1107,7 +1146,7 @@ export function ImageStudioPanel({
                                       setStudioRefs(refs);
                                       reuseUserMessageDraft(message, messageRefs);
                                     }}
-                                    className="inline-flex items-center gap-1 rounded p-0.5 hover:bg-secondary"
+                                    className="inline-flex items-center gap-1 transition hover:text-foreground"
                                     title={t("studio.reusePrompt")}
                                   >
                                     <Repeat className="h-3 w-3" />
@@ -1131,7 +1170,7 @@ export function ImageStudioPanel({
                                         onClearInputs: () => {},
                                       })
                                     }
-                                    className="rounded p-0.5 hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
                                     title={t("studio.regenerate")}
                                   >
                                     <RotateCcw className="h-3 w-3" />
@@ -1143,7 +1182,7 @@ export function ImageStudioPanel({
                                 onClick={() =>
                                   void copyToClipboard(message.text, t("studio.promptCopied"))
                                 }
-                                className="rounded p-0.5 hover:bg-secondary"
+                                className="transition hover:text-foreground"
                                 title={t("studio.copyPrompt")}
                               >
                                 <Copy className="h-3 w-3" />
@@ -1166,79 +1205,79 @@ export function ImageStudioPanel({
                       : null;
                     return (
                       <div key={message.id} className="flex min-w-0 justify-start">
-                        <div className="max-w-[92%] min-w-0 space-y-2">
-                          <div className="rounded-2xl rounded-tl-sm bg-background/40 p-2.5">
-                            {message.status === "loading" ? (
-                              <GenerationPlaceholderGrid settings={message.settings} compact />
-                            ) : errorNotice ? (
-                              <div
+                        <div className="min-w-0 max-w-full space-y-3">
+                          {message.status === "loading" ? (
+                            <GenerationPlaceholderGrid settings={message.settings} compact />
+                          ) : errorNotice ? (
+                            <div
+                              className={cn(
+                                "rounded-lg border p-3 text-xs",
+                                errorNotice.insufficientCredits
+                                  ? "border-primary/20 bg-primary/10 text-foreground"
+                                  : "border-destructive/20 bg-destructive/5 text-destructive",
+                              )}
+                            >
+                              <p
                                 className={cn(
-                                  "rounded-lg border p-3 text-xs",
+                                  "font-medium",
                                   errorNotice.insufficientCredits
-                                    ? "border-primary/20 bg-primary/10 text-foreground"
-                                    : "border-destructive/20 bg-destructive/5 text-destructive",
+                                    ? "text-foreground"
+                                    : "text-destructive",
                                 )}
                               >
-                                <p
-                                  className={cn(
-                                    "font-medium",
-                                    errorNotice.insufficientCredits
-                                      ? "text-foreground"
-                                      : "text-destructive",
-                                  )}
-                                >
-                                  {errorNotice.message}
+                                {errorNotice.message}
+                              </p>
+                              {errorNotice.description &&
+                              (errorNotice.insufficientCredits || errorNotice.safetyBlocked) ? (
+                                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                                  {errorNotice.description}
                                 </p>
-                                {errorNotice.description &&
-                                (errorNotice.insufficientCredits || errorNotice.safetyBlocked) ? (
-                                  <p className="mt-1.5 text-[11px] text-muted-foreground">
-                                    {errorNotice.description}
-                                  </p>
-                                ) : null}
-                                {errorNotice.insufficientCredits ? (
-                                  <p className="mt-3 rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
-                                    Open-source edition: ask an administrator to adjust credits in
-                                    the admin users panel.
-                                  </p>
-                                ) : null}
-                              </div>
-                            ) : message.results.length ? (
-                              <div className="grid grid-cols-2 gap-2">
-                                {message.results.map((result) => (
-                                  <button
-                                    key={result.id}
-                                    type="button"
-                                    onClick={() => addResult([result])}
-                                    onDoubleClick={() => {
-                                      void addAsReference(result);
-                                    }}
-                                    className={cn(
-                                      "group relative aspect-square overflow-hidden rounded-lg border bg-black text-left transition",
-                                      selectedId === result.id
-                                        ? "border-primary shadow-glow"
-                                        : "border-border/70 hover:border-primary/70",
-                                    )}
-                                    title={result.prompt}
-                                  >
-                                    <img
-                                      src={result.thumbnailSrc ?? ossThumbnailUrl(result.src)}
-                                      alt={t("studio.generatedPreviewAlt")}
-                                      className="h-full w-full object-cover transition group-hover:scale-[1.03]"
-                                      loading="lazy"
-                                      decoding="async"
-                                      referrerPolicy="no-referrer"
-                                    />
-                                  </button>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-xs text-muted-foreground">
-                                {t("studio.noPreviewAssets")}
-                              </div>
-                            )}
-                          </div>
+                              ) : null}
+                            </div>
+                          ) : message.results.length ? (
+                            <div
+                              className={cn(
+                                "flex flex-wrap gap-3",
+                                message.results.length === 1 ? "" : "gap-2",
+                              )}
+                            >
+                              {message.results.map((result) => (
+                                <button
+                                  key={result.id}
+                                  type="button"
+                                  onClick={() => addResult([result])}
+                                  onDoubleClick={() => {
+                                    void addAsReference(result);
+                                  }}
+                                  className={cn(
+                                    "group relative overflow-hidden rounded-xl bg-black text-left transition",
+                                    message.results.length === 1
+                                      ? "size-[188px]"
+                                      : "aspect-square w-[140px]",
+                                    selectedId === result.id
+                                      ? "ring-2 ring-primary"
+                                      : "hover:ring-1 hover:ring-primary/60",
+                                  )}
+                                  title={result.prompt}
+                                >
+                                  <img
+                                    src={result.thumbnailSrc ?? ossThumbnailUrl(result.src)}
+                                    alt={t("studio.generatedPreviewAlt")}
+                                    className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                                    loading="lazy"
+                                    decoding="async"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-muted-foreground">
+                              {t("studio.noPreviewAssets")}
+                            </div>
+                          )}
                           <div
-                            className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground"
+                            className="flex flex-wrap items-center gap-3"
                             data-onboarding-target={
                               imageResultForRef ? "image-result-actions" : undefined
                             }
@@ -1252,10 +1291,13 @@ export function ImageStudioPanel({
                                       type="button"
                                       data-onboarding-target="image-use-as-reference"
                                       onClick={() => void addAsReference(imageResultForRef)}
-                                      className="inline-flex items-center gap-1 rounded p-0.5 hover:bg-secondary"
+                                      className="inline-flex h-7 items-center gap-1.5 text-xs text-[#8b8e94] transition hover:text-foreground"
                                       title={t("studio.asReferenceTitle")}
                                     >
-                                      <ImagePlus className="h-3 w-3" />
+                                      <MagiCoreIcon
+                                        src={magiCoreIcons.composerReference}
+                                        className="h-3 w-3"
+                                      />
                                       {t("studio.asReference")}
                                     </button>
                                   </>
@@ -1270,7 +1312,7 @@ export function ImageStudioPanel({
                                         : t("studio.promptCopied"),
                                     )
                                   }
-                                  className="inline-flex items-center gap-1 rounded p-0.5 hover:bg-secondary"
+                                  className="inline-flex h-7 items-center gap-1.5 text-xs text-[#8b8e94] transition hover:text-foreground"
                                 >
                                   <Copy className="h-3 w-3" />
                                   {t("common.copy")}
@@ -1286,9 +1328,9 @@ export function ImageStudioPanel({
               )}
             </div>
 
-            {/* Toolbar */}
-            <div className="shrink-0 border-t border-border p-3">
-              <div className="rounded-2xl bg-background/50 p-2">
+            {/* Composer — Figma 163:2404 */}
+            <div className="flex shrink-0 flex-col gap-4 border-t border-border px-6 py-4">
+              <div className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   {/* Style popover */}
                   <Popover>
@@ -1296,11 +1338,17 @@ export function ImageStudioPanel({
                       <button
                         type="button"
                         data-onboarding-target="image-style-selector"
-                        className="inline-flex min-h-7 items-center gap-1 rounded-md border border-border/70 bg-secondary/40 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                        className={magiCorePillClass}
                       >
-                        {STYLE_PRESETS.find((s) => s.id === settings.style)
-                          ? t(styleLabelKey(settings.style))
-                          : t("studio.style")}
+                        <MagiCoreIcon
+                          src={magiCoreIcons.composerStyleWhite}
+                          className="h-4 w-4 shrink-0"
+                        />
+                        <span className="whitespace-nowrap">
+                          {STYLE_PRESETS.find((s) => s.id === settings.style)
+                            ? t(styleLabelKey(settings.style))
+                            : t("studio.style")}
+                        </span>
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-64 p-2" sideOffset={8}>
@@ -1327,11 +1375,12 @@ export function ImageStudioPanel({
                   {/* Ratio popover */}
                   <Popover>
                     <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        className="inline-flex min-h-7 items-center gap-1 rounded-md border border-border/70 bg-secondary/40 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
-                      >
-                        {settings.ratio}
+                      <button type="button" className={magiCorePillClass}>
+                        <MagiCoreIcon
+                          src={magiCoreIcons.composerRatioWhite}
+                          className="h-3.5 w-3.5 shrink-0"
+                        />
+                        <span className="whitespace-nowrap">{settings.ratio}</span>
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-72 p-2" sideOffset={8}>
@@ -1378,10 +1427,13 @@ export function ImageStudioPanel({
                     <PopoverTrigger asChild>
                       <button
                         type="button"
-                        className="inline-flex min-h-7 max-w-[13rem] items-center gap-1 rounded-md border border-border/70 bg-secondary/40 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                        className={cn(magiCorePillClass, "max-w-[13rem]")}
                         title={currentModelLabel}
                       >
-                        <Settings2 className="h-3 w-3 shrink-0" />
+                        <MagiCoreIcon
+                          src={magiCoreIcons.composerModelWhite}
+                          className="h-3.5 w-3.5 shrink-0"
+                        />
                         <span className="truncate">{currentModelLabel}</span>
                       </button>
                     </PopoverTrigger>
@@ -1479,10 +1531,7 @@ export function ImageStudioPanel({
                                         {t("dashboard.advancedAccess")}
                                       </Badge>
                                     ) : null}
-                                    <span>
-                                      {model.isDefault ? `${t("studio.defaultModel")} · ` : ""}
-                                      {modelCreditLabel(model, t, formatNumber)}
-                                    </span>
+                                    {modelCreditLabel(model, t, formatNumber)}
                                   </span>
                                 </button>
                               );
@@ -1493,74 +1542,39 @@ export function ImageStudioPanel({
                     </PopoverContent>
                   </Popover>
 
-                  {/* Count slider */}
-                  {/* <Popover open={countOpen} onOpenChange={setCountOpen}>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        className="inline-flex min-h-7 items-center gap-1 rounded-md border border-border/70 bg-secondary/40 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
-                        aria-label={t("studio.count")}
-                        title={t("studio.count")}
-                      >
-                        <span className="tabular-nums">×{formatNumber(settings.count)}</span>
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-56 p-3" align="start" sideOffset={8}>
-                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        {t("studio.count")}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Slider
-                          value={[settings.count]}
-                          min={1}
-                          max={4}
-                          step={1}
-                          onValueChange={(v) => updateSettings({ count: v[0] })}
-                        />
-                        <span className="w-6 text-right text-xs tabular-nums">
-                          {formatNumber(settings.count)}
-                        </span>
-                      </div>
-                    </PopoverContent>
-                  </Popover> */}
-
-                  {/* Reference upload */}
-                  {referenceBounds.supportsReferenceImages ? (
-                    <button
-                      type="button"
-                      data-onboarding-target="image-reference-upload"
-                      onClick={() => setReferenceDialogOpen(true)}
-                      title={t("studio.uploadReferenceImage")}
-                      className={cn(
-                        "relative inline-flex items-center gap-1 rounded-md border border-border/70 bg-secondary/40 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground",
-                        studioRefs.length ? "border-primary/70 text-foreground" : "",
-                      )}
-                    >
-                      <ImageIcon className="h-3.5 w-3.5" />
-                      <span className="max-[420px]:sr-only">{t("studio.reference")}</span>
-                      {studioRefs.length ? (
-                        <span className="absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold leading-none text-primary-foreground">
-                          {studioRefs.length}
-                        </span>
-                      ) : null}
-                    </button>
-                  ) : null}
-
-                  {/* Template */}
+                  {/* Reference upload — always visible like Figma */}
                   <button
-                    onClick={() => setTemplateOpen(true)}
                     type="button"
-                    title={t("studio.templateCenter")}
-                    className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-secondary/40 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                    data-onboarding-target="image-reference-upload"
+                    onClick={() => {
+                      if (!referenceBounds.supportsReferenceImages) {
+                        toast.message(t("studio.modelNoReferenceImages"));
+                        return;
+                      }
+                      setReferenceDialogOpen(true);
+                    }}
+                    title={t("studio.uploadReferenceImage")}
+                    className={cn(
+                      magiCorePillClass,
+                      studioRefs.length ? "border-primary/70" : "",
+                    )}
                   >
-                    <Layers className="h-3.5 w-3.5" />
-                    <span className="max-[420px]:sr-only">{t("studio.templateCenter")}</span>
+                    <MagiCoreIcon
+                      src={magiCoreIcons.composerReference}
+                      className="h-4 w-4 shrink-0"
+                    />
+                    <span className="whitespace-nowrap">{t("studio.reference")}</span>
+                    {studioRefs.length ? (
+                      <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground">
+                        {studioRefs.length}
+                      </span>
+                    ) : null}
                   </button>
                 </div>
 
                 {/* Reference thumbnails */}
                 {studioRefs.length ? (
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {studioRefs.map((r) => (
                       <div
                         key={r.id}
@@ -1599,20 +1613,18 @@ export function ImageStudioPanel({
                 ) : null}
 
                 {/* Prompt input */}
-                <div className="relative mt-2">
+                <div className="relative flex min-h-[124px] items-start gap-2 rounded-xl bg-white/5 py-2 pl-4 pr-2">
                   <Textarea
                     ref={promptTextareaRef}
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     onFocus={() => setPromptExpanded(true)}
                     onBlur={() => setPromptExpanded(false)}
-                    rows={3}
+                    rows={4}
                     placeholder={t("studio.composer.imagePlaceholder")}
                     className={cn(
-                      "min-h-0 resize-none overflow-y-auto border-border/60 bg-background/50 pr-10 text-sm leading-relaxed transition-[height,box-shadow] duration-300 ease-out",
-                      promptExpanded
-                        ? "h-56 shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_10px_30px_rgba(0,0,0,0.18)]"
-                        : "h-28",
+                      "min-h-[108px] flex-1 resize-none overflow-y-auto border-0 bg-transparent px-0 py-0 text-sm leading-5 shadow-none placeholder:text-[#8b8e94] focus-visible:ring-0",
+                      promptExpanded && "min-h-[200px]",
                     )}
                     onKeyDown={(e) => {
                       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
@@ -1635,40 +1647,59 @@ export function ImageStudioPanel({
                               promptTextareaRef.current?.focus();
                             });
                           }}
-                          className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md border border-border/70 bg-background/80 text-muted-foreground backdrop-blur transition hover:text-foreground"
+                          className="inline-flex size-8 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground transition hover:text-foreground"
                         >
-                          <Maximize2 className="h-3.5 w-3.5" />
+                          <MagiCoreIcon src={magiCoreIcons.composerExpand} className="h-3.5 w-3.5" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent>{t("studio.promptExpand")}</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
+              </div>
 
-                {/* Generate */}
-                <div className="mt-2 flex items-center justify-end">
-                  <Button
-                    type="button"
-                    size="sm"
-                    data-onboarding-target="studio-generate-button"
-                    onClick={() => void onGenerate()}
-                    disabled={submitting || !prompt.trim()}
-                    className="ml-auto flex h-10 min-w-[5rem] items-center gap-1.5 rounded-full bg-gradient-primary px-5 text-sm font-semibold text-primary-foreground shadow-glow"
-                  >
-                    {submitting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
+              {/* Footer: Template Center + Generate */}
+              <div className="flex h-10 items-center justify-between gap-3">
+                <button
+                  onClick={() => setTemplateOpen(true)}
+                  type="button"
+                  title={t("studio.templateCenter")}
+                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-xl px-4 text-sm text-[#8b8e94] transition hover:text-foreground"
+                >
+                  <MagiCoreIcon src={magiCoreIcons.composerTemplate} className="h-4 w-4" />
+                  <span>{t("studio.templateCenter")}</span>
+                </button>
+                <button
+                  type="button"
+                  data-onboarding-target="studio-generate-button"
+                  onClick={() => void onGenerate()}
+                  disabled={submitting || !prompt.trim()}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-[#0a0a0a] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{
+                    backgroundImage:
+                      "linear-gradient(97deg, #57d9fa 1.88%, #72aefc 82.03%, #9f66ff 109.58%, #ba4dfe 132.12%)",
+                  }}
+                >
+                  {submitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <MagiCoreIcon src={magiCoreIcons.pointsBlack} className="h-3.5 w-3.5" />
+                      <span className="text-xs font-medium leading-none">
+                        {formatNumber(currentModel?.costCredits ?? 1)}
+                      </span>
+                    </span>
+                  )}
+                  <span className="text-sm font-medium leading-none">
                     {submitting ? t("studio.generating") : t("studio.generate")}
-                  </Button>
-                </div>
+                  </span>
+                </button>
               </div>
             </div>
           </section>
         </ResizablePanel>
 
-        <ResizableHandle withHandle />
+        <ResizableHandle withHandle className="w-3.5 bg-transparent after:w-px after:bg-border" />
 
         {/* Right panel: Preview + Job history */}
         <ResizablePanel
@@ -1676,9 +1707,9 @@ export function ImageStudioPanel({
           minSize={stackedLayout ? 25 : 32}
           className={cn("min-h-0", !stackedLayout && "min-w-[280px]")}
         >
-          <section className="flex h-full min-h-0 min-w-0 flex-col rounded-2xl border border-border bg-card">
+          <section className="flex h-full min-h-0 min-w-0 flex-col rounded-2xl bg-[#1b1c21]">
             <div
-              className="flex min-h-0 flex-1 overflow-y-auto"
+              className="flex min-h-0 flex-1 flex-col overflow-hidden pt-6"
               data-onboarding-target="image-results-fallback"
             >
               {sessionLoading ? (
@@ -1726,7 +1757,7 @@ export function ImageStudioPanel({
                       });
                     }}
                     onUseAsReference={() => void addAsReference(selected)}
-                    editMenu={imageEditMenu(selected)}
+                    editMenu={imageEditMenu(selected, "toolbar")}
                     onGenerateVideo={(videoInputMode) =>
                       void generateVideoFromResult(selected, videoInputMode)
                     }

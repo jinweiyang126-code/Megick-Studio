@@ -3,13 +3,10 @@ import type { GenerationJobPublic } from "@megick/api-types";
 import {
   Copy,
   Download,
-  Edit3,
   FileVideo,
   Image as ImageIcon,
-  ImagePlus,
   Layers,
   Loader2,
-  Maximize2,
   MessageSquare,
   Repeat,
   RefreshCw,
@@ -22,6 +19,7 @@ import {
   Wand2,
   X,
 } from "lucide-react";
+import { MagiCoreIcon, magiCoreIcons } from "@/components/brand/MagiCoreIcon";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,7 +32,7 @@ import { cn } from "@/lib/utils";
 import { ossThumbnailUrl } from "@/lib/oss-upload";
 import type { StudioMode, StudioResult } from "@/routes/-dashboard-types";
 import { studioResultsFromJob } from "@/routes/-dashboard-types";
-import { formatDateTime, StatusBadge } from "@/routes/-dashboard-components";
+import { formatDateTime } from "@/routes/-dashboard-components";
 import { Progress } from "@/components/ui/progress";
 import { jobOutputContentUrl, mediaKindFromUrl, previewVideoSrcCandidates, fetchBlobFromUrl, downloadCandidates, videoModeLabelKey } from "./utils";
 import { studioGenerationErrorNotice } from "./generation-error-presenter";
@@ -88,9 +86,7 @@ export function ImagePreviewPanel({
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       {toolbarVisible ? (
-        <>
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-24 bg-gradient-to-b from-black/18 via-black/6 to-transparent" />
-          <div className="absolute right-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-col items-end gap-2">
+        <div className="absolute inset-x-0 top-0 z-20 flex justify-end px-6 pt-0">
             <div className={PREVIEW_TOOLBAR_CLASS} data-onboarding-target="image-result-actions">
               <PreviewToolbarToggle visible onToggle={() => setToolbarVisible(false)} />
               <Button
@@ -100,7 +96,7 @@ export function ImagePreviewPanel({
                 title={t("studio.fullscreen")}
                 className={PREVIEW_TOOL_BUTTON_CLASS}
               >
-                <Maximize2 className="h-4 w-4" />
+                <MagiCoreIcon src={magiCoreIcons.previewExpand} className="h-4 w-4" />
               </Button>
               {videoGenerationEnabled ? (
                 <DropdownMenu>
@@ -108,10 +104,11 @@ export function ImagePreviewPanel({
                     <Button
                       size="sm"
                       variant="outline"
-                      className={PREVIEW_TOOL_ACCENT_BUTTON_CLASS}
+                      className={PREVIEW_TOOL_BUTTON_CLASS}
                       title={t("studio.generateVideoTitle")}
                     >
-                      <Video className="mr-1.5 h-3.5 w-3.5" /> {t("studio.generateVideo")}
+                      <MagiCoreIcon src={magiCoreIcons.previewVideo} className="mr-1.5 h-3.5 w-3.5" />{" "}
+                      {t("studio.generateVideo")}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -132,9 +129,10 @@ export function ImagePreviewPanel({
                       size="sm"
                       variant="outline"
                       onClick={onEdit}
-                      className={PREVIEW_TOOL_BUTTON_CLASS}
+                      className={PREVIEW_TOOL_ACCENT_BUTTON_CLASS}
                     >
-                      <Edit3 className="mr-1.5 h-3.5 w-3.5" /> {t("common.edit")}
+                      <MagiCoreIcon src={magiCoreIcons.pointsGradient} className="mr-1.5 h-4 w-4" />{" "}
+                      {t("studio.aiEdit")}
                     </Button>
                   ))
                 : null}
@@ -147,7 +145,10 @@ export function ImagePreviewPanel({
                   data-onboarding-target="image-use-as-reference"
                   className={PREVIEW_TOOL_BUTTON_CLASS}
                 >
-                  <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
+                  <MagiCoreIcon
+                    src={magiCoreIcons.composerReference}
+                    className="mr-1.5 h-3.5 w-3.5"
+                  />
                   {t("studio.asReference")}
                 </Button>
               ) : null}
@@ -168,12 +169,15 @@ export function ImagePreviewPanel({
                   <Button
                     size="sm"
                     disabled={Boolean(downloading)}
-                    className="border border-white/20 bg-white/[0.18] text-white shadow-sm backdrop-blur-xl hover:bg-white/[0.30] hover:text-white"
+                    className={PREVIEW_TOOL_BUTTON_CLASS}
                   >
                     {downloading ? (
                       <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                     ) : (
-                      <Download className="mr-1.5 h-3.5 w-3.5" />
+                      <MagiCoreIcon
+                        src={magiCoreIcons.previewDownload}
+                        className="mr-1.5 h-3.5 w-3.5"
+                      />
                     )}{" "}
                     {t("studio.download")}
                   </Button>
@@ -196,10 +200,9 @@ export function ImagePreviewPanel({
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          </div>
-        </>
+        </div>
       ) : (
-        <div className="absolute right-3 top-3 z-20">
+        <div className="absolute right-6 top-0 z-20">
           <PreviewToolbarToggle visible={false} onToggle={() => setToolbarVisible(true)} />
         </div>
       )}
@@ -207,6 +210,7 @@ export function ImagePreviewPanel({
         src={result.src}
         fallbackSrc={result.fallbackSrc}
         alt={t("studio.generatedPreviewAlt")}
+        chrome="figma"
       />
     </div>
   );
@@ -315,11 +319,9 @@ export function VideoPreviewPanel({
   };
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-black">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#050507]">
       {toolbarVisible ? (
-        <>
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-24 bg-gradient-to-b from-black/18 via-black/6 to-transparent" />
-          <div className="absolute right-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-col items-end gap-2">
+        <div className="absolute inset-x-0 top-0 z-20 flex justify-end px-6 pt-0">
             <div className={PREVIEW_TOOLBAR_CLASS}>
               <PreviewToolbarToggle visible onToggle={() => setToolbarVisible(false)} />
               <Button
@@ -329,7 +331,7 @@ export function VideoPreviewPanel({
                 title={t("studio.fullscreen")}
                 className={PREVIEW_TOOL_BUTTON_CLASS}
               >
-                <Maximize2 className="h-4 w-4" />
+                <MagiCoreIcon src={magiCoreIcons.previewExpand} className="h-4 w-4" />
               </Button>
               <Button
                 size="sm"
@@ -358,7 +360,7 @@ export function VideoPreviewPanel({
                   size="sm"
                   variant="outline"
                   onClick={onEdit}
-                  className={PREVIEW_TOOL_BUTTON_CLASS}
+                  className={PREVIEW_TOOL_ACCENT_BUTTON_CLASS}
                   title={t("studio.videoEditor.open")}
                 >
                   <Scissors className="mr-1.5 h-3.5 w-3.5" /> {t("studio.videoEditor.open")}
@@ -380,20 +382,22 @@ export function VideoPreviewPanel({
                 size="sm"
                 disabled={downloading}
                 onClick={() => void runDownload()}
-                className="border border-white/20 bg-white/[0.18] text-white shadow-sm backdrop-blur-xl hover:bg-white/[0.30] hover:text-white"
+                className={PREVIEW_TOOL_BUTTON_CLASS}
               >
                 {downloading ? (
                   <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                  <MagiCoreIcon
+                    src={magiCoreIcons.previewDownload}
+                    className="mr-1.5 h-3.5 w-3.5"
+                  />
                 )}
                 {t("studio.downloadVideo")}
               </Button>
             </div>
-          </div>
-        </>
+        </div>
       ) : (
-        <div className="absolute right-3 top-3 z-20">
+        <div className="absolute right-6 top-0 z-20">
           <PreviewToolbarToggle visible={false} onToggle={() => setToolbarVisible(true)} />
         </div>
       )}
@@ -581,11 +585,11 @@ export function StudioJobHistoryStrip({
   const empty = mode === "video" ? t("studio.videoJobs.empty") : t("studio.imageJobs.empty");
 
   return (
-    <div className="shrink-0 border-t border-border/70 bg-background/75 p-3">
-      <div className="mb-2 flex items-center justify-between gap-3">
+    <div className="shrink-0 rounded-b-2xl border-t border-border bg-[#17181d] px-6 pb-6 pt-4">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase text-muted-foreground">{title}</p>
-          <p className="truncate text-[11px] text-muted-foreground">{description}</p>
+          <p className="text-sm font-medium uppercase tracking-[0.28px] text-white">{title}</p>
+          <p className="mt-1 truncate text-xs text-[#8b8e94]">{description}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /> : null}
@@ -606,7 +610,7 @@ export function StudioJobHistoryStrip({
         </div>
       </div>
       {visibleJobs.length ? (
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex gap-4 overflow-x-auto pb-1">
           {visibleJobs.map((job) => {
             const progress = normalizedJobProgress(job);
             const active = job.id === activeJobId;
@@ -636,21 +640,19 @@ export function StudioJobHistoryStrip({
                   onPreviewJob(job);
                 }}
                 className={cn(
-                  "grid w-64 shrink-0 grid-cols-[56px_minmax(0,1fr)] gap-2 rounded-md border bg-card/75 p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "grid w-[301px] shrink-0 grid-cols-[64px_minmax(0,1fr)] gap-4 rounded-lg bg-[#26272c] p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   active
                     ? failed
-                      ? "border-destructive/60 ring-1 ring-destructive/25"
-                      : "border-primary/70 ring-1 ring-primary/30"
-                    : failed
-                      ? "border-destructive/30"
-                      : "border-border/70",
-                  canPreview ? "cursor-pointer hover:bg-secondary/35" : "cursor-default opacity-85",
+                      ? "ring-1 ring-destructive/40"
+                      : "ring-1 ring-primary/50"
+                    : "",
+                  canPreview ? "cursor-pointer hover:brightness-110" : "cursor-default opacity-85",
                 )}
               >
                 <div
                   className={cn(
-                    "flex h-14 w-14 items-center justify-center overflow-hidden rounded bg-black transition",
-                    failed ? "bg-destructive/10 text-destructive" : "",
+                    "flex size-16 items-center justify-center overflow-hidden rounded opacity-70 transition",
+                    failed ? "bg-destructive/10 text-destructive" : "bg-black",
                   )}
                 >
                   {failed ? (
@@ -670,39 +672,51 @@ export function StudioJobHistoryStrip({
                     <ImageIcon className="h-5 w-5 text-white/65" />
                   )}
                 </div>
-                <div className="min-w-0 space-y-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <StatusBadge status={job.status} />
-                    <div className="flex items-center gap-1">
-                      {onRetry ? (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRetry(job);
-                          }}
-                          className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-primary hover:bg-primary/10"
-                          title={t("studio.regenerate")}
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                          {t("studio.regenerate")}
-                        </button>
-                      ) : null}
-                      <span className="text-[10px] tabular-nums text-muted-foreground">
-                        {progress}%
-                      </span>
-                    </div>
-                  </div>
-                  <p className="line-clamp-1 text-xs">{job.prompt}</p>
-                  {errorNotice ? (
-                    <p className="line-clamp-2 text-[10px] leading-snug text-destructive">
-                      {errorNotice.message}
+                <div className="flex min-w-0 flex-1 flex-col justify-between gap-3">
+                  <div className="space-y-2">
+                    <p className="text-[10px] leading-normal text-[#8b8e94]">
+                      {formatDateTime(job.createdAt, locale)}
                     </p>
-                  ) : null}
-                  <Progress value={progress} className="h-1" />
-                  <p className="truncate text-[10px] text-muted-foreground">
-                    {formatDateTime(job.createdAt, locale)}
-                  </p>
+                    <p className="line-clamp-2 text-xs leading-normal text-[#8b8e94]">
+                      {job.prompt}
+                    </p>
+                    {errorNotice ? (
+                      <p className="line-clamp-2 text-[10px] leading-snug text-destructive">
+                        {errorNotice.message}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    {job.status === "running" || job.status === "queued" ? (
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="text-xs text-[#8b8e94]">{progress}%</p>
+                        <Progress value={progress} className="h-1" />
+                      </div>
+                    ) : (
+                      <p
+                        className={cn(
+                          "text-xs",
+                          failed ? "text-destructive" : "text-[#8b8e94]",
+                        )}
+                      >
+                        {t(`common.status.${job.status}` as never)}
+                      </p>
+                    )}
+                    {onRetry ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRetry(job);
+                        }}
+                        className="inline-flex shrink-0 items-center gap-1 text-xs text-primary transition hover:brightness-110"
+                        title={t("studio.regenerate")}
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        {t("studio.regenerate")}
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             );
@@ -779,10 +793,12 @@ function PanZoomImage({
   src,
   fallbackSrc,
   alt,
+  chrome = "default",
 }: {
   src: string;
   fallbackSrc?: string;
   alt: string;
+  chrome?: "default" | "figma" | "none";
 }) {
   const { t } = useI18n();
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -999,20 +1015,39 @@ function PanZoomImage({
           )}
         />
       </div>
-      <div className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-black/45 px-2.5 py-1 text-[11px] text-white/70 backdrop-blur">
-        {t("studio.zoomPercent", { percent: Math.round(scale * 100) })}
-      </div>
-      <Button
-        type="button"
-        size="sm"
-        variant="ghost"
-        onClick={resetView}
-        className="absolute bottom-3 right-3 h-8 bg-black/45 text-white/80 backdrop-blur hover:bg-black/65 hover:text-white"
-        title={t("studio.resetCanvas")}
-      >
-        <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-        {t("studio.reset")}
-      </Button>
+      {chrome === "none" ? null : chrome === "figma" ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-center justify-between px-6 py-3">
+          <p className="text-sm text-[#8b8e94]">
+            {t("studio.zoomPercent", { percent: Math.round(scale * 100) })}
+          </p>
+          <button
+            type="button"
+            onClick={resetView}
+            className="pointer-events-auto inline-flex items-center gap-2 text-sm text-white transition hover:text-white/80"
+            title={t("studio.resetCanvas")}
+          >
+            <RotateCcw className="h-3 w-3" />
+            {t("studio.reset")}
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-black/45 px-2.5 py-1 text-[11px] text-white/70 backdrop-blur">
+            {t("studio.zoomPercent", { percent: Math.round(scale * 100) })}
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={resetView}
+            className="absolute bottom-3 right-3 h-8 bg-black/45 text-white/80 backdrop-blur hover:bg-black/65 hover:text-white"
+            title={t("studio.resetCanvas")}
+          >
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+            {t("studio.reset")}
+          </Button>
+        </>
+      )}
     </div>
   );
 }
@@ -1020,55 +1055,46 @@ function PanZoomImage({
 export function EmptyPreview({ mode }: { mode: StudioMode }) {
   const { t } = useI18n();
   const isVideo = mode === "video";
-  const tips = isVideo
-    ? [
-        { icon: <MessageSquare className="h-3 w-3" />, text: t("studio.tip.videoPrompt") },
-        { icon: <Video className="h-3 w-3" />, text: t("studio.tip.videoPreview") },
-        { icon: <Scissors className="h-3 w-3" />, text: t("studio.tip.videoEdit") },
-        { icon: <Repeat className="h-3 w-3" />, text: t("studio.tip.videoReference") },
-      ]
-    : [
-        { icon: <Wand2 className="h-3 w-3" />, text: t("studio.tip.inspire") },
-        { icon: <Edit3 className="h-3 w-3" />, text: t("studio.tip.canvas") },
-        { icon: <Repeat className="h-3 w-3" />, text: t("studio.tip.reference") },
-        { icon: <Copy className="h-3 w-3" />, text: t("studio.tip.paste") },
-      ];
+
+  if (isVideo) {
+    const tips = [
+      t("studio.tip.videoPrompt"),
+      t("studio.tip.videoPreview"),
+      t("studio.tip.videoEdit"),
+      t("studio.tip.videoReference"),
+    ] as const;
+    return (
+      <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto p-6 text-center">
+        <div className="pointer-events-none absolute inset-0 grid-bg opacity-30" />
+        <div className="relative flex max-w-lg flex-col items-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-primary/30 bg-primary/10">
+            <MagiCoreIcon src={magiCoreIcons.previewVideo} className="h-7 w-7" />
+          </div>
+          <h3 className="mt-4 text-base font-medium text-white">
+            {t("studio.previewPanel.videoTitle")}
+          </h3>
+          <p className="mt-2 max-w-md text-xs leading-relaxed text-[#8b8e94]">
+            {t("studio.previewPanel.videoDescription")}
+          </p>
+          <div className="mt-6 grid w-full gap-3 sm:grid-cols-2">
+            {tips.map((tip) => (
+              <div
+                key={tip}
+                className="rounded-xl border border-border bg-[#17181d] px-3 py-2.5 text-left text-[11px] leading-relaxed text-[#8b8e94]"
+              >
+                {tip}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto p-4 text-center text-card-foreground">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-radial-glow opacity-35" />
-      <div className="pointer-events-none absolute inset-0 grid-bg opacity-60" />
-      <div className="relative inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-primary shadow-glow">
-        {isVideo ? (
-          <Video className="h-6 w-6 text-primary-foreground" />
-        ) : (
-          <ImageIcon className="h-6 w-6 text-primary-foreground" />
-        )}
-      </div>
-      <h3 className="relative text-base font-semibold">
-        {isVideo ? t("studio.previewPanel.videoTitle") : t("studio.previewPanel.imageTitle")}
-      </h3>
-      <p className="relative max-w-md text-xs text-muted-foreground">
-        {isVideo
-          ? t("studio.previewPanel.videoDescription")
-          : t("studio.previewPanel.imageDescription")}
-      </p>
-      <div className="relative mt-4 grid max-w-md grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-        {tips.map((tip) => (
-          <Tip key={tip.text} icon={tip.icon} text={tip.text} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Tip({ icon, text }: { icon: ReactNode; text: string }) {
-  return (
-    <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/75 p-2 shadow-sm backdrop-blur">
-      <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-secondary text-primary">
-        {icon}
-      </span>
-      <span>{text}</span>
+    <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-y-auto p-6 text-center">
+      <h3 className="text-base font-medium text-white">{t("studio.previewPanel.imageTitle")}</h3>
+      <p className="max-w-md text-xs text-[#8b8e94]">{t("studio.previewPanel.imageDescription")}</p>
     </div>
   );
 }

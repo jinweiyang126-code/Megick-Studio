@@ -297,9 +297,7 @@ function ProfilePanel({
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       <section className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-lg font-semibold">{t("profile.title")}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t("profile.description")}
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("profile.description")}</p>
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <ProfileField label={t("profile.email")} value={user.email} />
           <ProfileField label={t("profile.displayName")} value={user.displayName || "-"} />

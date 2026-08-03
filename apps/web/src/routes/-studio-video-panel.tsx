@@ -1042,8 +1042,9 @@ export function VideoStudioPanel({
           maxSize={stackedLayout ? 75 : 58}
           className={cn("min-h-0", !stackedLayout && "min-w-[320px]")}
         >
-          <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card">
+          <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[#1b1c21]">
             <VideoGenerationPanel
+              sessionTitle={sessionTitle}
               prompt={activeVideoPrompt}
               setPrompt={setActiveVideoPrompt}
               settings={activeVideoSettings}
@@ -1081,7 +1082,7 @@ export function VideoStudioPanel({
           </section>
         </ResizablePanel>
 
-        <ResizableHandle withHandle />
+        <ResizableHandle withHandle className="w-3.5 bg-transparent after:w-px after:bg-border" />
 
         {/* Right panel: Preview + Job history */}
         <ResizablePanel
@@ -1089,8 +1090,8 @@ export function VideoStudioPanel({
           minSize={stackedLayout ? 25 : 32}
           className={cn("min-h-0", !stackedLayout && "min-w-[280px]")}
         >
-          <section className="flex h-full min-h-0 min-w-0 flex-col rounded-2xl border border-border bg-card">
-            <div className="flex min-h-0 flex-1 overflow-y-auto">
+          <section className="flex h-full min-h-0 min-w-0 flex-col rounded-2xl bg-[#1b1c21]">
+            <div className="flex min-h-0 flex-1 overflow-y-auto pt-6">
               {sessionLoading ? (
                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -1,17 +1,18 @@
 import { useCallback, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye } from "lucide-react";
+import { MagiCoreIcon, magiCoreIcons } from "@/components/brand/MagiCoreIcon";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
 
 export const PREVIEW_TOOLBAR_CLASS =
-  "flex flex-wrap justify-end gap-1.5 rounded-2xl border border-white/25 bg-white/[0.18] p-1.5 text-white shadow-[0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/15 dark:bg-black/[0.18]";
+  "flex flex-wrap justify-end gap-2 px-0 text-white";
 export const PREVIEW_TOOL_BUTTON_CLASS =
-  "border border-white/20 bg-white/[0.16] text-white shadow-sm backdrop-blur-xl hover:bg-white/[0.28] hover:text-white dark:border-white/15 dark:bg-white/[0.10]";
+  "h-10 gap-1.5 rounded-xl border border-border bg-[#17181d] px-4 text-sm text-white hover:bg-[#1e2025] hover:text-white";
 export const PREVIEW_TOOL_ACCENT_BUTTON_CLASS =
-  "border border-white/22 bg-white/[0.18] text-white shadow-sm backdrop-blur-xl hover:bg-white/[0.30] hover:text-white dark:border-white/15 dark:bg-white/[0.12]";
+  "h-10 gap-1.5 rounded-xl border border-primary bg-transparent px-4 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary";
 export const PREVIEW_TOOL_DANGER_BUTTON_CLASS =
-  "border border-white/20 bg-white/[0.16] text-white shadow-sm backdrop-blur-xl hover:bg-destructive/25 hover:text-white dark:border-white/15 dark:bg-white/[0.10]";
-const PREVIEW_TOOL_TOGGLE_BUTTON_CLASS = `${PREVIEW_TOOL_BUTTON_CLASS} h-8 w-8 px-0`;
+  "h-10 gap-1.5 rounded-xl border border-border bg-[#17181d] px-4 text-sm text-white hover:bg-destructive/20 hover:text-white";
+const PREVIEW_TOOL_TOGGLE_BUTTON_CLASS = `${PREVIEW_TOOL_BUTTON_CLASS} w-10 px-0`;
 const PREVIEW_TOOLBAR_VISIBILITY_STORAGE_KEY = "megick.studio.previewToolbarVisible";
 
 function readPreviewToolbarVisiblePreference() {
@@ -62,7 +63,11 @@ export function PreviewToolbarToggle({
       onClick={onToggle}
       className={PREVIEW_TOOL_TOGGLE_BUTTON_CLASS}
     >
-      {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      {visible ? (
+        <MagiCoreIcon src={magiCoreIcons.previewEye} className="h-4 w-4" />
+      ) : (
+        <Eye className="h-4 w-4" />
+      )}
     </Button>
   );
 }

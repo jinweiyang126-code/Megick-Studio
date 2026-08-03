@@ -71,9 +71,13 @@ export function ExportButton() {
 				<button
 					type="button"
 					className={cn(
-						"flex items-center gap-1.5 rounded-md bg-primary px-[0.12rem] py-[0.12rem] text-primary-foreground",
+						"inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium text-[#0a0a0a] transition hover:brightness-110",
 						hasProject ? "cursor-pointer" : "cursor-not-allowed opacity-50",
 					)}
+					style={{
+						backgroundImage:
+							"linear-gradient(97deg, #57d9fa 1.88%, #72aefc 82.03%, #9f66ff 109.58%, #ba4dfe 132.12%)",
+					}}
 					onClick={hasProject ? () => setIsExportPopoverOpen(true) : undefined}
 					disabled={!hasProject}
 					onKeyDown={(event) => {
@@ -83,15 +87,8 @@ export function ExportButton() {
 						}
 					}}
 				>
-					<div className="relative flex items-center gap-1.5 rounded-[0.6rem] bg-primary px-4 py-1 text-primary-foreground shadow-[0_1px_3px_0px_rgba(0,0,0,0.65)]">
-						<HugeiconsIcon icon={TransitionTopIcon} className="z-50 size-3.5" />
-						<span className="z-50 text-[0.875rem]">
-							{t("editor.export.button")}
-						</span>
-						<div className="absolute top-0 left-0 z-10 flex size-full items-center justify-center rounded-[0.6rem] bg-linear-to-t from-white/0 to-white/50">
-							<div className="absolute top-[0.08rem] z-50 h-[calc(100%-2px)] w-[calc(100%-2px)] rounded-[0.6rem] bg-linear-270 from-[#2567EC] to-[#37B6F7]"></div>
-						</div>
-					</div>
+					<HugeiconsIcon icon={TransitionTopIcon} className="size-3.5" />
+					<span>{t("editor.export.button")}</span>
 				</button>
 			</PopoverTrigger>
 			{hasProject && <ExportPopover onOpenChange={setIsExportPopoverOpen} />}

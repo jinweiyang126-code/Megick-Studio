@@ -1,0 +1,21 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="519" height="354" viewBox="0 0 519 354" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="img-top left" clip-path="url(#clip0_0_5214)">
+<g id="Ellipse 8" filter="url(#filter0_f_0_5214)">
+<path d="M-192 16.0002C-192 16.0002 61.4203 150.307 103.993 168.875C218.677 218.893 1493.59 692.922 1493.59 692.922C1493.59 692.922 240.827 148.142 79.1045 90.6296C-28.4756 52.3713 -192 16.0002 -192 16.0002Z" fill="url(#paint0_linear_0_5214)"/>
+</g>
+</g>
+<defs>
+<filter id="filter0_f_0_5214" x="-392" y="-184" width="2085.59" height="1076.92" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="100" result="effect1_foregroundBlur_0_5214"/>
+</filter>
+<linearGradient id="paint0_linear_0_5214" x1="199.67" y1="363.678" x2="-74.6378" y2="121.906" gradientUnits="userSpaceOnUse">
+<stop stop-color="#008CFF" stop-opacity="0"/>
+<stop offset="1" stop-color="#CDF8FF"/>
+</linearGradient>
+<clipPath id="clip0_0_5214">
+<rect width="519" height="354" fill="white"/>
+</clipPath>
+</defs>
+</svg>

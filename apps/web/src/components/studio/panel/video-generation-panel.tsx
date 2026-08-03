@@ -3,17 +3,14 @@ import { toast } from "sonner";
 import type { AIModelPublic, VideoModelInputMode } from "@megick/api-types";
 import {
   FileVideo,
-  Film,
   HelpCircle,
-  ImagePlus,
   Loader2,
   Lock,
-  MessageSquare,
   RotateCcw,
-  Send,
   Upload,
   X,
 } from "lucide-react";
+import { MagiCoreIcon, magiCoreIcons } from "@/components/brand/MagiCoreIcon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -29,6 +26,14 @@ import { clampStudioVideoDuration, type StudioSettings } from "@/routes/-dashboa
 import { VIDEO_INPUT_MODES } from "./constants";
 import type { StudioGenerationPayload, StudioMediaReference } from "./types";
 import { estimatedGenerationCredits, mediaKindFromUrl, videoModeLabelKey } from "./utils";
+
+const MAGICORE_GENERATE_GRADIENT =
+  "linear-gradient(97deg, #57d9fa 1.88%, #72aefc 82.03%, #9f66ff 109.58%, #ba4dfe 132.12%)";
+const videoChipClass =
+  "flex h-9 items-center justify-center rounded-xl border text-sm transition";
+const videoChipActiveClass = "border-primary bg-primary/15 text-foreground";
+const videoChipIdleClass =
+  "border-border bg-[#17181d] text-[#8b8e94] hover:border-primary/40 hover:text-foreground";
 
 export function VideoGenerationPanel({
   prompt,
@@ -64,6 +69,7 @@ export function VideoGenerationPanel({
   startNewSession,
   openMediaCenter,
   formatNumber,
+  sessionTitle,
 }: {
   prompt: string;
   setPrompt: (value: string) => void;
@@ -98,6 +104,7 @@ export function VideoGenerationPanel({
   startNewSession: () => void;
   openMediaCenter: () => void;
   formatNumber: (value: number) => string;
+  sessionTitle?: string;
 }) {
   const { locale, t } = useI18n();
   const showMediaPicker = selectedVideoMode !== "T2V";
@@ -136,23 +143,41 @@ export function VideoGenerationPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-border p-3">
+      {/* Title bar — MagiCore / Figma 77:1512 workspace */}
+      <div className="shrink-0 border-b border-border px-6 pb-4 pt-6">
+        {sessionTitle ? (
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="min-w-0 truncate text-base uppercase text-white" title={sessionTitle}>
+              {sessionTitle}
+            </p>
+            <button
+              type="button"
+              onClick={startNewSession}
+              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm text-white transition hover:border-primary/50"
+              title={t("studio.new")}
+            >
+              <MagiCoreIcon src={magiCoreIcons.fileAdd} className="h-3.5 w-3.5" />
+              {t("studio.new")}
+            </button>
+          </div>
+        ) : null}
         <div className="flex items-center gap-2">
           <Popover open={modelOpen} onOpenChange={setModelOpen}>
             <PopoverTrigger asChild>
               <button
                 type="button"
                 data-onboarding-target="video-model-selector"
-                className="flex min-h-10 min-w-0 flex-1 items-center justify-between gap-2 rounded-md border border-border bg-background/50 px-3 text-left text-sm transition hover:border-primary/60"
+                className="flex min-h-10 min-w-0 flex-1 items-center justify-between gap-2 rounded-xl border border-border bg-[#17181d] px-4 text-left text-sm transition hover:border-primary/40"
                 title={currentModelLabel}
               >
                 <span className="min-w-0">
-                  <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <span className="block text-[10px] uppercase tracking-wider text-[#8b8e94]">
                     {t("studio.videoPanel.model")}
                   </span>
-                  <span className="block truncate font-medium">{currentModelLabel}</span>
+                  <span className="block truncate text-white">{currentModelLabel}</span>
                 </span>
-                <span className="flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground">
+                <span className="flex shrink-0 items-center gap-1.5 text-[10px] text-[#8b8e94]">
+                  <MagiCoreIcon src={magiCoreIcons.composerModelMuted} className="h-3.5 w-3.5" />
                   {currentModel ? (
                     <>
                       {currentModelLocked ? (
@@ -209,31 +234,29 @@ export function VideoGenerationPanel({
               )}
             </PopoverContent>
           </Popover>
-          <Button
+          <button
             type="button"
-            size="icon"
-            variant="outline"
             onClick={openMediaCenter}
             title={t("studio.mediaCenter")}
             aria-label={t("studio.mediaCenter")}
-            className="h-10 w-10 shrink-0"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-[#17181d] text-white transition hover:border-primary/40"
           >
-            <Film className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            onClick={startNewSession}
-            title={t("studio.new")}
-            aria-label={t("studio.new")}
-            className="h-10 w-10 shrink-0"
-          >
-            <MessageSquare className="h-4 w-4" />
-          </Button>
+            <MagiCoreIcon src={magiCoreIcons.asset} className="h-3.5 w-3.5" />
+          </button>
+          {!sessionTitle ? (
+            <button
+              type="button"
+              onClick={startNewSession}
+              title={t("studio.new")}
+              aria-label={t("studio.new")}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-[#17181d] text-white transition hover:border-primary/40"
+            >
+              <MagiCoreIcon src={magiCoreIcons.fileAdd} className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
         </div>
 
-        <div className="mt-3 grid grid-cols-4 gap-1 rounded-md bg-secondary/40 p-1">
+        <div className="mt-3 grid grid-cols-4 gap-1 rounded-xl bg-[#17181d] p-1">
           {VIDEO_INPUT_MODES.map((mode) => {
             const disabled = !enabledVideoModes.includes(mode);
             return (
@@ -243,10 +266,10 @@ export function VideoGenerationPanel({
                 disabled={disabled}
                 onClick={() => selectVideoMode(mode)}
                 className={cn(
-                  "min-h-8 rounded px-2 text-xs font-medium transition",
+                  "min-h-8 rounded-lg px-2 text-xs font-medium transition",
                   selectedVideoMode === mode
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-[#1b1c21] text-white shadow-sm"
+                    : "text-[#8b8e94] hover:text-white",
                   disabled ? "cursor-not-allowed opacity-45" : "",
                 )}
               >
@@ -257,7 +280,7 @@ export function VideoGenerationPanel({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
         <div className="space-y-5">
           {showMediaPicker ? (
             <div className="space-y-2">
@@ -284,16 +307,16 @@ export function VideoGenerationPanel({
                   event.preventDefault();
                   void addReferenceFiles(event.dataTransfer.files);
                 }}
-                className="flex min-h-36 w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-background/35 p-4 text-center text-sm text-muted-foreground transition hover:border-primary/70 hover:text-foreground disabled:cursor-wait disabled:opacity-70"
+                className="flex min-h-36 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-[#17181d] p-4 text-center text-sm text-[#8b8e94] transition hover:border-primary/50 hover:text-foreground disabled:cursor-wait disabled:opacity-70"
               >
                 {referenceUploading ? (
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 ) : selectedVideoMode === "EDIT" ? (
                   <FileVideo className="h-6 w-6 text-primary" />
                 ) : (
-                  <ImagePlus className="h-6 w-6 text-primary" />
+                  <MagiCoreIcon src={magiCoreIcons.composerReference} className="h-6 w-6" />
                 )}
-                <span className="font-medium text-foreground">
+                <span className="font-medium text-white">
                   {selectedVideoMode === "I2V"
                     ? t("studio.videoPanel.dropImage")
                     : t("studio.videoPanel.dropMedia")}
@@ -396,44 +419,42 @@ export function VideoGenerationPanel({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {t("common.prompt")}
-              </p>
+              <p className="text-xs font-medium text-[#8b8e94]">{t("common.prompt")}</p>
               <button
                 type="button"
                 onClick={() => setPromptTipsOpen(true)}
-                className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                className="inline-flex items-center gap-1 rounded-xl px-1.5 py-1 text-xs text-[#8b8e94] transition hover:bg-[#17181d] hover:text-white"
               >
                 <HelpCircle className="h-3.5 w-3.5" />
                 {t("studio.videoPanel.promptTips")}
               </button>
             </div>
-            <Textarea
-              data-onboarding-target="video-prompt-input"
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              onFocus={() => setPromptExpanded(true)}
-              onBlur={() => setPromptExpanded(false)}
-              rows={promptExpanded ? 14 : 7}
-              placeholder={promptPlaceholder}
-              className={cn(
-                "resize-none border-border/60 bg-background/50 text-sm leading-relaxed transition-all duration-200",
-                promptExpanded ? "min-h-72" : "min-h-40",
-              )}
-              onKeyDown={(event) => {
-                if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                  event.preventDefault();
-                  void handleGenerate();
-                }
-              }}
-            />
+            <div className="rounded-xl bg-white/5 py-2 pl-4 pr-2">
+              <Textarea
+                data-onboarding-target="video-prompt-input"
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                onFocus={() => setPromptExpanded(true)}
+                onBlur={() => setPromptExpanded(false)}
+                rows={promptExpanded ? 14 : 7}
+                placeholder={promptPlaceholder}
+                className={cn(
+                  "resize-none border-0 bg-transparent px-0 py-0 text-sm leading-5 shadow-none placeholder:text-[#8b8e94] focus-visible:ring-0 transition-all duration-200",
+                  promptExpanded ? "min-h-72" : "min-h-40",
+                )}
+                onKeyDown={(event) => {
+                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                    event.preventDefault();
+                    void handleGenerate();
+                  }
+                }}
+              />
+            </div>
           </div>
 
           <div className="space-y-4">
             <div className="space-y-2" data-onboarding-target="video-duration-selector">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {t("studio.videoPanel.resolution")}
-              </p>
+              <p className="text-xs font-medium text-[#8b8e94]">{t("studio.videoPanel.resolution")}</p>
               <div className="grid grid-cols-2 gap-2">
                 {(["720P", "1080P"] as const).map((resolution) => (
                   <button
@@ -441,10 +462,8 @@ export function VideoGenerationPanel({
                     type="button"
                     onClick={() => updateSettings({ resolution })}
                     className={cn(
-                      "h-9 rounded-md border text-sm transition",
-                      settings.resolution === resolution
-                        ? "border-primary bg-primary/15 text-foreground"
-                        : "border-border bg-background/40 text-muted-foreground hover:text-foreground",
+                      videoChipClass,
+                      settings.resolution === resolution ? videoChipActiveClass : videoChipIdleClass,
                     )}
                   >
                     {resolution.replace("P", "")}
@@ -455,20 +474,19 @@ export function VideoGenerationPanel({
 
             {showAspectRatio ? (
               <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="text-xs font-medium text-[#8b8e94]">
                   {t("studio.videoPanel.aspectRatio")}
                 </p>
-                <div className="grid grid-cols-5 gap-1.5">
+                <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
                   {RATIO_PRESETS.map((ratio) => (
                     <button
                       key={ratio.id}
                       type="button"
                       onClick={() => updateSettings({ ratio: ratio.id })}
                       className={cn(
-                        "flex h-9 items-center justify-center rounded-md border text-xs transition",
-                        settings.ratio === ratio.id
-                          ? "border-primary bg-primary/15 text-foreground"
-                          : "border-border bg-background/40 text-muted-foreground hover:text-foreground",
+                        videoChipClass,
+                        "text-xs",
+                        settings.ratio === ratio.id ? videoChipActiveClass : videoChipIdleClass,
                       )}
                     >
                       {ratio.id}
@@ -480,10 +498,8 @@ export function VideoGenerationPanel({
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t("studio.videoDuration")}
-                </p>
-                <span className="text-xs tabular-nums text-muted-foreground">
+                <p className="text-xs font-medium text-[#8b8e94]">{t("studio.videoDuration")}</p>
+                <span className="text-xs tabular-nums text-[#8b8e94]">
                   {formatNumber(settings.duration)}
                   {t("studio.videoDurationSuffix")}
                 </span>
@@ -502,7 +518,7 @@ export function VideoGenerationPanel({
                   })
                 }
               />
-              <div className="flex justify-between text-[10px] text-muted-foreground">
+              <div className="flex justify-between text-[10px] text-[#8b8e94]">
                 <span>
                   {formatNumber(durationMinSeconds)}
                   {t("studio.videoDurationSuffix")}
@@ -517,24 +533,25 @@ export function VideoGenerationPanel({
         </div>
       </div>
 
-      <div className="shrink-0 border-t border-border p-3">
+      <div className="shrink-0 border-t border-border px-6 py-4">
         <div className="flex gap-2">
-          <Button
+          <button
             type="button"
             data-onboarding-target="video-generate-button"
             onClick={() => void handleGenerate()}
             disabled={submitting || modelsForMode.length === 0}
-            className="min-w-0 flex-1 bg-gradient-primary shadow-glow hover:opacity-90"
+            className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-[#0a0a0a] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ backgroundImage: MAGICORE_GENERATE_GRADIENT }}
           >
             {submitting ? (
               <>
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
                 {t("studio.generating")}
               </>
             ) : (
               <>
-                <Send className="mr-1.5 h-4 w-4" />
-                <span className="min-w-0 truncate">
+                <MagiCoreIcon src={magiCoreIcons.pointsBlack} className="h-3.5 w-3.5" />
+                <span className="min-w-0 truncate text-sm font-medium">
                   {currentModel
                     ? `${t("studio.generate")} · ${t("studio.estimatedCostInline", {
                         credits: formatNumber(estimatedCredits),
@@ -543,21 +560,20 @@ export function VideoGenerationPanel({
                 </span>
               </>
             )}
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            variant="outline"
             onClick={onReset}
             disabled={submitting}
             title={t("studio.videoPanel.reset")}
             aria-label={t("studio.videoPanel.reset")}
-            className="h-9 shrink-0 px-3"
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-border bg-[#17181d] px-4 text-sm text-white transition hover:border-primary/40 disabled:opacity-50"
           >
             <RotateCcw className="h-4 w-4" />
             <span className="hidden sm:inline">{t("studio.reset")}</span>
-          </Button>
+          </button>
         </div>
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+        <p className="mt-2 text-center text-[11px] text-[#8b8e94]">
           {t("studio.videoPanel.resultSession")}
         </p>
       </div>
