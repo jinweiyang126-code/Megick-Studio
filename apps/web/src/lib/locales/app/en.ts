@@ -163,6 +163,7 @@ export const enMessages = {
   "home.mc.footer.legal.terms": "Terms",
   "home.mc.footer.legal.privacy": "Privacy",
   "home.mc.footer.copyright": "© 2026 MagiCoreAI. All rights reserved.",
+  "home.mc.footer.support": "Contact support",
   "home.glaze.brand": "Megick Studio",
   "home.glaze.nav.projects": "Templates",
   "home.glaze.nav.studio": "Studio",

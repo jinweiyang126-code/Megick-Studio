@@ -147,6 +147,7 @@ export const zhTWMessages = {
   "home.mc.footer.legal.terms": "條款",
   "home.mc.footer.legal.privacy": "隱私",
   "home.mc.footer.copyright": "© 2026 MagiCoreAI. 保留所有權利。",
+  "home.mc.footer.support": "聯絡支援",
   "home.glaze.brand": "Megick Studio",
   "home.glaze.nav.projects": "模板",
   "home.glaze.nav.studio": "Studio",

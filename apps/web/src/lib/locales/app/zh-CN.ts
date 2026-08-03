@@ -148,6 +148,7 @@ export const zhCNMessages = {
   "home.mc.footer.legal.terms": "条款",
   "home.mc.footer.legal.privacy": "隐私",
   "home.mc.footer.copyright": "© 2026 MagiCoreAI. 保留所有权利。",
+  "home.mc.footer.support": "联系支持",
   "home.glaze.brand": "Megick Studio",
   "home.glaze.nav.projects": "模板",
   "home.glaze.nav.studio": "工作室",

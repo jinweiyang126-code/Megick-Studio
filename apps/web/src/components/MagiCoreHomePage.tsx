@@ -437,26 +437,53 @@ export function MagiCoreHomePage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-white/[0.08] px-5 pb-10 pt-16 sm:px-8 lg:px-12">
+      {/* Footer — Figma Container 181:5992 */}
+      <footer className="bg-[#121212] px-5 pt-16 sm:px-8 lg:px-12">
         <div className="mx-auto grid max-w-[1440px] gap-12 lg:grid-cols-[300px_1fr] lg:gap-20">
           <div>
             <Link to="/" className="inline-flex items-center gap-2.5" aria-label="MagiCoreAI">
               <img src={LOGO_MARK} alt="" className="h-6 w-auto" draggable={false} />
               <span className="text-[16px] font-semibold text-white">MagiCoreAI</span>
             </Link>
-            <p className="mt-5 max-w-[280px] text-[13px] leading-relaxed text-white/45">
+            <p className="mt-5 max-w-[300px] text-[12px] leading-[21px] text-[#8b8e94]">
               {t("home.mc.footer.description")}
             </p>
+            {/* Figma: support + mail circular links */}
+            <div className="mt-6 flex items-center gap-4">
+              <a
+                href="mailto:support@magicoreai.com"
+                aria-label={t("home.mc.footer.support")}
+                className="flex size-10 items-center justify-center rounded-full bg-[#1b1c21] transition-colors hover:bg-[#26272c]"
+              >
+                <img
+                  src={`${ASSET}/footer-icon-support.svg?v=1`}
+                  alt=""
+                  className="h-4 w-4 select-none"
+                  draggable={false}
+                />
+              </a>
+              <a
+                href="mailto:support@magicoreai.com"
+                aria-label="support@magicoreai.com"
+                className="flex size-10 items-center justify-center rounded-full bg-[#1b1c21] transition-colors hover:bg-[#26272c]"
+              >
+                <img
+                  src={`${ASSET}/footer-icon-mail.svg?v=1`}
+                  alt=""
+                  className="h-4 w-4 select-none"
+                  draggable={false}
+                />
+              </a>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 lg:gap-[120px]">
             {FOOTER_COLS.map((col) => (
               <div key={col.title}>
-                <h4 className="text-[12px] font-semibold uppercase tracking-[0.14em] text-white/40">
+                <h4 className="text-[14px] font-medium uppercase tracking-normal text-white">
                   {t(col.title)}
                 </h4>
-                <ul className="mt-4 space-y-3 text-[13px] text-white/70">
+                <ul className="mt-6 space-y-[18px] text-[14px] text-[#8b8e94]">
                   {col.links.map((link) => (
                     <li key={link}>
                       {link === "home.mc.footer.legal.terms" ? (
@@ -484,14 +511,23 @@ export function MagiCoreHomePage() {
           </div>
         </div>
 
-        <div className="mx-auto mt-14 flex max-w-[1440px] flex-col gap-3 border-t border-white/[0.08] pt-6 text-[12px] text-white/40 sm:flex-row sm:items-center sm:justify-between">
-          <p>{t("home.mc.footer.copyright")}</p>
-          <a
-            href="mailto:support@magicoreai.com"
-            className="inline-flex items-center gap-2 transition-colors hover:text-white/70"
-          >
-            support@magicoreai.com
-          </a>
+        {/* Bottom bar: copyright + mail on the left (Figma Frame 219:1774) */}
+        <div className="mx-auto flex h-[100px] max-w-[1440px] items-center border-t border-[#26272c]">
+          <div className="flex flex-wrap items-center gap-x-[26px] gap-y-2 text-[13px] leading-[19.5px] text-[#8b8e94]">
+            <p>{t("home.mc.footer.copyright")}</p>
+            <a
+              href="mailto:support@magicoreai.com"
+              className="inline-flex items-center gap-2 transition-colors hover:text-white/80"
+            >
+              <img
+                src={`${ASSET}/footer-icon-mail-sm.svg?v=1`}
+                alt=""
+                className="size-[14px] select-none"
+                draggable={false}
+              />
+              support@magicoreai.com
+            </a>
+          </div>
         </div>
       </footer>
     </div>
