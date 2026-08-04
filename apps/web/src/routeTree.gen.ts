@@ -9,102 +9,61 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as DesktopLoginRouteImport } from './routes/desktop-login'
-import { Route as GenerateRouteImport } from './routes/generate'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as OfficialRouteImport } from './routes/official'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as SignupRouteImport } from './routes/signup'
-import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as TermsRouteImport } from './routes/terms'
-import { Route as AdminIndexRouteImport } from './routes/admin.index'
-import { Route as AdminAiImageEditModesRouteImport } from './routes/admin.ai-image-edit-modes'
-import { Route as AdminAiModelsRouteImport } from './routes/admin.ai-models'
-import { Route as AdminAuditLogRouteImport } from './routes/admin.audit-log'
-import { Route as AdminDesktopUpdatesRouteImport } from './routes/admin.desktop-updates'
-import { Route as AdminGenerationJobsRouteImport } from './routes/admin.generation-jobs'
-import { Route as AdminImageTemplatesRouteImport } from './routes/admin.image-templates'
-import { Route as AdminLoginRouteImport } from './routes/admin.login'
-import { Route as AdminModelProvidersRouteImport } from './routes/admin.model-providers'
-import { Route as AdminNavigationMenusRouteImport } from './routes/admin.navigation-menus'
-import { Route as AdminOauthProvidersRouteImport } from './routes/admin.oauth-providers'
-import { Route as AdminQueuesRouteImport } from './routes/admin.queues'
-import { Route as AdminRolesRouteImport } from './routes/admin.roles'
-import { Route as AdminShowcaseRouteImport } from './routes/admin.showcase'
-import { Route as AdminSiteSettingsRouteImport } from './routes/admin.site-settings'
-import { Route as AdminTemplateCategoriesRouteImport } from './routes/admin.template-categories'
-import { Route as AdminUserChatsRouteImport } from './routes/admin.user-chats'
-import { Route as AdminUsersRouteImport } from './routes/admin.users'
-import { Route as AdminVideoTemplatesRouteImport } from './routes/admin.video-templates'
-import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
-import { Route as DashboardChatsRouteImport } from './routes/dashboard.chats'
-import { Route as DashboardHistoryRouteImport } from './routes/dashboard.history'
-import { Route as DashboardInspirationRouteImport } from './routes/dashboard.inspiration'
-import { Route as DashboardMediaCenterRouteImport } from './routes/dashboard.media-center'
-import { Route as DashboardOverviewRouteImport } from './routes/dashboard.overview'
-import { Route as DashboardProfileRouteImport } from './routes/dashboard.profile'
-import { Route as DashboardStudioRouteImport } from './routes/dashboard.studio'
-import { Route as DashboardTemplateRouteImport } from './routes/dashboard.template'
-import { Route as DashboardTemplatesRouteImport } from './routes/dashboard.templates'
-import { Route as DashboardVideoEditorRouteImport } from './routes/dashboard.video-editor'
-import { Route as EditorSessionIdRouteImport } from './routes/editor.$sessionId'
+import { Route as TemplatesRouteImport } from './routes/templates'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as OfficialRouteImport } from './routes/official'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as GenerateRouteImport } from './routes/generate'
+import { Route as DesktopLoginRouteImport } from './routes/desktop-login'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as TemplatesIndexRouteImport } from './routes/templates.index'
-import { Route as AdminCloudResourcesOssRouteImport } from './routes/admin.cloud-resources.oss'
-import { Route as AdminCloudResourcesR2RouteImport } from './routes/admin.cloud-resources.r2'
-import { Route as DashboardJobsJobIdRouteImport } from './routes/dashboard.jobs.$jobId'
-import { Route as DashboardStudioImageRouteImport } from './routes/dashboard.studio.image'
-import { Route as DashboardStudioVideoRouteImport } from './routes/dashboard.studio.video'
-import { Route as DashboardTemplateIndexRouteImport } from './routes/dashboard.template.index'
-import { Route as DashboardTemplateTemplateIdRouteImport } from './routes/dashboard.template.$templateId'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as EditorSessionIdRouteImport } from './routes/editor.$sessionId'
+import { Route as DashboardVideoEditorRouteImport } from './routes/dashboard.video-editor'
+import { Route as DashboardTemplatesRouteImport } from './routes/dashboard.templates'
+import { Route as DashboardTemplateRouteImport } from './routes/dashboard.template'
+import { Route as DashboardStudioRouteImport } from './routes/dashboard.studio'
+import { Route as DashboardProfileRouteImport } from './routes/dashboard.profile'
+import { Route as DashboardOverviewRouteImport } from './routes/dashboard.overview'
+import { Route as DashboardMediaCenterRouteImport } from './routes/dashboard.media-center'
+import { Route as DashboardHistoryRouteImport } from './routes/dashboard.history'
+import { Route as DashboardChatsRouteImport } from './routes/dashboard.chats'
+import { Route as AdminVideoTemplatesRouteImport } from './routes/admin.video-templates'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminUserChatsRouteImport } from './routes/admin.user-chats'
+import { Route as AdminTemplateCategoriesRouteImport } from './routes/admin.template-categories'
+import { Route as AdminSiteSettingsRouteImport } from './routes/admin.site-settings'
+import { Route as AdminShowcaseRouteImport } from './routes/admin.showcase'
+import { Route as AdminRolesRouteImport } from './routes/admin.roles'
+import { Route as AdminQueuesRouteImport } from './routes/admin.queues'
+import { Route as AdminOauthProvidersRouteImport } from './routes/admin.oauth-providers'
+import { Route as AdminNavigationMenusRouteImport } from './routes/admin.navigation-menus'
+import { Route as AdminModelProvidersRouteImport } from './routes/admin.model-providers'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminImageTemplatesRouteImport } from './routes/admin.image-templates'
+import { Route as AdminGenerationJobsRouteImport } from './routes/admin.generation-jobs'
+import { Route as AdminDesktopUpdatesRouteImport } from './routes/admin.desktop-updates'
+import { Route as AdminAuditLogRouteImport } from './routes/admin.audit-log'
+import { Route as AdminAiModelsRouteImport } from './routes/admin.ai-models'
+import { Route as AdminAiImageEditModesRouteImport } from './routes/admin.ai-image-edit-modes'
 import { Route as DashboardTemplatesIndexRouteImport } from './routes/dashboard.templates.index'
+import { Route as DashboardTemplateIndexRouteImport } from './routes/dashboard.template.index'
 import { Route as DashboardTemplatesTemplateIdRouteImport } from './routes/dashboard.templates.$templateId'
+import { Route as DashboardTemplateTemplateIdRouteImport } from './routes/dashboard.template.$templateId'
+import { Route as DashboardStudioVideoRouteImport } from './routes/dashboard.studio.video'
+import { Route as DashboardStudioImageRouteImport } from './routes/dashboard.studio.image'
+import { Route as DashboardJobsJobIdRouteImport } from './routes/dashboard.jobs.$jobId'
+import { Route as AdminCloudResourcesR2RouteImport } from './routes/admin.cloud-resources.r2'
+import { Route as AdminCloudResourcesOssRouteImport } from './routes/admin.cloud-resources.oss'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DesktopLoginRoute = DesktopLoginRouteImport.update({
-  id: '/desktop-login',
-  path: '/desktop-login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GenerateRoute = GenerateRouteImport.update({
-  id: '/generate',
-  path: '/generate',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OfficialRoute = OfficialRouteImport.update({
-  id: '/official',
-  path: '/official',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TemplatesRoute = TemplatesRouteImport.update({
@@ -112,164 +71,49 @@ const TemplatesRoute = TemplatesRouteImport.update({
   path: '/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AdminRoute,
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminAiImageEditModesRoute = AdminAiImageEditModesRouteImport.update({
-  id: '/ai-image-edit-modes',
-  path: '/ai-image-edit-modes',
-  getParentRoute: () => AdminRoute,
+const OfficialRoute = OfficialRouteImport.update({
+  id: '/official',
+  path: '/official',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminAiModelsRoute = AdminAiModelsRouteImport.update({
-  id: '/ai-models',
-  path: '/ai-models',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
-  id: '/audit-log',
-  path: '/audit-log',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminDesktopUpdatesRoute = AdminDesktopUpdatesRouteImport.update({
-  id: '/desktop-updates',
-  path: '/desktop-updates',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminGenerationJobsRoute = AdminGenerationJobsRouteImport.update({
-  id: '/generation-jobs',
-  path: '/generation-jobs',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminImageTemplatesRoute = AdminImageTemplatesRouteImport.update({
-  id: '/image-templates',
-  path: '/image-templates',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminLoginRoute = AdminLoginRouteImport.update({
+const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminModelProvidersRoute = AdminModelProvidersRouteImport.update({
-  id: '/model-providers',
-  path: '/model-providers',
-  getParentRoute: () => AdminRoute,
+const GenerateRoute = GenerateRouteImport.update({
+  id: '/generate',
+  path: '/generate',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminNavigationMenusRoute = AdminNavigationMenusRouteImport.update({
-  id: '/navigation-menus',
-  path: '/navigation-menus',
-  getParentRoute: () => AdminRoute,
+const DesktopLoginRoute = DesktopLoginRouteImport.update({
+  id: '/desktop-login',
+  path: '/desktop-login',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminOauthProvidersRoute = AdminOauthProvidersRouteImport.update({
-  id: '/oauth-providers',
-  path: '/oauth-providers',
-  getParentRoute: () => AdminRoute,
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminQueuesRoute = AdminQueuesRouteImport.update({
-  id: '/queues',
-  path: '/queues',
-  getParentRoute: () => AdminRoute,
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRolesRoute = AdminRolesRouteImport.update({
-  id: '/roles',
-  path: '/roles',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminShowcaseRoute = AdminShowcaseRouteImport.update({
-  id: '/showcase',
-  path: '/showcase',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminSiteSettingsRoute = AdminSiteSettingsRouteImport.update({
-  id: '/site-settings',
-  path: '/site-settings',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminTemplateCategoriesRoute = AdminTemplateCategoriesRouteImport.update({
-  id: '/template-categories',
-  path: '/template-categories',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminUserChatsRoute = AdminUserChatsRouteImport.update({
-  id: '/user-chats',
-  path: '/user-chats',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminVideoTemplatesRoute = AdminVideoTemplatesRouteImport.update({
-  id: '/video-templates',
-  path: '/video-templates',
-  getParentRoute: () => AdminRoute,
-} as any)
-const DashboardIndexRoute = DashboardIndexRouteImport.update({
+const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardChatsRoute = DashboardChatsRouteImport.update({
-  id: '/chats',
-  path: '/chats',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardHistoryRoute = DashboardHistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardInspirationRoute = DashboardInspirationRouteImport.update({
-  id: '/inspiration',
-  path: '/inspiration',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardMediaCenterRoute = DashboardMediaCenterRouteImport.update({
-  id: '/media-center',
-  path: '/media-center',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardOverviewRoute = DashboardOverviewRouteImport.update({
-  id: '/overview',
-  path: '/overview',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardProfileRoute = DashboardProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardStudioRoute = DashboardStudioRouteImport.update({
-  id: '/studio',
-  path: '/studio',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardTemplateRoute = DashboardTemplateRouteImport.update({
-  id: '/template',
-  path: '/template',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardTemplatesRoute = DashboardTemplatesRouteImport.update({
-  id: '/templates',
-  path: '/templates',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardVideoEditorRoute = DashboardVideoEditorRouteImport.update({
-  id: '/video-editor',
-  path: '/video-editor',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const EditorSessionIdRoute = EditorSessionIdRouteImport.update({
-  id: '/editor/$sessionId',
-  path: '/editor/$sessionId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TemplatesIndexRoute = TemplatesIndexRouteImport.update({
@@ -277,46 +121,165 @@ const TemplatesIndexRoute = TemplatesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => TemplatesRoute,
 } as any)
-const AdminCloudResourcesOssRoute = AdminCloudResourcesOssRouteImport.update({
-  id: '/cloud-resources/oss',
-  path: '/cloud-resources/oss',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminCloudResourcesR2Route = AdminCloudResourcesR2RouteImport.update({
-  id: '/cloud-resources/r2',
-  path: '/cloud-resources/r2',
-  getParentRoute: () => AdminRoute,
-} as any)
-const DashboardJobsJobIdRoute = DashboardJobsJobIdRouteImport.update({
-  id: '/jobs/$jobId',
-  path: '/jobs/$jobId',
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardStudioImageRoute = DashboardStudioImageRouteImport.update({
-  id: '/image',
-  path: '/image',
-  getParentRoute: () => DashboardStudioRoute,
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
-const DashboardStudioVideoRoute = DashboardStudioVideoRouteImport.update({
-  id: '/video',
-  path: '/video',
-  getParentRoute: () => DashboardStudioRoute,
+const EditorSessionIdRoute = EditorSessionIdRouteImport.update({
+  id: '/editor/$sessionId',
+  path: '/editor/$sessionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardVideoEditorRoute = DashboardVideoEditorRouteImport.update({
+  id: '/video-editor',
+  path: '/video-editor',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardTemplatesRoute = DashboardTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardTemplateRoute = DashboardTemplateRouteImport.update({
+  id: '/template',
+  path: '/template',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardStudioRoute = DashboardStudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardProfileRoute = DashboardProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardOverviewRoute = DashboardOverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardMediaCenterRoute = DashboardMediaCenterRouteImport.update({
+  id: '/media-center',
+  path: '/media-center',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardHistoryRoute = DashboardHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardChatsRoute = DashboardChatsRouteImport.update({
+  id: '/chats',
+  path: '/chats',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const AdminVideoTemplatesRoute = AdminVideoTemplatesRouteImport.update({
+  id: '/video-templates',
+  path: '/video-templates',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUserChatsRoute = AdminUserChatsRouteImport.update({
+  id: '/user-chats',
+  path: '/user-chats',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTemplateCategoriesRoute = AdminTemplateCategoriesRouteImport.update({
+  id: '/template-categories',
+  path: '/template-categories',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSiteSettingsRoute = AdminSiteSettingsRouteImport.update({
+  id: '/site-settings',
+  path: '/site-settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminShowcaseRoute = AdminShowcaseRouteImport.update({
+  id: '/showcase',
+  path: '/showcase',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRolesRoute = AdminRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminQueuesRoute = AdminQueuesRouteImport.update({
+  id: '/queues',
+  path: '/queues',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOauthProvidersRoute = AdminOauthProvidersRouteImport.update({
+  id: '/oauth-providers',
+  path: '/oauth-providers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminNavigationMenusRoute = AdminNavigationMenusRouteImport.update({
+  id: '/navigation-menus',
+  path: '/navigation-menus',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminModelProvidersRoute = AdminModelProvidersRouteImport.update({
+  id: '/model-providers',
+  path: '/model-providers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminImageTemplatesRoute = AdminImageTemplatesRouteImport.update({
+  id: '/image-templates',
+  path: '/image-templates',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminGenerationJobsRoute = AdminGenerationJobsRouteImport.update({
+  id: '/generation-jobs',
+  path: '/generation-jobs',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDesktopUpdatesRoute = AdminDesktopUpdatesRouteImport.update({
+  id: '/desktop-updates',
+  path: '/desktop-updates',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
+  id: '/audit-log',
+  path: '/audit-log',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAiModelsRoute = AdminAiModelsRouteImport.update({
+  id: '/ai-models',
+  path: '/ai-models',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAiImageEditModesRoute = AdminAiImageEditModesRouteImport.update({
+  id: '/ai-image-edit-modes',
+  path: '/ai-image-edit-modes',
+  getParentRoute: () => AdminRoute,
+} as any)
+const DashboardTemplatesIndexRoute = DashboardTemplatesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardTemplatesRoute,
 } as any)
 const DashboardTemplateIndexRoute = DashboardTemplateIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => DashboardTemplateRoute,
-} as any)
-const DashboardTemplateTemplateIdRoute =
-  DashboardTemplateTemplateIdRouteImport.update({
-    id: '/$templateId',
-    path: '/$templateId',
-    getParentRoute: () => DashboardTemplateRoute,
-  } as any)
-const DashboardTemplatesIndexRoute = DashboardTemplatesIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => DashboardTemplatesRoute,
 } as any)
 const DashboardTemplatesTemplateIdRoute =
   DashboardTemplatesTemplateIdRouteImport.update({
@@ -324,6 +287,37 @@ const DashboardTemplatesTemplateIdRoute =
     path: '/$templateId',
     getParentRoute: () => DashboardTemplatesRoute,
   } as any)
+const DashboardTemplateTemplateIdRoute =
+  DashboardTemplateTemplateIdRouteImport.update({
+    id: '/$templateId',
+    path: '/$templateId',
+    getParentRoute: () => DashboardTemplateRoute,
+  } as any)
+const DashboardStudioVideoRoute = DashboardStudioVideoRouteImport.update({
+  id: '/video',
+  path: '/video',
+  getParentRoute: () => DashboardStudioRoute,
+} as any)
+const DashboardStudioImageRoute = DashboardStudioImageRouteImport.update({
+  id: '/image',
+  path: '/image',
+  getParentRoute: () => DashboardStudioRoute,
+} as any)
+const DashboardJobsJobIdRoute = DashboardJobsJobIdRouteImport.update({
+  id: '/jobs/$jobId',
+  path: '/jobs/$jobId',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const AdminCloudResourcesR2Route = AdminCloudResourcesR2RouteImport.update({
+  id: '/cloud-resources/r2',
+  path: '/cloud-resources/r2',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCloudResourcesOssRoute = AdminCloudResourcesOssRouteImport.update({
+  id: '/cloud-resources/oss',
+  path: '/cloud-resources/oss',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -357,7 +351,6 @@ export interface FileRoutesByFullPath {
   '/admin/video-templates': typeof AdminVideoTemplatesRoute
   '/dashboard/chats': typeof DashboardChatsRoute
   '/dashboard/history': typeof DashboardHistoryRoute
-  '/dashboard/inspiration': typeof DashboardInspirationRoute
   '/dashboard/media-center': typeof DashboardMediaCenterRoute
   '/dashboard/overview': typeof DashboardOverviewRoute
   '/dashboard/profile': typeof DashboardProfileRoute
@@ -408,7 +401,6 @@ export interface FileRoutesByTo {
   '/admin/video-templates': typeof AdminVideoTemplatesRoute
   '/dashboard/chats': typeof DashboardChatsRoute
   '/dashboard/history': typeof DashboardHistoryRoute
-  '/dashboard/inspiration': typeof DashboardInspirationRoute
   '/dashboard/media-center': typeof DashboardMediaCenterRoute
   '/dashboard/overview': typeof DashboardOverviewRoute
   '/dashboard/profile': typeof DashboardProfileRoute
@@ -461,7 +453,6 @@ export interface FileRoutesById {
   '/admin/video-templates': typeof AdminVideoTemplatesRoute
   '/dashboard/chats': typeof DashboardChatsRoute
   '/dashboard/history': typeof DashboardHistoryRoute
-  '/dashboard/inspiration': typeof DashboardInspirationRoute
   '/dashboard/media-center': typeof DashboardMediaCenterRoute
   '/dashboard/overview': typeof DashboardOverviewRoute
   '/dashboard/profile': typeof DashboardProfileRoute
@@ -517,7 +508,6 @@ export interface FileRouteTypes {
     | '/admin/video-templates'
     | '/dashboard/chats'
     | '/dashboard/history'
-    | '/dashboard/inspiration'
     | '/dashboard/media-center'
     | '/dashboard/overview'
     | '/dashboard/profile'
@@ -568,7 +558,6 @@ export interface FileRouteTypes {
     | '/admin/video-templates'
     | '/dashboard/chats'
     | '/dashboard/history'
-    | '/dashboard/inspiration'
     | '/dashboard/media-center'
     | '/dashboard/overview'
     | '/dashboard/profile'
@@ -620,7 +609,6 @@ export interface FileRouteTypes {
     | '/admin/video-templates'
     | '/dashboard/chats'
     | '/dashboard/history'
-    | '/dashboard/inspiration'
     | '/dashboard/media-center'
     | '/dashboard/overview'
     | '/dashboard/profile'
@@ -660,67 +648,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/desktop-login': {
-      id: '/desktop-login'
-      path: '/desktop-login'
-      fullPath: '/desktop-login'
-      preLoaderRoute: typeof DesktopLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/generate': {
-      id: '/generate'
-      path: '/generate'
-      fullPath: '/generate'
-      preLoaderRoute: typeof GenerateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/official': {
-      id: '/official'
-      path: '/official'
-      fullPath: '/official'
-      preLoaderRoute: typeof OfficialRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/templates': {
@@ -730,228 +662,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/': {
-      id: '/admin/'
-      path: '/'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof AdminRoute
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/ai-image-edit-modes': {
-      id: '/admin/ai-image-edit-modes'
-      path: '/ai-image-edit-modes'
-      fullPath: '/admin/ai-image-edit-modes'
-      preLoaderRoute: typeof AdminAiImageEditModesRouteImport
-      parentRoute: typeof AdminRoute
+    '/official': {
+      id: '/official'
+      path: '/official'
+      fullPath: '/official'
+      preLoaderRoute: typeof OfficialRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/ai-models': {
-      id: '/admin/ai-models'
-      path: '/ai-models'
-      fullPath: '/admin/ai-models'
-      preLoaderRoute: typeof AdminAiModelsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/audit-log': {
-      id: '/admin/audit-log'
-      path: '/audit-log'
-      fullPath: '/admin/audit-log'
-      preLoaderRoute: typeof AdminAuditLogRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/desktop-updates': {
-      id: '/admin/desktop-updates'
-      path: '/desktop-updates'
-      fullPath: '/admin/desktop-updates'
-      preLoaderRoute: typeof AdminDesktopUpdatesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/generation-jobs': {
-      id: '/admin/generation-jobs'
-      path: '/generation-jobs'
-      fullPath: '/admin/generation-jobs'
-      preLoaderRoute: typeof AdminGenerationJobsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/image-templates': {
-      id: '/admin/image-templates'
-      path: '/image-templates'
-      fullPath: '/admin/image-templates'
-      preLoaderRoute: typeof AdminImageTemplatesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/login': {
-      id: '/admin/login'
+    '/login': {
+      id: '/login'
       path: '/login'
-      fullPath: '/admin/login'
-      preLoaderRoute: typeof AdminLoginRouteImport
-      parentRoute: typeof AdminRoute
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/model-providers': {
-      id: '/admin/model-providers'
-      path: '/model-providers'
-      fullPath: '/admin/model-providers'
-      preLoaderRoute: typeof AdminModelProvidersRouteImport
-      parentRoute: typeof AdminRoute
+    '/generate': {
+      id: '/generate'
+      path: '/generate'
+      fullPath: '/generate'
+      preLoaderRoute: typeof GenerateRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/navigation-menus': {
-      id: '/admin/navigation-menus'
-      path: '/navigation-menus'
-      fullPath: '/admin/navigation-menus'
-      preLoaderRoute: typeof AdminNavigationMenusRouteImport
-      parentRoute: typeof AdminRoute
+    '/desktop-login': {
+      id: '/desktop-login'
+      path: '/desktop-login'
+      fullPath: '/desktop-login'
+      preLoaderRoute: typeof DesktopLoginRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/oauth-providers': {
-      id: '/admin/oauth-providers'
-      path: '/oauth-providers'
-      fullPath: '/admin/oauth-providers'
-      preLoaderRoute: typeof AdminOauthProvidersRouteImport
-      parentRoute: typeof AdminRoute
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/queues': {
-      id: '/admin/queues'
-      path: '/queues'
-      fullPath: '/admin/queues'
-      preLoaderRoute: typeof AdminQueuesRouteImport
-      parentRoute: typeof AdminRoute
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/roles': {
-      id: '/admin/roles'
-      path: '/roles'
-      fullPath: '/admin/roles'
-      preLoaderRoute: typeof AdminRolesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/showcase': {
-      id: '/admin/showcase'
-      path: '/showcase'
-      fullPath: '/admin/showcase'
-      preLoaderRoute: typeof AdminShowcaseRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/site-settings': {
-      id: '/admin/site-settings'
-      path: '/site-settings'
-      fullPath: '/admin/site-settings'
-      preLoaderRoute: typeof AdminSiteSettingsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/template-categories': {
-      id: '/admin/template-categories'
-      path: '/template-categories'
-      fullPath: '/admin/template-categories'
-      preLoaderRoute: typeof AdminTemplateCategoriesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/user-chats': {
-      id: '/admin/user-chats'
-      path: '/user-chats'
-      fullPath: '/admin/user-chats'
-      preLoaderRoute: typeof AdminUserChatsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/users': {
-      id: '/admin/users'
-      path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminUsersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/video-templates': {
-      id: '/admin/video-templates'
-      path: '/video-templates'
-      fullPath: '/admin/video-templates'
-      preLoaderRoute: typeof AdminVideoTemplatesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/dashboard/': {
-      id: '/dashboard/'
+    '/': {
+      id: '/'
       path: '/'
-      fullPath: '/dashboard/'
-      preLoaderRoute: typeof DashboardIndexRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/chats': {
-      id: '/dashboard/chats'
-      path: '/chats'
-      fullPath: '/dashboard/chats'
-      preLoaderRoute: typeof DashboardChatsRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/history': {
-      id: '/dashboard/history'
-      path: '/history'
-      fullPath: '/dashboard/history'
-      preLoaderRoute: typeof DashboardHistoryRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/inspiration': {
-      id: '/dashboard/inspiration'
-      path: '/inspiration'
-      fullPath: '/dashboard/inspiration'
-      preLoaderRoute: typeof DashboardInspirationRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/media-center': {
-      id: '/dashboard/media-center'
-      path: '/media-center'
-      fullPath: '/dashboard/media-center'
-      preLoaderRoute: typeof DashboardMediaCenterRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/overview': {
-      id: '/dashboard/overview'
-      path: '/overview'
-      fullPath: '/dashboard/overview'
-      preLoaderRoute: typeof DashboardOverviewRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/profile': {
-      id: '/dashboard/profile'
-      path: '/profile'
-      fullPath: '/dashboard/profile'
-      preLoaderRoute: typeof DashboardProfileRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/studio': {
-      id: '/dashboard/studio'
-      path: '/studio'
-      fullPath: '/dashboard/studio'
-      preLoaderRoute: typeof DashboardStudioRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/template': {
-      id: '/dashboard/template'
-      path: '/template'
-      fullPath: '/dashboard/template'
-      preLoaderRoute: typeof DashboardTemplateRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/templates': {
-      id: '/dashboard/templates'
-      path: '/templates'
-      fullPath: '/dashboard/templates'
-      preLoaderRoute: typeof DashboardTemplatesRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/video-editor': {
-      id: '/dashboard/video-editor'
-      path: '/video-editor'
-      fullPath: '/dashboard/video-editor'
-      preLoaderRoute: typeof DashboardVideoEditorRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/editor/$sessionId': {
-      id: '/editor/$sessionId'
-      path: '/editor/$sessionId'
-      fullPath: '/editor/$sessionId'
-      preLoaderRoute: typeof EditorSessionIdRouteImport
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/templates/': {
@@ -961,54 +732,215 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TemplatesIndexRouteImport
       parentRoute: typeof TemplatesRoute
     }
-    '/admin/cloud-resources/oss': {
-      id: '/admin/cloud-resources/oss'
-      path: '/cloud-resources/oss'
-      fullPath: '/admin/cloud-resources/oss'
-      preLoaderRoute: typeof AdminCloudResourcesOssRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/cloud-resources/r2': {
-      id: '/admin/cloud-resources/r2'
-      path: '/cloud-resources/r2'
-      fullPath: '/admin/cloud-resources/r2'
-      preLoaderRoute: typeof AdminCloudResourcesR2RouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/dashboard/jobs/$jobId': {
-      id: '/dashboard/jobs/$jobId'
-      path: '/jobs/$jobId'
-      fullPath: '/dashboard/jobs/$jobId'
-      preLoaderRoute: typeof DashboardJobsJobIdRouteImport
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/dashboard/studio/image': {
-      id: '/dashboard/studio/image'
-      path: '/image'
-      fullPath: '/dashboard/studio/image'
-      preLoaderRoute: typeof DashboardStudioImageRouteImport
-      parentRoute: typeof DashboardStudioRoute
-    }
-    '/dashboard/studio/video': {
-      id: '/dashboard/studio/video'
-      path: '/video'
-      fullPath: '/dashboard/studio/video'
-      preLoaderRoute: typeof DashboardStudioVideoRouteImport
-      parentRoute: typeof DashboardStudioRoute
-    }
-    '/dashboard/template/': {
-      id: '/dashboard/template/'
+    '/admin/': {
+      id: '/admin/'
       path: '/'
-      fullPath: '/dashboard/template/'
-      preLoaderRoute: typeof DashboardTemplateIndexRouteImport
-      parentRoute: typeof DashboardTemplateRoute
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/dashboard/template/$templateId': {
-      id: '/dashboard/template/$templateId'
-      path: '/$templateId'
-      fullPath: '/dashboard/template/$templateId'
-      preLoaderRoute: typeof DashboardTemplateTemplateIdRouteImport
-      parentRoute: typeof DashboardTemplateRoute
+    '/editor/$sessionId': {
+      id: '/editor/$sessionId'
+      path: '/editor/$sessionId'
+      fullPath: '/editor/$sessionId'
+      preLoaderRoute: typeof EditorSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/video-editor': {
+      id: '/dashboard/video-editor'
+      path: '/video-editor'
+      fullPath: '/dashboard/video-editor'
+      preLoaderRoute: typeof DashboardVideoEditorRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/templates': {
+      id: '/dashboard/templates'
+      path: '/templates'
+      fullPath: '/dashboard/templates'
+      preLoaderRoute: typeof DashboardTemplatesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/template': {
+      id: '/dashboard/template'
+      path: '/template'
+      fullPath: '/dashboard/template'
+      preLoaderRoute: typeof DashboardTemplateRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/studio': {
+      id: '/dashboard/studio'
+      path: '/studio'
+      fullPath: '/dashboard/studio'
+      preLoaderRoute: typeof DashboardStudioRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/profile': {
+      id: '/dashboard/profile'
+      path: '/profile'
+      fullPath: '/dashboard/profile'
+      preLoaderRoute: typeof DashboardProfileRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/overview': {
+      id: '/dashboard/overview'
+      path: '/overview'
+      fullPath: '/dashboard/overview'
+      preLoaderRoute: typeof DashboardOverviewRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/media-center': {
+      id: '/dashboard/media-center'
+      path: '/media-center'
+      fullPath: '/dashboard/media-center'
+      preLoaderRoute: typeof DashboardMediaCenterRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/history': {
+      id: '/dashboard/history'
+      path: '/history'
+      fullPath: '/dashboard/history'
+      preLoaderRoute: typeof DashboardHistoryRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/chats': {
+      id: '/dashboard/chats'
+      path: '/chats'
+      fullPath: '/dashboard/chats'
+      preLoaderRoute: typeof DashboardChatsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/admin/video-templates': {
+      id: '/admin/video-templates'
+      path: '/video-templates'
+      fullPath: '/admin/video-templates'
+      preLoaderRoute: typeof AdminVideoTemplatesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/user-chats': {
+      id: '/admin/user-chats'
+      path: '/user-chats'
+      fullPath: '/admin/user-chats'
+      preLoaderRoute: typeof AdminUserChatsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/template-categories': {
+      id: '/admin/template-categories'
+      path: '/template-categories'
+      fullPath: '/admin/template-categories'
+      preLoaderRoute: typeof AdminTemplateCategoriesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/site-settings': {
+      id: '/admin/site-settings'
+      path: '/site-settings'
+      fullPath: '/admin/site-settings'
+      preLoaderRoute: typeof AdminSiteSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/showcase': {
+      id: '/admin/showcase'
+      path: '/showcase'
+      fullPath: '/admin/showcase'
+      preLoaderRoute: typeof AdminShowcaseRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/roles': {
+      id: '/admin/roles'
+      path: '/roles'
+      fullPath: '/admin/roles'
+      preLoaderRoute: typeof AdminRolesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/queues': {
+      id: '/admin/queues'
+      path: '/queues'
+      fullPath: '/admin/queues'
+      preLoaderRoute: typeof AdminQueuesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/oauth-providers': {
+      id: '/admin/oauth-providers'
+      path: '/oauth-providers'
+      fullPath: '/admin/oauth-providers'
+      preLoaderRoute: typeof AdminOauthProvidersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/navigation-menus': {
+      id: '/admin/navigation-menus'
+      path: '/navigation-menus'
+      fullPath: '/admin/navigation-menus'
+      preLoaderRoute: typeof AdminNavigationMenusRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/model-providers': {
+      id: '/admin/model-providers'
+      path: '/model-providers'
+      fullPath: '/admin/model-providers'
+      preLoaderRoute: typeof AdminModelProvidersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/image-templates': {
+      id: '/admin/image-templates'
+      path: '/image-templates'
+      fullPath: '/admin/image-templates'
+      preLoaderRoute: typeof AdminImageTemplatesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/generation-jobs': {
+      id: '/admin/generation-jobs'
+      path: '/generation-jobs'
+      fullPath: '/admin/generation-jobs'
+      preLoaderRoute: typeof AdminGenerationJobsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/desktop-updates': {
+      id: '/admin/desktop-updates'
+      path: '/desktop-updates'
+      fullPath: '/admin/desktop-updates'
+      preLoaderRoute: typeof AdminDesktopUpdatesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/audit-log': {
+      id: '/admin/audit-log'
+      path: '/audit-log'
+      fullPath: '/admin/audit-log'
+      preLoaderRoute: typeof AdminAuditLogRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/ai-models': {
+      id: '/admin/ai-models'
+      path: '/ai-models'
+      fullPath: '/admin/ai-models'
+      preLoaderRoute: typeof AdminAiModelsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/ai-image-edit-modes': {
+      id: '/admin/ai-image-edit-modes'
+      path: '/ai-image-edit-modes'
+      fullPath: '/admin/ai-image-edit-modes'
+      preLoaderRoute: typeof AdminAiImageEditModesRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/dashboard/templates/': {
       id: '/dashboard/templates/'
@@ -1017,12 +949,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardTemplatesIndexRouteImport
       parentRoute: typeof DashboardTemplatesRoute
     }
+    '/dashboard/template/': {
+      id: '/dashboard/template/'
+      path: '/'
+      fullPath: '/dashboard/template/'
+      preLoaderRoute: typeof DashboardTemplateIndexRouteImport
+      parentRoute: typeof DashboardTemplateRoute
+    }
     '/dashboard/templates/$templateId': {
       id: '/dashboard/templates/$templateId'
       path: '/$templateId'
       fullPath: '/dashboard/templates/$templateId'
       preLoaderRoute: typeof DashboardTemplatesTemplateIdRouteImport
       parentRoute: typeof DashboardTemplatesRoute
+    }
+    '/dashboard/template/$templateId': {
+      id: '/dashboard/template/$templateId'
+      path: '/$templateId'
+      fullPath: '/dashboard/template/$templateId'
+      preLoaderRoute: typeof DashboardTemplateTemplateIdRouteImport
+      parentRoute: typeof DashboardTemplateRoute
+    }
+    '/dashboard/studio/video': {
+      id: '/dashboard/studio/video'
+      path: '/video'
+      fullPath: '/dashboard/studio/video'
+      preLoaderRoute: typeof DashboardStudioVideoRouteImport
+      parentRoute: typeof DashboardStudioRoute
+    }
+    '/dashboard/studio/image': {
+      id: '/dashboard/studio/image'
+      path: '/image'
+      fullPath: '/dashboard/studio/image'
+      preLoaderRoute: typeof DashboardStudioImageRouteImport
+      parentRoute: typeof DashboardStudioRoute
+    }
+    '/dashboard/jobs/$jobId': {
+      id: '/dashboard/jobs/$jobId'
+      path: '/jobs/$jobId'
+      fullPath: '/dashboard/jobs/$jobId'
+      preLoaderRoute: typeof DashboardJobsJobIdRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/admin/cloud-resources/r2': {
+      id: '/admin/cloud-resources/r2'
+      path: '/cloud-resources/r2'
+      fullPath: '/admin/cloud-resources/r2'
+      preLoaderRoute: typeof AdminCloudResourcesR2RouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/cloud-resources/oss': {
+      id: '/admin/cloud-resources/oss'
+      path: '/cloud-resources/oss'
+      fullPath: '/admin/cloud-resources/oss'
+      preLoaderRoute: typeof AdminCloudResourcesOssRouteImport
+      parentRoute: typeof AdminRoute
     }
   }
 }
@@ -1120,7 +1101,6 @@ const DashboardTemplatesRouteWithChildren =
 interface DashboardRouteChildren {
   DashboardChatsRoute: typeof DashboardChatsRoute
   DashboardHistoryRoute: typeof DashboardHistoryRoute
-  DashboardInspirationRoute: typeof DashboardInspirationRoute
   DashboardMediaCenterRoute: typeof DashboardMediaCenterRoute
   DashboardOverviewRoute: typeof DashboardOverviewRoute
   DashboardProfileRoute: typeof DashboardProfileRoute
@@ -1135,7 +1115,6 @@ interface DashboardRouteChildren {
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardChatsRoute: DashboardChatsRoute,
   DashboardHistoryRoute: DashboardHistoryRoute,
-  DashboardInspirationRoute: DashboardInspirationRoute,
   DashboardMediaCenterRoute: DashboardMediaCenterRoute,
   DashboardOverviewRoute: DashboardOverviewRoute,
   DashboardProfileRoute: DashboardProfileRoute,

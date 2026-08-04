@@ -71,7 +71,7 @@ export function ExportButton() {
 				<button
 					type="button"
 					className={cn(
-						"flex items-center gap-1.5 rounded-md bg-primary px-[0.12rem] py-[0.12rem] text-primary-foreground",
+						"flex items-center gap-1.5 rounded-md bg-[#38BDF8] px-[0.12rem] py-[0.12rem] text-white",
 						hasProject ? "cursor-pointer" : "cursor-not-allowed opacity-50",
 					)}
 					onClick={hasProject ? () => setIsExportPopoverOpen(true) : undefined}
@@ -83,7 +83,7 @@ export function ExportButton() {
 						}
 					}}
 				>
-					<div className="relative flex items-center gap-1.5 rounded-[0.6rem] bg-primary px-4 py-1 text-primary-foreground shadow-[0_1px_3px_0px_rgba(0,0,0,0.65)]">
+					<div className="relative flex items-center gap-1.5 rounded-[0.6rem] bg-linear-270 from-[#2567EC] to-[#37B6F7] px-4 py-1 shadow-[0_1px_3px_0px_rgba(0,0,0,0.65)]">
 						<HugeiconsIcon icon={TransitionTopIcon} className="z-50 size-3.5" />
 						<span className="z-50 text-[0.875rem]">
 							{t("editor.export.button")}
