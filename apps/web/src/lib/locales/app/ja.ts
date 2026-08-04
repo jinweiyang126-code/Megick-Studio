@@ -645,12 +645,10 @@ export const jaMessages = {
     "参考画像には実在の人物や個人情報が含まれる場合があります。別の画像を使用して再試行してください。",
   "studio.referenceImagePrivacyBlockedDesc":
     "一部のビデオプロバイダーは、特定可能な人物やプライバシーに配慮したコンテンツが含まれる可能性のある参照画像を制限しています。",
-  "studio.referenceImageTooLarge":
-    "参照画像が大きすぎます。圧縮してから再試行してください。",
+  "studio.referenceImageTooLarge": "参照画像は 20 MB 以下でなければなりません",
   "studio.referenceImageTooLargeDesc":
     "上流モデルは参照画像を通常約 30MB までに制限します。画像を圧縮または縮小してから再生成してください。",
-  "studio.referenceVideoTooLarge":
-    "参照動画が大きすぎます。圧縮してから再試行してください。",
+  "studio.referenceVideoTooLarge": "参考ビデオは 100 MB 以下である必要があります",
   "studio.referenceVideoTooLargeDesc":
     "上流モデルは参照動画のサイズを制限します。動画を圧縮または短くしてから再生成してください。",
   "studio.providerInvalidParameter":
@@ -668,12 +666,10 @@ export const jaMessages = {
   "studio.videoReferenceLimit": "このモデルは {count} までの参照画像をサポートします",
   "studio.videoReferenceTooMany": "選択したビデオ モデルの参照画像が多すぎます",
   "studio.videoEditVideoRequired": "編集する前にソースビデオをアップロードしてください",
-  "studio.referenceImageTooLarge": "参照画像は 20 MB 以下でなければなりません",
   "studio.videoReferenceImageResolutionTooSmall":
     "参照画像は少なくとも {min}x{min}px である必要があります。現在の画像は {width}x{height}px です。",
   "studio.videoReferenceVideoDurationRule":
     "参考ビデオを含むタスクは 2 ～ 10 秒に制限されます。持続時間の設定が調整されました。",
-  "studio.referenceVideoTooLarge": "参考ビデオは 100 MB 以下である必要があります",
   "studio.referenceVideoDurationInvalid": "参考ビデオの長さは 1 ～ 30 秒である必要があります",
   "studio.refAdded": "参考として追加",
   "studio.referenceMediaMissing":

@@ -669,12 +669,10 @@ export const deMessages = {
     "Das Referenzbild kann eine reale Person oder private Informationen enthalten. Bitte verwenden Sie ein anderes Bild und versuchen Sie es erneut.",
   "studio.referenceImagePrivacyBlockedDesc":
     "Einige Videoanbieter schränken Referenzbilder ein, die identifizierbare Personen oder datenschutzrelevante Inhalte enthalten können.",
-  "studio.referenceImageTooLarge":
-    "Das Referenzbild ist zu groß. Bitte komprimieren Sie es und versuchen Sie es erneut.",
+  "studio.referenceImageTooLarge": "Referenzbilder müssen 20 MB oder kleiner sein",
   "studio.referenceImageTooLargeDesc":
     "Upstream-Modelle begrenzen Referenzbilder typischerweise auf etwa 30 MB. Komprimieren oder verkleinern Sie das Bild und versuchen Sie es erneut.",
-  "studio.referenceVideoTooLarge":
-    "Das Referenzvideo ist zu groß. Bitte komprimieren Sie es und versuchen Sie es erneut.",
+  "studio.referenceVideoTooLarge": "Referenzvideos dürfen maximal 100 MB groß sein",
   "studio.referenceVideoTooLargeDesc":
     "Upstream-Modelle begrenzen die Größe von Referenzvideos. Komprimieren oder kürzen Sie das Video und versuchen Sie es erneut.",
   "studio.providerInvalidParameter":
@@ -692,12 +690,10 @@ export const deMessages = {
   "studio.videoReferenceLimit": "Dieses Modell unterstützt bis zu {count} Referenzbilder",
   "studio.videoReferenceTooMany": "Zu viele Referenzbilder für das ausgewählte Videomodell",
   "studio.videoEditVideoRequired": "Laden Sie ein Quellvideo hoch, bevor Sie",
-  "studio.referenceImageTooLarge": "Referenzbilder müssen 20 MB oder kleiner sein",
   "studio.videoReferenceImageResolutionTooSmall":
     "Referenzbilder müssen mindestens {min}x{min}px sein. Das aktuelle Bild ist {width}x{height}px.",
   "studio.videoReferenceVideoDurationRule":
     "Aufgaben mit Referenzvideos sind auf 2–10 Sekunden begrenzt. Die Dauereinstellung wurde angepasst.",
-  "studio.referenceVideoTooLarge": "Referenzvideos dürfen maximal 100 MB groß sein",
   "studio.referenceVideoDurationInvalid": "Referenzvideos müssen 1–30 Sekunden lang sein",
   "studio.refAdded": "Als Referenz hinzugefügt",
   "studio.referenceMediaMissing":

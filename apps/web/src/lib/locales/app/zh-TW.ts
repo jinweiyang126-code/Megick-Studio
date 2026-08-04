@@ -689,9 +689,9 @@ export const zhTWMessages = {
   "studio.referenceImagePrivacyBlocked": "參考影像可能包含真人或私人資訊。請使用其他圖像並重試。",
   "studio.referenceImagePrivacyBlockedDesc":
     "一些影片提供者限制可能包含可辨識人物或隱私敏感內容的參考影像。",
-  "studio.referenceImageTooLarge": "參考圖體積過大，請壓縮後重試。",
+  "studio.referenceImageTooLarge": "參考影像必須為 20 MB 或更小",
   "studio.referenceImageTooLargeDesc": "上游模型限制單張參考圖不超過約 30MB，請壓縮或縮小圖片後再生成。",
-  "studio.referenceVideoTooLarge": "參考影片體積過大，請壓縮後重試。",
+  "studio.referenceVideoTooLarge": "參考影片必須為 100 MB 或更小",
   "studio.referenceVideoTooLargeDesc": "上游模型對參考影片大小有限制，請壓縮或縮短影片後再生成。",
   "studio.providerInvalidParameter": "請求參數不符合上游模型限制。",
   "studio.providerInvalidParameterDesc": "請檢查參考素材、時長、解析度等設定後重試。",
@@ -706,12 +706,10 @@ export const zhTWMessages = {
   "studio.videoReferenceLimit": "此型號最多支援 {count} 參考影像",
   "studio.videoReferenceTooMany": "所選視訊模型的參考影像過多",
   "studio.videoEditVideoRequired": "編輯前上傳來源影片",
-  "studio.referenceImageTooLarge": "參考影像必須為 20 MB 或更小",
   "studio.videoReferenceImageResolutionTooSmall":
     "參考影像必須至少為 {min}x{min}px。目前影像是 {width}x{height}px。",
   "studio.videoReferenceVideoDurationRule":
     "帶有參考影片的任務限制為 2-10 秒。持續時間設定已調整。",
-  "studio.referenceVideoTooLarge": "參考影片必須為 100 MB 或更小",
   "studio.referenceVideoDurationInvalid": "參考影片長度必須為 1-30 秒",
   "studio.refAdded": "新增為參考",
   "studio.referenceMediaMissing": "這張圖片缺少媒體中心記錄，請重新生成後再作為參考圖。",

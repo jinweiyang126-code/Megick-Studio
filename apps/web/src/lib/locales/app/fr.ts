@@ -662,12 +662,10 @@ export const frMessages = {
     "L'image de référence peut contenir une personne réelle ou des informations privées. Veuillez utiliser une autre image et réessayer.",
   "studio.referenceImagePrivacyBlockedDesc":
     "Certains fournisseurs de vidéos restreignent les images de référence pouvant inclure des personnes identifiables ou du contenu sensible à la vie privée.",
-  "studio.referenceImageTooLarge":
-    "L'image de référence est trop volumineuse. Compressez-la puis réessayez.",
+  "studio.referenceImageTooLarge": "Les images de référence doivent faire 20 Mo ou moins",
   "studio.referenceImageTooLargeDesc":
     "Les modèles en amont limitent généralement chaque image de référence à environ 30 Mo. Compressez ou redimensionnez l'image, puis réessayez.",
-  "studio.referenceVideoTooLarge":
-    "La vidéo de référence est trop volumineuse. Compressez-la puis réessayez.",
+  "studio.referenceVideoTooLarge": "Les vidéos de référence doivent faire 100 Mo ou moins",
   "studio.referenceVideoTooLargeDesc":
     "Les modèles en amont limitent la taille des vidéos de référence. Compressez ou raccourcissez la vidéo, puis réessayez.",
   "studio.providerInvalidParameter":
@@ -686,12 +684,10 @@ export const frMessages = {
   "studio.videoReferenceLimit": "Ce modèle prend en charge jusqu'à {count} images de référence",
   "studio.videoReferenceTooMany": "Trop d'images de référence pour le modèle vidéo sélectionné",
   "studio.videoEditVideoRequired": "Téléchargez une vidéo source avant de la modifier",
-  "studio.referenceImageTooLarge": "Les images de référence doivent faire 20 Mo ou moins",
   "studio.videoReferenceImageResolutionTooSmall":
     "doivent être au moins {min}x{min}px. L’image actuelle est {width}x{height}px.",
   "studio.videoReferenceVideoDurationRule":
     "Les tâches avec des vidéos de référence sont limitées à 2 à 10 secondes. Le réglage de la durée a été ajusté.",
-  "studio.referenceVideoTooLarge": "Les vidéos de référence doivent faire 100 Mo ou moins",
   "studio.referenceVideoDurationInvalid":
     "Les vidéos de référence doivent durer de 1 à 30 secondes",
   "studio.refAdded": "Ajouté comme référence",

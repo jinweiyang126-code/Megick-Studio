@@ -770,12 +770,10 @@ export const enMessages = {
     "The reference image may contain a real person or private information. Please use another image and try again.",
   "studio.referenceImagePrivacyBlockedDesc":
     "Some video providers restrict reference images that may include identifiable people or privacy-sensitive content.",
-  "studio.referenceImageTooLarge":
-    "The reference image is too large. Please compress it and try again.",
+  "studio.referenceImageTooLarge": "Reference images must be 20 MB or smaller",
   "studio.referenceImageTooLargeDesc":
     "Upstream models typically limit each reference image to about 30MB. Compress or resize the image, then retry.",
-  "studio.referenceVideoTooLarge":
-    "The reference video is too large. Please compress it and try again.",
+  "studio.referenceVideoTooLarge": "Reference videos must be 100 MB or smaller",
   "studio.referenceVideoTooLargeDesc":
     "Upstream models limit reference video size. Compress or shorten the video, then retry.",
   "studio.providerInvalidParameter":
@@ -793,12 +791,10 @@ export const enMessages = {
   "studio.videoReferenceLimit": "This model supports up to {count} reference images",
   "studio.videoReferenceTooMany": "Too many reference images for the selected video model",
   "studio.videoEditVideoRequired": "Upload a source video before editing",
-  "studio.referenceImageTooLarge": "Reference images must be 20 MB or smaller",
   "studio.videoReferenceImageResolutionTooSmall":
     "Reference images must be at least {min}x{min}px. Current image is {width}x{height}px.",
   "studio.videoReferenceVideoDurationRule":
     "Tasks with reference videos are limited to 2-10 seconds. The duration setting has been adjusted.",
-  "studio.referenceVideoTooLarge": "Reference videos must be 100 MB or smaller",
   "studio.referenceVideoDurationInvalid": "Reference videos must be 1-30 seconds long",
   "studio.refAdded": "Added as reference",
   "studio.referenceMediaMissing":
