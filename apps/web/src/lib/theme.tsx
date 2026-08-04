@@ -29,22 +29,30 @@ function isAppTheme(value: string | null): value is AppTheme {
 
 function readStoredTheme(): AppTheme {
   if (typeof window === "undefined") return DEFAULT_THEME;
+
+  let stored: string | null = null;
   try {
-    const stored = window.localStorage?.getItem(THEME_STORAGE_KEY) ?? null;
-    if (isAppTheme(stored)) return stored;
+    stored = window.localStorage?.getItem(THEME_STORAGE_KEY) ?? null;
   } catch {
     // Fall through to cookie storage.
   }
 
-  const cookieTheme = document.cookie
-    .split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${THEME_COOKIE_KEY}=`))
-    ?.split("=")[1];
+  if (!isAppTheme(stored)) {
+    const cookieTheme = document.cookie
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith(`${THEME_COOKIE_KEY}=`))
+      ?.split("=")[1];
+    stored = cookieTheme ?? null;
+  }
 
-  const normalizedCookieTheme = cookieTheme ?? null;
-  if (isAppTheme(normalizedCookieTheme)) return normalizedCookieTheme;
-  return DEFAULT_THEME;
+  // MagiCoreAI: prefer dark. Migrate any stored light preference to dark.
+  if (stored === "light" || !isAppTheme(stored)) {
+    persistTheme(DEFAULT_THEME);
+    return DEFAULT_THEME;
+  }
+
+  return stored;
 }
 
 function persistTheme(theme: AppTheme) {

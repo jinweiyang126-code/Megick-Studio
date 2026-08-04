@@ -8,7 +8,7 @@ import { getQueryClient } from "@/lib/query-client";
 import { LoginDialogProvider, useLoginDialog } from "@/components/auth/LoginDialogContext";
 import { apiPatch } from "@/lib/api-client";
 import { useAuth } from "@/hooks/useAuth";
-import { THEME_COOKIE_KEY, ThemeProvider, type AppTheme } from "@/lib/theme";
+import { ThemeProvider, type AppTheme } from "@/lib/theme";
 import {
   DEFAULT_LOCALE,
   I18N_LOCALE_SOURCE_STORAGE_KEY,
@@ -57,8 +57,7 @@ const getRootRequestData = createServerFn({ method: "GET" }).handler(async () =>
   const hasExplicitCookieLocale =
     getCookie(I18N_LOCALE_SOURCE_STORAGE_KEY) === "explicit" ||
     getCookie(`${I18N_STORAGE_KEY}.explicit`) === "1";
-  const cookieTheme = getCookie(THEME_COOKIE_KEY);
-  const theme: AppTheme = cookieTheme === "light" || cookieTheme === "dark" ? cookieTheme : "dark";
+  const theme: AppTheme = "dark";
   const requestLocale = localeFromLanguagePreference(getRequest().headers.get("accept-language"));
 
   return {
