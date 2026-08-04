@@ -349,23 +349,22 @@ export function MagiCoreHomePage() {
           <p className="mx-auto mt-5 max-w-[940px] text-[14px] leading-[30px] tracking-[0.32px] text-[#8b8e94] sm:text-[16px]">
             {t("home.mc.product.description")}
           </p>
-          {/* MagiCoreAI pill + product showcase — both page-centered (Figma 960/1920) */}
           <div className="relative mx-auto mt-10 w-full">
             <img
-              src={`${ASSET}/product-pill.svg?v=3`}
+              src={`${ASSET}/product-pill.svg?v=1`}
               alt=""
               width={282}
               height={79}
-              className="relative z-10 mx-auto block h-auto w-[min(282px,42vw)] select-none"
+              className="mx-auto mb-1 h-auto w-[min(282px,42vw)] select-none"
               draggable={false}
               loading="lazy"
             />
             <img
-              src={`${ASSET}/product-showcase.png?v=4`}
+              src={`${ASSET}/product-showcase.png?v=2`}
               alt={t("home.mc.product.imageAlt")}
               width={2756}
               height={1792}
-              className="mx-auto -mt-[clamp(0.35rem,1.2vw,0.75rem)] h-auto w-full select-none"
+              className="mx-auto h-auto w-full select-none"
               draggable={false}
               loading="lazy"
               decoding="async"
@@ -384,24 +383,37 @@ export function MagiCoreHomePage() {
             {t("home.mc.inspire.description")}
           </p>
 
-          <div className="relative mx-auto mt-12 w-full max-w-[1180px]">
+          {/* Fan cards only — clip leftover CTA dome baked into inspire-fan-clean.png (Figma CTA is separate) */}
+          <div
+            className="relative mx-auto mt-12 w-full max-w-[1180px] overflow-hidden"
+            style={{ aspectRatio: "1208 / 450" }}
+          >
             <img
               src={`${ASSET}/inspire-fan-clean.png?v=9`}
               alt={t("home.mc.inspire.title")}
-              className="mx-auto h-auto w-full select-none"
+              width={1208}
+              height={472}
+              className="absolute inset-x-0 top-0 h-auto w-full select-none"
               draggable={false}
               loading="lazy"
             />
           </div>
 
-          <div className="mt-6 flex flex-col items-center gap-3 sm:mt-8">
+          <div className="mt-8 flex flex-col items-center gap-3 sm:mt-10">
             <button
               type="button"
               onClick={() => startCreating("/dashboard/inspiration")}
               aria-label={t("home.mc.inspire.more")}
-              className="flex h-[84px] w-[84px] items-center justify-center rounded-full bg-[linear-gradient(135deg,#57d9fa,#9f66ff)] text-white shadow-[0_0_40px_rgba(87,217,250,0.35)] transition-transform hover:scale-105"
+              className="flex h-[84px] w-[84px] items-center justify-center rounded-full bg-[linear-gradient(135deg,#57d9fa,#9f66ff)] shadow-[0_0_40px_rgba(87,217,250,0.35)] transition-transform hover:scale-105"
             >
-              <ArrowRight className="h-9 w-9" strokeWidth={2.5} />
+              <img
+                src={`${ASSET}/inspire-cta-arrow.svg?v=1`}
+                alt=""
+                width={28}
+                height={18}
+                className="h-[18px] w-[28px] brightness-0 invert"
+                draggable={false}
+              />
             </button>
             <p className="text-[12px] font-medium uppercase tracking-[0.22em] text-white/55">
               {t("home.mc.inspire.more")}
