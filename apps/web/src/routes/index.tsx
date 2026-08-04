@@ -24,19 +24,7 @@ export const Route = createFileRoute("/")({
       imagePath: "/brand/magicore/home/product-showcase.png",
       imageAlt: "MagiCoreAI product showcase",
     });
-    return {
-      ...head,
-      links: [
-        ...(head.links ?? []),
-        {
-          rel: "preload",
-          as: "image",
-          href: "/brand/magicore/home/product-showcase.png",
-          type: "image/png",
-          fetchPriority: "high",
-        },
-      ],
-    };
+    return head;
   },
   component: HomePage,
 });
