@@ -7,11 +7,10 @@ import {
 	type CSSProperties,
 	type KeyboardEvent,
 } from "react";
-import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { CommandIcon, Logout05Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft, BookOpen, Images } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/megickcut/components/ui/button";
 import {
 	DropdownMenu,
@@ -27,55 +26,18 @@ import { cn } from "@/megickcut/utils/ui";
 import { useI18n } from "@/lib/i18n";
 
 export function EditorHeader() {
-	const { t } = useI18n();
-	const { embedded } = useMegickEditorContext();
 	const exitControls = useExitToStudio();
-	const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
 	return (
-		<header className="bg-background flex h-[3.4rem] shrink-0 items-center justify-between gap-2 border-b border-border px-3">
+		<header className="bg-background flex h-[3.4rem] items-center justify-between px-3 pt-0.5">
 			<div className="flex min-w-0 items-center gap-2">
-				{exitControls.hasReturnToSession ? <ReturnToSessionButton {...exitControls} /> : null}
-				{!embedded ? (
-					<div className="hidden min-w-0 sm:block">
-						<p className="truncate text-sm font-semibold tracking-tight">
-							{t("studio.shell.edit.title")}
-						</p>
-						<p className="truncate text-xs text-muted-foreground">
-							{t("studio.shell.edit.subtitle")}
-						</p>
-					</div>
-				) : null}
-				<ProjectDropdown {...exitControls} onOpenShortcuts={() => setShortcutsOpen(true)} />
+				{exitControls.hasReturnToSession ? (<ReturnToSessionButton {...exitControls} />) : null}
+				<ProjectDropdown {...exitControls} />
 				<EditableProjectName />
 			</div>
 			<nav className="flex items-center gap-2">
-				{!embedded ? (
-					<>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							className="hidden h-8 gap-1.5 px-2.5 text-xs sm:inline-flex"
-							onClick={() => setShortcutsOpen(true)}
-						>
-							<BookOpen className="size-3.5" />
-							{t("studio.shell.guide")}
-						</Button>
-						<Button asChild variant="outline" size="sm" className="hidden h-8 gap-1.5 px-2.5 text-xs sm:inline-flex">
-							<Link to="/dashboard/media-center">
-								<Images className="size-3.5" />
-								{t("studio.shell.assets")}
-							</Link>
-						</Button>
-					</>
-				) : null}
 				<ExportButton />
 			</nav>
-			<ShortcutsDialog
-				isOpen={shortcutsOpen}
-				onOpenChange={(isOpen) => setShortcutsOpen(isOpen)}
-			/>
 		</header>
 	);
 }
@@ -129,39 +91,45 @@ function ReturnToSessionButton({
 function ProjectDropdown({
 	exitToStudio,
 	isExiting,
-	onOpenShortcuts,
-}: ReturnType<typeof useExitToStudio> & { onOpenShortcuts: () => void }) {
+}: ReturnType<typeof useExitToStudio>) {
 	const { t } = useI18n();
+	const [openDialog, setOpenDialog] = useState<"shortcuts" | null>(null);
 
 	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
-				<Button
-					variant="ghost"
-					size="icon"
-					className="h-8 w-auto rounded-sm px-2 py-1 text-[10px] font-bold tracking-tight text-primary"
-					aria-label="MagiCoreAI"
-				>
-					<span aria-hidden="true">M</span>
-				</Button>
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="start" className="z-100 w-44">
-				<DropdownMenuItem
-					onClick={() => void exitToStudio()}
-					disabled={isExiting}
-					icon={<HugeiconsIcon icon={Logout05Icon} />}
-				>
-					{t("editor.action.backToSession")}
-				</DropdownMenuItem>
+		<>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button
+						variant="ghost"
+						size="icon"
+						className="h-8 w-auto rounded-sm px-2 py-1 text-[10px] font-black tracking-tight"
+						aria-label="Megick"
+					>
+						<span aria-hidden="true">Megick</span>
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="start" className="z-100 w-44">
+					<DropdownMenuItem
+						onClick={() => void exitToStudio()}
+						disabled={isExiting}
+						icon={<HugeiconsIcon icon={Logout05Icon} />}
+					>
+						{t("editor.action.backToSession")}
+					</DropdownMenuItem>
 
-				<DropdownMenuItem
-					onClick={onOpenShortcuts}
-					icon={<HugeiconsIcon icon={CommandIcon} />}
-				>
-					{t("editor.action.shortcuts")}
-				</DropdownMenuItem>
-			</DropdownMenuContent>
-		</DropdownMenu>
+					<DropdownMenuItem
+						onClick={() => setOpenDialog("shortcuts")}
+						icon={<HugeiconsIcon icon={CommandIcon} />}
+					>
+						{t("editor.action.shortcuts")}
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+			<ShortcutsDialog
+				isOpen={openDialog === "shortcuts"}
+				onOpenChange={(isOpen) => setOpenDialog(isOpen ? "shortcuts" : null)}
+			/>
+		</>
 	);
 }
 
@@ -199,55 +167,49 @@ function EditableProjectName() {
 		if (newName !== originalNameRef.current) {
 			try {
 				await editor.project.renameProject({
-					projectId: activeProject.metadata.id,
+					id: activeProject.metadata.id,
 					name: newName,
 				});
-			} catch {
-				toast.error(t("editor.project.renameFailed"));
-				if (inputRef.current) inputRef.current.value = originalNameRef.current;
+			} catch (error) {
+				toast.error(t("editor.header.renameFailed"), {
+					description:
+						error instanceof Error
+							? error.message
+							: t("editor.header.renameRetry"),
+				});
 			}
 		}
 	};
 
-	const cancelEdit = () => {
-		if (inputRef.current) inputRef.current.value = originalNameRef.current;
-		setIsEditing(false);
-	};
-
-	const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+	const handleKeyDown = (event: KeyboardEvent) => {
 		if (event.key === "Enter") {
 			event.preventDefault();
-			void saveEdit();
-		}
-		if (event.key === "Escape") {
+			inputRef.current?.blur();
+		} else if (event.key === "Escape") {
 			event.preventDefault();
-			cancelEdit();
+			if (inputRef.current) {
+				inputRef.current.value = originalNameRef.current;
+				inputRef.current.setSelectionRange(0, 0);
+			}
+			setIsEditing(false);
+			inputRef.current?.blur();
 		}
 	};
 
-	if (isEditing) {
-		return (
-			<input
-				ref={inputRef}
-				defaultValue={projectName}
-				onBlur={() => void saveEdit()}
-				onKeyDown={onKeyDown}
-				className="bg-secondary/50 h-8 max-w-[14rem] truncate rounded-md border border-border px-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-				style={{ fieldSizing: "content" } as CSSProperties}
-			/>
-		);
-	}
-
 	return (
-		<button
-			type="button"
-			onDoubleClick={startEditing}
+		<input
+			ref={inputRef}
+			type="text"
+			defaultValue={projectName}
+			readOnly={!isEditing}
+			onClick={startEditing}
+			onBlur={saveEdit}
+			onKeyDown={handleKeyDown}
+			style={{ fieldSizing: "content" } as CSSProperties}
 			className={cn(
-				"hover:bg-secondary/50 max-w-[14rem] truncate rounded-md px-2 py-1 text-left text-sm font-medium transition",
+				"h-8 max-w-[52vw] cursor-pointer rounded-sm bg-transparent px-2 py-1 text-[0.9rem] outline-none hover:bg-accent hover:text-accent-foreground",
+				isEditing && "cursor-text ring-1 ring-ring hover:bg-transparent",
 			)}
-			title={projectName}
-		>
-			{projectName}
-		</button>
+		/>
 	);
 }

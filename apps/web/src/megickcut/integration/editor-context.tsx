@@ -5,7 +5,6 @@ export interface MegickEditorContextValue {
 	sessionTitle: string;
 	sourceMessageId?: string;
 	sourceResultId?: string;
-	embedded?: boolean;
 	returnToStudio?: () => void;
 }
 
