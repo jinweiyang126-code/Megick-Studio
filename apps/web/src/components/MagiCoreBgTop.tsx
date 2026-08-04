@@ -4,7 +4,7 @@
  * Parent must establish size (homepage uses aspect-ratio 1920/1080).
  * @see https://www.figma.com/design/A8pVy0Wd7vLufWQdKqu9wB/MegiCoreAI?node-id=238-6440
  */
-const BG_TOP_SRC = "/brand/magicore/home/hero-bg-top.png?v=4";
+const BG_TOP_SRC = "/brand/magicore/home/hero-bg-top.png?v=5";
 
 export function MagiCoreBgTop() {
   return (

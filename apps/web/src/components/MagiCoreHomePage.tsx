@@ -349,22 +349,23 @@ export function MagiCoreHomePage() {
           <p className="mx-auto mt-5 max-w-[940px] text-[14px] leading-[30px] tracking-[0.32px] text-[#8b8e94] sm:text-[16px]">
             {t("home.mc.product.description")}
           </p>
+          {/* MagiCoreAI pill + product showcase — both page-centered (Figma 960/1920) */}
           <div className="relative mx-auto mt-10 w-full">
             <img
-              src={`${ASSET}/product-pill.svg?v=1`}
+              src={`${ASSET}/product-pill.svg?v=3`}
               alt=""
               width={282}
               height={79}
-              className="mx-auto mb-1 h-auto w-[min(282px,42vw)] select-none"
+              className="relative z-10 mx-auto block h-auto w-[min(282px,42vw)] select-none"
               draggable={false}
               loading="lazy"
             />
             <img
-              src={`${ASSET}/product-showcase.png?v=2`}
+              src={`${ASSET}/product-showcase.png?v=4`}
               alt={t("home.mc.product.imageAlt")}
               width={2756}
               height={1792}
-              className="mx-auto h-auto w-full select-none"
+              className="mx-auto -mt-[clamp(0.35rem,1.2vw,0.75rem)] h-auto w-full select-none"
               draggable={false}
               loading="lazy"
               decoding="async"
