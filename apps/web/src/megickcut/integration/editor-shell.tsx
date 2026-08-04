@@ -53,6 +53,7 @@ import { useAssetsPanelStore } from "@/megickcut/components/editor/panels/assets
 import {
   createSessionMediaItem,
   findSessionMediaByResultId,
+  getStudioSession,
   importSessionMediaItem,
   studioMediaSourceKey,
 } from "@/megickcut/integration/session-media";
@@ -323,7 +324,6 @@ function AutoImportByResultId({
       });
 
       try {
-        const { getStudioSession } = await import("@/megickcut/integration/session-media");
         const session = await getStudioSession({ sessionId: sourceSessionId });
         const item = findSessionMediaByResultId({
           session,

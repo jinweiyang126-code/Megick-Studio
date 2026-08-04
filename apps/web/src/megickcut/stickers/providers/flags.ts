@@ -5,8 +5,8 @@ import type {
 	StickerProvider,
 	StickerSearchResult,
 } from "../types";
-import { REGIONS, REGION_GROUPS } from "./countries-data";
-import type { CountryRecord, RegionId } from "./countries-data";
+import { REGIONS, REGION_GROUPS } from "./countries-meta";
+import type { CountryRecord, RegionId } from "./countries-meta";
 
 const FLAGS_PROVIDER_ID = "flags";
 const DEFAULT_SEARCH_LIMIT = 100;

@@ -124,26 +124,30 @@ function MagiCoreHomeNav({ onStart }: { onStart: () => void }) {
     <>
       {/* Figma 238:3247 navbar — absolute overlay, transparent (no solid plate) */}
       <header className="pointer-events-none absolute inset-x-0 top-0 z-50 w-full">
-        <div className="pointer-events-auto mx-auto flex max-w-[1920px] items-center justify-between gap-4 px-5 py-6 sm:px-8 sm:py-8 lg:px-12 xl:px-20">
-          <Link to="/" className="flex shrink-0 items-center gap-2.5" aria-label="MagiCoreAI">
-            <img src={LOGO_MARK} alt="" className="h-7 w-auto select-none" draggable={false} />
-            <span className="text-[17px] font-semibold tracking-tight text-white">MagiCoreAI</span>
-          </Link>
+        <div className="pointer-events-auto mx-auto flex max-w-[1920px] items-center justify-between gap-4 px-5 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-10 xl:px-20">
+          {/* Figma: left brand column w-[300px] — equal side columns keep nav optically centered */}
+          <div className="flex min-w-0 flex-1 basis-0 items-center justify-start gap-[13px]">
+            <Link to="/" className="flex shrink-0 items-center gap-[13px]" aria-label="MagiCoreAI">
+              <img src={LOGO_MARK} alt="" className="h-7 w-auto select-none" draggable={false} />
+              <span className="text-[17px] font-semibold tracking-tight text-white">MagiCoreAI</span>
+            </Link>
+          </div>
 
-          <nav className="hidden items-center gap-16 lg:flex">
+          <nav className="hidden shrink-0 items-center gap-16 font-normal text-[16px] leading-normal text-white lg:flex">
             {NAV_LINKS.map((item) => (
               <button
                 key={item.key}
                 type="button"
                 onClick={() => goOrLogin(item.to)}
-                className="text-[16px] text-white transition-colors hover:text-white/80"
+                className="whitespace-nowrap text-center text-[16px] font-normal leading-normal text-white transition-colors hover:text-white/80"
               >
                 {t(item.key)}
               </button>
             ))}
           </nav>
 
-          <div className="hidden items-center gap-8 lg:flex">
+          {/* Figma: right actions column w-[300px] justify-end gap-[32px] */}
+          <div className="hidden min-w-0 flex-1 basis-0 items-center justify-end gap-8 lg:flex">
             <LanguageSwitcher
               variant="header"
               iconOnly
@@ -161,7 +165,7 @@ function MagiCoreHomeNav({ onStart }: { onStart: () => void }) {
               <button
                 type="button"
                 onClick={() => openLogin({ mode: "signin", redirectTo: DEFAULT_START })}
-                className="flex h-[44px] items-center justify-center rounded-full border border-[#8b8e94] px-4 text-[16px] text-white transition-colors hover:border-white/70"
+                className="flex h-[44px] items-center justify-center rounded-full border border-[#8b8e94] px-4 text-[16px] font-normal text-white transition-colors hover:border-white/70"
               >
                 {t("home.mc.nav.login")}
               </button>
