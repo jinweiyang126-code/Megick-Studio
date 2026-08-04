@@ -15,6 +15,8 @@ type LanguageSwitcherProps = {
   showLabel?: boolean;
   /** Globe only — hide locale short code (EN / 简 / …) */
   iconOnly?: boolean;
+  /** Optional brand globe asset (e.g. Figma nav-globe.svg) */
+  iconSrc?: string;
   className?: string;
 };
 
@@ -42,12 +44,14 @@ export function LanguageSwitcher({
   variant = "ghost",
   showLabel = false,
   iconOnly = false,
+  iconSrc,
   className,
 }: LanguageSwitcherProps) {
   const { locale, setLocale, t } = useI18n();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const ariaLabel = `${t("common.language")}: ${localeLabels[locale]}`;
+  const brandIconOnly = Boolean(iconOnly && iconSrc);
 
   useEffect(() => {
     if (!open) return;
@@ -66,18 +70,20 @@ export function LanguageSwitcher({
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative inline-flex shrink-0 items-center">
       <button
         type="button"
         className={cn(
-          "group/language inline-flex items-center justify-center rounded-full border text-xs font-semibold shadow-sm transition-[background-color,border-color,color,opacity] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+          "group/language inline-flex items-center justify-center rounded-full border text-xs font-semibold transition-[background-color,border-color,color,opacity] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
           iconOnly ? "gap-0" : showLabel ? "gap-2" : "gap-1.5",
-          variant === "header"
-            ? "border-[color-mix(in_oklab,var(--theme-text)_14%,transparent)] bg-[color-mix(in_oklab,var(--theme-surface)_82%,transparent)] text-[color:var(--theme-text)] shadow-[0_10px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl hover:bg-[color-mix(in_oklab,var(--theme-surface)_94%,var(--theme-primary)_6%)]"
-            : variant === "outline"
-              ? "border-border bg-background/90 hover:bg-accent"
-              : "border-transparent bg-transparent hover:bg-accent hover:text-accent-foreground",
-          iconOnly ? "h-9 w-9 px-0" : "h-9 px-2.5",
+          brandIconOnly
+            ? "size-6 border-transparent bg-transparent p-0 shadow-none hover:opacity-80"
+            : variant === "header"
+              ? "border-[color-mix(in_oklab,var(--theme-text)_14%,transparent)] bg-[color-mix(in_oklab,var(--theme-surface)_82%,transparent)] text-[color:var(--theme-text)] shadow-[0_10px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl hover:bg-[color-mix(in_oklab,var(--theme-surface)_94%,var(--theme-primary)_6%)]"
+              : variant === "outline"
+                ? "border-border bg-background/90 shadow-sm hover:bg-accent"
+                : "border-transparent bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground",
+          brandIconOnly ? "" : iconOnly ? "h-9 w-9 px-0" : "h-9 px-2.5",
           className,
         )}
         aria-expanded={open}
@@ -86,7 +92,22 @@ export function LanguageSwitcher({
         title={ariaLabel}
         onClick={() => setOpen((current) => !current)}
       >
-        <Globe2 className="h-4 w-4 shrink-0 opacity-80 transition-opacity group-hover/language:opacity-100" />
+        {iconSrc ? (
+          <img
+            src={iconSrc}
+            alt=""
+            aria-hidden
+            className="size-6 select-none"
+            draggable={false}
+          />
+        ) : (
+          <Globe2
+            className={cn(
+              "shrink-0 transition-opacity",
+              iconOnly ? "h-5 w-5 opacity-100" : "h-4 w-4 opacity-80 group-hover/language:opacity-100",
+            )}
+          />
+        )}
         {iconOnly ? null : showLabel ? (
           <>
             <span className="hidden max-w-24 truncate lg:inline">{localeLabels[locale]}</span>

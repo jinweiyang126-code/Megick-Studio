@@ -18,9 +18,9 @@ const ASSET = "/brand/magicore/home";
 const LOGO_MARK = "/brand/magicore/rail-mark.png?v=4";
 const DEFAULT_START = "/dashboard/inspiration" as const;
 
-/** Figma Free Start / Start Now gradient */
+/** Figma Free Start — node 121:868 */
 const CTA_GRADIENT =
-  "linear-gradient(105deg, #57d9fa 0%, #72aefc 66%, #9f66ff 100%, #ba4dfe 121%)";
+  "linear-gradient(118.58deg, #57d9fa 0%, #72aefc 45%, #9f66ff 100%, #ba4dfe 120%)";
 
 const NAV_LINKS = [
   { key: "home.mc.nav.inspiration" as const, to: "/dashboard/inspiration" as const },
@@ -88,10 +88,35 @@ function GradientCta({
       type={type}
       onClick={onClick}
       style={{ backgroundImage: CTA_GRADIENT }}
-      className={`inline-flex h-[44px] items-center justify-center gap-2 rounded-full px-4 text-[16px] font-medium text-[#0a0a0a] transition-transform duration-300 hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 ${className}`}
+      className={`inline-flex h-[44px] shrink-0 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-[16px] font-normal leading-normal text-[#0a0a0a] transition-transform duration-300 hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 ${className}`}
     >
       {children}
     </button>
+  );
+}
+
+function MagiCoreBrandMark({ className = "" }: { className?: string }) {
+  return (
+    <Link to="/" className={`inline-flex shrink-0 items-center gap-[13px] ${className}`} aria-label="MagiCoreAI">
+      {/* Figma 121:828 logo ≈ 43×21 */}
+      <img
+        src={LOGO_MARK}
+        alt=""
+        width={43}
+        height={21}
+        className="h-[21px] w-[43px] select-none object-contain"
+        draggable={false}
+      />
+      {/* Figma 121:830 img-magicoreai ≈ 109×23 */}
+      <img
+        src={`${ASSET}/logo-wordmark.svg?v=1`}
+        alt="MagiCoreAI"
+        width={109}
+        height={23}
+        className="h-[23px] w-[109px] select-none"
+        draggable={false}
+      />
+    </Link>
   );
 }
 
@@ -122,62 +147,66 @@ function MagiCoreHomeNav({ onStart }: { onStart: () => void }) {
 
   return (
     <>
-      {/* Figma 238:3247 navbar — absolute overlay, transparent (no solid plate) */}
+      {/* Figma 238:3247 navbar — px 80 / py 40, sides ~300, nav gap 64 */}
       <header className="pointer-events-none absolute inset-x-0 top-0 z-50 w-full">
-        <div className="pointer-events-auto mx-auto flex max-w-[1920px] items-center justify-between gap-4 px-5 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-10 xl:px-20">
-          {/* Figma: left brand column w-[300px] — equal side columns keep nav optically centered */}
-          <div className="flex min-w-0 flex-1 basis-0 items-center justify-start gap-[13px]">
-            <Link to="/" className="flex shrink-0 items-center gap-[13px]" aria-label="MagiCoreAI">
-              <img src={LOGO_MARK} alt="" className="h-7 w-auto select-none" draggable={false} />
-              <span className="text-[17px] font-semibold tracking-tight text-white">MagiCoreAI</span>
-            </Link>
+        <div className="pointer-events-auto mx-auto flex max-w-[1920px] items-center justify-between px-5 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-10 xl:px-20">
+          <div className="hidden min-w-0 flex-1 basis-0 items-center lg:flex xl:w-[300px] xl:flex-none xl:basis-auto">
+            <MagiCoreBrandMark />
+          </div>
+          <div className="flex shrink-0 items-center lg:hidden">
+            <MagiCoreBrandMark />
           </div>
 
-          <nav className="hidden shrink-0 items-center gap-16 font-normal text-[16px] leading-normal text-white lg:flex">
+          <nav className="hidden shrink-0 items-center gap-16 lg:flex">
             {NAV_LINKS.map((item) => (
               <button
                 key={item.key}
                 type="button"
                 onClick={() => goOrLogin(item.to)}
-                className="whitespace-nowrap text-center text-[16px] font-normal leading-normal text-white transition-colors hover:text-white/80"
+                className="whitespace-nowrap text-center font-[Inter,sans-serif] text-[16px] font-normal leading-normal text-white transition-colors hover:text-white/80"
               >
                 {t(item.key)}
               </button>
             ))}
           </nav>
 
-          {/* Figma: right actions column w-[300px] justify-end gap-[32px] */}
-          <div className="hidden min-w-0 flex-1 basis-0 items-center justify-end gap-8 lg:flex">
+          <div className="hidden min-w-0 flex-1 basis-0 items-center justify-end gap-8 lg:flex xl:w-[300px] xl:flex-none xl:basis-auto">
             <LanguageSwitcher
-              variant="header"
+              variant="ghost"
               iconOnly
-              className="border-transparent bg-transparent text-white/85 hover:bg-white/10 hover:text-white"
+              iconSrc={`${ASSET}/nav-globe.svg?v=1`}
+              className="size-6 shrink-0"
             />
-            {user ? (
-              <UserMenu
-                user={user}
-                signOut={signOut}
-                showBadge={false}
-                className="max-w-48 px-2 py-1.5 text-white/80 transition-opacity hover:opacity-80"
-                align="end"
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => openLogin({ mode: "signin", redirectTo: DEFAULT_START })}
-                className="flex h-[44px] items-center justify-center rounded-full border border-[#8b8e94] px-4 text-[16px] font-normal text-white transition-colors hover:border-white/70"
-              >
-                {t("home.mc.nav.login")}
-              </button>
-            )}
-            <GradientCta onClick={onStart}>{t("home.mc.cta.freeStart")}</GradientCta>
+            {/* Figma 219:1781 — Login/CTA cluster gap 24 */}
+            <div className="flex items-center gap-6">
+              {user ? (
+                <UserMenu
+                  user={user}
+                  signOut={signOut}
+                  showBadge={false}
+                  showLabel={false}
+                  className="p-0 text-white transition-opacity hover:opacity-80"
+                  align="end"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openLogin({ mode: "signin", redirectTo: DEFAULT_START })}
+                  className="flex h-[44px] items-center justify-center rounded-full border border-[#8b8e94] px-4 py-2.5 text-[16px] font-normal leading-normal text-white transition-colors hover:border-white/70"
+                >
+                  {t("home.mc.nav.login")}
+                </button>
+              )}
+              <GradientCta onClick={onStart}>{t("home.mc.cta.freeStart")}</GradientCta>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex items-center gap-3 lg:hidden">
             <LanguageSwitcher
-              variant="header"
+              variant="ghost"
               iconOnly
-              className="border-white/15 bg-white/5 text-white/85 hover:bg-white/10 hover:text-white"
+              iconSrc={`${ASSET}/nav-globe.svg?v=1`}
+              className="size-6 shrink-0"
             />
             <button
               type="button"
@@ -201,7 +230,7 @@ function MagiCoreHomeNav({ onStart }: { onStart: () => void }) {
           />
           <div className="absolute inset-y-0 right-0 flex w-[min(320px,88vw)] flex-col gap-6 bg-[#0a0a0c] p-6 shadow-2xl">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-white">MagiCoreAI</span>
+              <MagiCoreBrandMark />
               <button
                 type="button"
                 onClick={() => setMobileOpen(false)}
