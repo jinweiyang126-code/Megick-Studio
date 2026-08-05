@@ -299,43 +299,42 @@ export function MagiCoreHomePage() {
     <div className="relative min-h-dvh overflow-x-hidden bg-[#0a0a0a] text-white antialiased">
       <MagiCoreHomeNav onStart={() => startCreating()} />
 
-      {/* Hero — Figma homepage: bg-top (0,0,1920×900/1080); navbar overlays top */}
+      {/*
+        Hero — Figma homepage frame is 1920×1080 (title @ y=254, CTA @ y=797).
+        Keep aspect-[1920/1080] at ALL widths so bg-top / title / CTA stay aligned.
+        Do NOT use a taller min-height on narrow screens: that breaks the ratio and
+        object-cover crops the decorative prompt into a thin strip.
+      */}
       <section className="relative isolate overflow-hidden bg-[#0a0a0a]">
-        <div className="relative mx-auto w-full max-w-[1920px]">
-          {/*
-            Desktop: Figma 1920×1080 aspect + % positions.
-            Narrow: fixed min-height + smaller type + CTA at bottom so title / prompt / button don't collide.
-          */}
-          <div className="relative w-full min-h-[560px] sm:min-h-[640px] lg:min-h-0 lg:aspect-[1920/1080]">
-            <MagiCoreBgTop />
-            <MagiCoreImgTopLeft />
+        <div className="relative mx-auto w-full max-w-[1920px] aspect-[1920/1080]">
+          <MagiCoreBgTop />
+          <MagiCoreImgTopLeft />
 
-            {/* Title — Figma Frame 116 @ y=254 / 1080 */}
-            <div className="absolute inset-x-0 top-[20%] z-10 flex flex-col items-center px-5 text-center sm:top-[22%] sm:px-8 lg:top-[23.5%]">
-              <p className="text-[12px] font-normal uppercase tracking-[0.64px] text-white/60 sm:text-[16px]">
-                {t("home.mc.hero.eyebrow")}
-              </p>
-              <h1 className="mt-4 max-w-[780px] bg-gradient-to-b from-white to-[#999] bg-clip-text text-balance text-[clamp(1.75rem,7vw,5rem)] font-bold leading-[1.12] tracking-[-0.02em] text-transparent sm:mt-7 sm:leading-[1.05]">
-                <span className="block">{t("home.mc.hero.title1")}</span>
-                <span className="mt-1 block">{t("home.mc.hero.title2")}</span>
-              </h1>
-            </div>
+          {/* Title — Figma Frame 116 @ y=254 / 1080 ≈ 23.5% */}
+          <div className="absolute inset-x-0 top-[23.5%] z-10 flex flex-col items-center px-[4%] text-center">
+            <p className="text-[clamp(10px,calc(16/1920*100vw),16px)] font-normal uppercase tracking-[0.64px] text-white/60">
+              {t("home.mc.hero.eyebrow")}
+            </p>
+            <h1 className="mt-[clamp(0.75rem,calc(28/1920*100vw),1.75rem)] max-w-[780px] bg-gradient-to-b from-white to-[#999] bg-clip-text text-balance text-[clamp(1.25rem,calc(80/1920*100vw),5rem)] font-bold leading-[1.08] tracking-[-0.02em] text-transparent">
+              <span className="block">{t("home.mc.hero.title1")}</span>
+              <span className="mt-[0.12em] block">{t("home.mc.hero.title2")}</span>
+            </h1>
+          </div>
 
-            {/* Free Start — Figma Frame 7 @ y=797 / 1080; mobile docks to bottom */}
-            <div className="absolute inset-x-0 bottom-[7%] z-10 flex justify-center px-5 lg:bottom-auto lg:top-[73.8%]">
-              <GradientCta
-                className="!h-[48px] !w-[min(200px,70vw)] !gap-[11px] !text-[17px] sm:!h-[52px] sm:!text-[19px]"
-                onClick={() => startCreating()}
-              >
-                <img
-                  src={`${ASSET}/hero-icon-points.svg?v=1`}
-                  alt=""
-                  className="h-[19px] w-[16px]"
-                  draggable={false}
-                />
-                {t("home.mc.cta.freeStart")}
-              </GradientCta>
-            </div>
+          {/* Free Start — Figma Frame 7 @ y=797 / 1080 ≈ 73.8% */}
+          <div className="absolute inset-x-0 top-[73.8%] z-10 flex justify-center px-[4%]">
+            <GradientCta
+              className="!h-[clamp(36px,calc(52/1920*100vw),52px)] !w-[clamp(140px,calc(200/1920*100vw),200px)] !gap-[clamp(6px,calc(11/1920*100vw),11px)] !text-[clamp(13px,calc(19/1920*100vw),19px)]"
+              onClick={() => startCreating()}
+            >
+              <img
+                src={`${ASSET}/hero-icon-points.svg?v=1`}
+                alt=""
+                className="h-[clamp(14px,calc(19/1920*100vw),19px)] w-[clamp(12px,calc(16/1920*100vw),16px)]"
+                draggable={false}
+              />
+              {t("home.mc.cta.freeStart")}
+            </GradientCta>
           </div>
         </div>
       </section>
