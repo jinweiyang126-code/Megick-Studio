@@ -302,26 +302,29 @@ export function MagiCoreHomePage() {
       {/* Hero — Figma homepage: bg-top (0,0,1920×900/1080); navbar overlays top */}
       <section className="relative isolate overflow-hidden bg-[#0a0a0a]">
         <div className="relative mx-auto w-full max-w-[1920px]">
-          {/* Aspect matches Figma bg-top master 1920×1080; homepage instance clips to ~900 */}
-          <div className="relative w-full" style={{ aspectRatio: "1920 / 1080" }}>
+          {/*
+            Desktop: Figma 1920×1080 aspect + % positions.
+            Narrow: fixed min-height + smaller type + CTA at bottom so title / prompt / button don't collide.
+          */}
+          <div className="relative w-full min-h-[560px] sm:min-h-[640px] lg:min-h-0 lg:aspect-[1920/1080]">
             <MagiCoreBgTop />
             <MagiCoreImgTopLeft />
 
             {/* Title — Figma Frame 116 @ y=254 / 1080 */}
-            <div className="absolute inset-x-0 top-[23.5%] z-10 flex flex-col items-center px-5 text-center sm:px-8">
-              <p className="text-[13px] font-normal uppercase tracking-[0.64px] text-white/60 sm:text-[16px]">
+            <div className="absolute inset-x-0 top-[20%] z-10 flex flex-col items-center px-5 text-center sm:top-[22%] sm:px-8 lg:top-[23.5%]">
+              <p className="text-[12px] font-normal uppercase tracking-[0.64px] text-white/60 sm:text-[16px]">
                 {t("home.mc.hero.eyebrow")}
               </p>
-              <h1 className="mt-7 max-w-[780px] bg-gradient-to-b from-white to-[#999] bg-clip-text text-balance text-[clamp(2.6rem,6.2vw,5rem)] font-bold leading-[1.05] tracking-[-0.02em] text-transparent">
+              <h1 className="mt-4 max-w-[780px] bg-gradient-to-b from-white to-[#999] bg-clip-text text-balance text-[clamp(1.75rem,7vw,5rem)] font-bold leading-[1.12] tracking-[-0.02em] text-transparent sm:mt-7 sm:leading-[1.05]">
                 <span className="block">{t("home.mc.hero.title1")}</span>
                 <span className="mt-1 block">{t("home.mc.hero.title2")}</span>
               </h1>
             </div>
 
-            {/* Free Start — Figma Frame 7 @ y=797 / 1080 (below baked-in prompt bar @ y=577) */}
-            <div className="absolute inset-x-0 top-[73.8%] z-10 flex justify-center px-5">
+            {/* Free Start — Figma Frame 7 @ y=797 / 1080; mobile docks to bottom */}
+            <div className="absolute inset-x-0 bottom-[7%] z-10 flex justify-center px-5 lg:bottom-auto lg:top-[73.8%]">
               <GradientCta
-                className="!h-[52px] !w-[200px] !gap-[11px] !text-[19px]"
+                className="!h-[48px] !w-[min(200px,70vw)] !gap-[11px] !text-[17px] sm:!h-[52px] sm:!text-[19px]"
                 onClick={() => startCreating()}
               >
                 <img
@@ -350,16 +353,18 @@ export function MagiCoreHomePage() {
             {t("home.mc.product.description")}
           </p>
           <div className="relative mx-auto mt-10 w-full">
-            {/* Figma img-magicoreai 282×78.85 — vector paths; CSS shadow (no SVG filter / crispEdges) */}
-            <img
-              src={`${ASSET}/pill-magicoreai.svg?v=3`}
-              alt=""
-              width={282}
-              height={79}
-              className="mx-auto mb-0 h-auto w-[min(282px,42vw)] select-none [filter:drop-shadow(0_10px_7.5px_rgba(89,212,250,0.25))]"
-              draggable={false}
-              loading="lazy"
-            />
+            {/* Figma img-magicoreai 282×78.851 — official SVG filter shadow + overflow inset */}
+            <div className="relative mx-auto mb-0 aspect-[282/78.851] w-[min(282px,42vw)]">
+              <div className="absolute inset-[-6.34%_-5.32%_-31.71%_-5.32%]">
+                <img
+                  src={`${ASSET}/pill-magicoreai.svg?v=4`}
+                  alt=""
+                  className="block size-full max-w-none select-none"
+                  draggable={false}
+                  loading="lazy"
+                />
+              </div>
+            </div>
             {/* Figma Vector 12 — separate centered stem (was baked off-center in showcase PNG) */}
             <div className="mx-auto flex h-[98.5px] w-px justify-center" aria-hidden>
               <img

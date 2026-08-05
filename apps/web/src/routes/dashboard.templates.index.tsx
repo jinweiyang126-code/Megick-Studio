@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import {
   Check,
   Crown,
@@ -134,7 +134,6 @@ export function TemplateCenterPage({
   showControls = true,
   showSummary = true,
   controlsVariant = "default",
-  publishSlot,
   cardMode = "default",
   selectedTemplateId,
   onTemplateSelect,
@@ -152,7 +151,6 @@ export function TemplateCenterPage({
   showControls?: boolean;
   showSummary?: boolean;
   controlsVariant?: "default" | "inspiration";
-  publishSlot?: ReactNode;
   cardMode?: TemplateCardMode;
   selectedTemplateId?: string | null;
   onTemplateSelect?: (template: PromptTemplatePublic) => void;
@@ -445,8 +443,6 @@ export function TemplateCenterPage({
                   </form>
                 </div>
               ) : null}
-
-              {controlsVariant === "inspiration" ? publishSlot : null}
 
               {controlsVariant !== "inspiration" ? (
                 <form

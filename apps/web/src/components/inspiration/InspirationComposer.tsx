@@ -24,15 +24,17 @@ import { referenceSrcFromBlob } from "@/routes/-studio-shared";
 import { toast } from "sonner";
 
 const MODEL_ICON_DIR = "/brand/magicore/inspiration";
+const MODEL_ICON_DEFAULT = magiCoreIcons.composerModel;
 
-function modelChipIcon(displayName: string, code: string): string | null {
+/** Map known model names to Figma chip icons; unknown models get the default model glyph. */
+function modelChipIcon(displayName: string, code: string): string {
   const key = `${displayName} ${code}`.toLowerCase();
   if (key.includes("seedream")) return `${MODEL_ICON_DIR}/icon-seedream.svg`;
   if (key.includes("gpt") || key.includes("openai")) return `${MODEL_ICON_DIR}/icon-gpt.svg`;
   if (key.includes("banana") || key.includes("nano")) return `${MODEL_ICON_DIR}/icon-banana.svg`;
   if (key.includes("kling")) return `${MODEL_ICON_DIR}/icon-kling.svg`;
   if (key.includes("wan")) return `${MODEL_ICON_DIR}/icon-wan.svg`;
-  return null;
+  return MODEL_ICON_DEFAULT;
 }
 
 type InspirationReference = {
@@ -352,19 +354,20 @@ export function InspirationComposer() {
             type="button"
             onClick={handleGenerate}
             disabled={uploading}
-            className="flex h-8 w-[88px] shrink-0 items-center justify-center gap-2 rounded-xl text-[#0a0a0a] transition hover:brightness-110 disabled:opacity-50"
+            className="flex h-8 min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3.5 text-[#0a0a0a] transition hover:brightness-110 disabled:opacity-50"
             style={{
               backgroundImage:
                 "linear-gradient(96.12deg, #57d9fa 1.88%, #72aefc 82.03%, #9f66ff 109.58%, #ba4dfe 132.12%)",
             }}
           >
+            {/* Figma Frame 7 — icon 14 + cost 12px + label 14px, nowrap */}
             <span className="flex items-center gap-1">
-              <MagiCoreIcon src={magiCoreIcons.pointsBlack} className="h-3.5 w-3.5" />
-              <span className="text-xs font-medium leading-none">
+              <MagiCoreIcon src={magiCoreIcons.pointsBlack} className="h-3.5 w-3.5 shrink-0" />
+              <span className="text-[12px] font-medium leading-none">
                 {selectedModel?.costCredits ?? 1}
               </span>
             </span>
-            <span className="text-sm font-medium leading-none">
+            <span className="text-[14px] font-medium leading-none">
               {t("inspiration.composer.generate")}
             </span>
           </button>
@@ -389,14 +392,12 @@ export function InspirationComposer() {
                     : "border-[rgba(182,187,195,0.3)] bg-transparent text-[#8b8e94] hover:text-foreground",
                 )}
               >
-                {icon ? (
-                  <img
-                    src={`${icon}?v=1`}
-                    alt=""
-                    className="h-4 w-4 shrink-0"
-                    draggable={false}
-                  />
-                ) : null}
+                <img
+                  src={`${icon}?v=1`}
+                  alt=""
+                  className="h-4 w-4 shrink-0 opacity-90"
+                  draggable={false}
+                />
                 {model.displayName}
               </button>
             );

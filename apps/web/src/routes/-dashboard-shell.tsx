@@ -528,11 +528,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const renderRailNavItem = (item: DashboardNavItem) => {
     const isActive = isNavActive(item);
     const figmaIcon = primaryRailIconSrc(item.value, isActive);
+    // Figma `menue` 59:1247 — selected: cyan #57d9fa, fill hidden, effects [];
+    // hover: bg #1b1c21; default: transparent.
     const className = cn(
       "flex h-16 w-[62px] flex-col items-center justify-center gap-1.5 rounded-lg p-1 transition",
       isActive
-        ? "bg-primary/10 text-primary"
-        : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+        ? "text-[#57d9fa]"
+        : "text-sidebar-foreground/80 hover:bg-[#1b1c21] hover:text-sidebar-foreground",
     );
     const body = (
       <>
@@ -544,7 +546,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         <span
           className={cn(
             "max-w-full truncate text-center text-[12px] leading-none",
-            isActive ? "text-primary" : "text-foreground",
+            isActive ? "text-[#57d9fa]" : "text-foreground",
           )}
         >
           {navLabel(item)}
@@ -934,31 +936,34 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <header
               className={cn(
                 "z-20 flex shrink-0 items-center justify-between gap-1.5 bg-background/95 backdrop-blur-xl",
-                isInspiration || isMediaCenter || isHistoryPage || isChatsPage || isProfilePage
-                  ? "min-h-12 border-b border-transparent px-2 py-2 sm:gap-2 sm:px-5 lg:hidden"
-                  : isChromeStudio
-                    ? "items-start justify-between border-b border-transparent px-6 py-6"
-                    : "min-h-14 border-b border-border px-2 py-2 sm:gap-2 sm:px-5",
+                // Inspiration: always show shell chrome so Assets stays top-right (same as studio), never overlaps hero.
+                isInspiration
+                  ? "min-h-12 items-center border-b border-transparent px-2 py-2 sm:gap-2 sm:px-5 lg:px-6 lg:py-6"
+                  : isMediaCenter || isHistoryPage || isChatsPage || isProfilePage
+                    ? "min-h-12 border-b border-transparent px-2 py-2 sm:gap-2 sm:px-5 lg:hidden"
+                    : isChromeStudio
+                      ? "items-start justify-between border-b border-transparent px-6 py-6"
+                      : "min-h-14 border-b border-border px-2 py-2 sm:gap-2 sm:px-5",
               )}
             >
-              <div className="flex min-w-0 items-center gap-1 sm:gap-3">
+              <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-3">
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="lg:hidden"
+                  className="shrink-0 lg:hidden"
                   onClick={() => setSidebarOpen(true)}
                   aria-label={t("dashboard.openNavigation")}
                 >
                   <Menu />
                 </Button>
                 {!hideShellHeaderDesktop ? (
-                  <div className="hidden min-w-0 sm:block">
+                  <div className="min-w-0 flex-1">
                     <p
                       className={cn(
                         "truncate tracking-tight text-foreground",
                         isChromeStudio
-                          ? "text-base font-medium"
+                          ? "text-sm font-medium sm:text-base"
                           : "text-sm font-semibold",
                       )}
                     >
@@ -968,7 +973,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                       className={cn(
                         "truncate text-muted-foreground",
                         isChromeStudio
-                          ? "mt-1 text-xs text-[#8b8e94]"
+                          ? "mt-0.5 text-[11px] text-[#8b8e94] sm:mt-1 sm:text-xs"
                           : "text-xs",
                       )}
                     >
@@ -978,19 +983,22 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 ) : null}
               </div>
 
-              <div className="flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-4">
-                {user && isChromeStudio ? (
+              {/* Inspiration: Assets only. Studio image/video/edit: Guide + Assets (Figma title bar). */}
+              <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-4">
+                {user && (isChromeStudio || isInspiration) ? (
                   <>
-                    <OnboardingTourEntryButton label={t("studio.shell.guide")} />
+                    {isChromeStudio ? (
+                      <OnboardingTourEntryButton label={t("studio.shell.guide")} />
+                    ) : null}
                     <Button
                       asChild
                       variant="outline"
                       size="sm"
-                      className="hidden h-10 gap-2 rounded-xl border-border bg-[#1b1c21] px-4 text-sm text-foreground hover:bg-[#1b1c21]/90 sm:inline-flex"
+                      className="h-9 shrink-0 gap-2 rounded-xl border-border bg-[#1b1c21] px-2.5 text-sm text-foreground hover:bg-[#1b1c21]/90 sm:h-10 sm:px-4"
                     >
                       <Link to="/dashboard/media-center" preload="intent">
                         <MagiCoreIcon src={magiCoreIcons.asset} className="h-3.5 w-3.5" />
-                        <span>{t("studio.shell.assets")}</span>
+                        <span className="hidden sm:inline">{t("studio.shell.assets")}</span>
                       </Link>
                     </Button>
                   </>
@@ -1240,13 +1248,13 @@ function OnboardingTourEntryButton({ label }: { label: string }) {
       type="button"
       variant="outline"
       size="sm"
-      className="hidden h-10 shrink-0 gap-2 rounded-xl border-border bg-[#1b1c21] px-4 text-sm text-foreground hover:bg-[#1b1c21]/90 sm:inline-flex"
+      className="inline-flex h-9 shrink-0 gap-2 rounded-xl border-border bg-[#1b1c21] px-2.5 text-sm text-foreground hover:bg-[#1b1c21]/90 sm:h-10 sm:px-4"
       onClick={startTour}
       aria-label={label}
       title={label}
     >
       <MagiCoreIcon src={magiCoreIcons.guide} className="h-3.5 w-3.5" />
-      <span>{label}</span>
+      <span className="hidden sm:inline">{label}</span>
     </Button>
   );
 }
