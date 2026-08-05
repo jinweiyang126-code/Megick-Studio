@@ -4,7 +4,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type MouseEvent, type ReactNode, useEffect, useState } from "react";
 import { MagiCoreBgBottom } from "@/components/MagiCoreBgBottom";
 import { MagiCoreBgTop } from "@/components/MagiCoreBgTop";
 import { MagiCoreImgTopLeft } from "@/components/MagiCoreImgTopLeft";
@@ -124,7 +124,6 @@ function MagiCoreHomeNav({ onStart }: { onStart: () => void }) {
   const { t } = useI18n();
   const { user, signOut } = useAuth();
   const { openLogin } = useLoginDialog();
-  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -136,12 +135,13 @@ function MagiCoreHomeNav({ onStart }: { onStart: () => void }) {
     };
   }, [mobileOpen]);
 
-  const goOrLogin = (to: (typeof NAV_LINKS)[number]["to"]) => {
+  const onNavClick = (
+    event: MouseEvent,
+    to: (typeof NAV_LINKS)[number]["to"],
+  ) => {
     setMobileOpen(false);
-    if (user) {
-      void navigate({ to });
-      return;
-    }
+    if (user) return;
+    event.preventDefault();
     openLogin({ mode: "signin", redirectTo: to });
   };
 
@@ -159,14 +159,15 @@ function MagiCoreHomeNav({ onStart }: { onStart: () => void }) {
 
           <nav className="hidden shrink-0 items-center gap-16 lg:flex">
             {NAV_LINKS.map((item) => (
-              <button
+              <Link
                 key={item.key}
-                type="button"
-                onClick={() => goOrLogin(item.to)}
+                to={item.to}
+                preload="intent"
+                onClick={(event) => onNavClick(event, item.to)}
                 className="whitespace-nowrap text-center font-[Inter,sans-serif] text-[16px] font-normal leading-normal text-white transition-colors hover:text-white/80"
               >
                 {t(item.key)}
-              </button>
+              </Link>
             ))}
           </nav>
 
@@ -242,14 +243,15 @@ function MagiCoreHomeNav({ onStart }: { onStart: () => void }) {
             </div>
             <div className="flex flex-col gap-3">
               {NAV_LINKS.map((item) => (
-                <button
+                <Link
                   key={item.key}
-                  type="button"
-                  onClick={() => goOrLogin(item.to)}
+                  to={item.to}
+                  preload="intent"
+                  onClick={(event) => onNavClick(event, item.to)}
                   className="rounded-xl px-3 py-2.5 text-left text-[15px] text-white/85 hover:bg-white/5"
                 >
                   {t(item.key)}
-                </button>
+                </Link>
               ))}
             </div>
             <div className="mt-auto flex flex-col gap-3">

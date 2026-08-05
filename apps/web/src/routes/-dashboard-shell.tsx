@@ -900,6 +900,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                           search={
                             item.studioMode ? studioNavSearchFor(item.studioMode) : undefined
                           }
+                          preload="intent"
                           onClick={() => setSidebarOpen(false)}
                         >
                           <item.icon className="mr-2 h-4 w-4" />
