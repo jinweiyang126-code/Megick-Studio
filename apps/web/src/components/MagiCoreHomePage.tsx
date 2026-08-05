@@ -395,16 +395,16 @@ export function MagiCoreHomePage() {
             {t("home.mc.inspire.description")}
           </p>
 
-          {/* Figma Group 18 cards (177:5767) — 5 frame exports, no hidden Group 16 dome */}
+          {/* Figma Group 18 cards (177:5767) — official composite; title/CTA handled in HTML */}
           <div
             className="relative mx-auto mt-12 w-full max-w-[1180px]"
             style={{ aspectRatio: "1547.82 / 620" }}
           >
             <img
-              src={`${ASSET}/inspire-fan.png?v=1`}
+              src={`${ASSET}/inspire-fan.png?v=3`}
               alt={t("home.mc.inspire.title")}
-              width={1548}
-              height={1084}
+              width={3096}
+              height={1240}
               className="absolute left-0 top-0 h-auto w-full select-none"
               draggable={false}
               loading="lazy"
