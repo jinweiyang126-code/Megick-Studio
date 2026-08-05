@@ -363,7 +363,7 @@ export function MagiCoreHomePage() {
             {/* Figma Vector 12 — separate centered stem (was baked off-center in showcase PNG) */}
             <div className="mx-auto flex h-[98.5px] w-px justify-center" aria-hidden>
               <img
-                src={`${ASSET}/product-connector.svg?v=1`}
+                src={`${ASSET}/product-connector.svg?v=2`}
                 alt=""
                 width={1}
                 height={99}
@@ -372,7 +372,7 @@ export function MagiCoreHomePage() {
               />
             </div>
             <img
-              src={`${ASSET}/product-showcase.png?v=4`}
+              src={`${ASSET}/product-showcase.png?v=5`}
               alt={t("home.mc.product.imageAlt")}
               width={2756}
               height={1596}
