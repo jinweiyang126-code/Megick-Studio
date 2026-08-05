@@ -339,8 +339,12 @@ export function MagiCoreHomePage() {
         </div>
       </section>
 
-      {/* Product showcase */}
-      <section className="relative px-5 py-16 sm:px-8 sm:py-24 lg:px-12">
+      {/* Product showcase
+          Figma: CTA bottom y=849, “30s” Group 11 y=1019 → gap 170.
+          Hero stage is 1080 tall so CTA→hero-end = 231; pull section up by 61
+          (scales with viewport) and drop extra top padding so gap ≈ 170. */}
+      {/* pb-0: gap to Get Inspired is owned by the next section (Figma ≈159). */}
+      <section className="relative -mt-[calc(61/1920*100vw)] max-w-[100%] px-5 pb-0 pt-0 sm:px-8 lg:px-12">
         <div className="mx-auto max-w-[1378px] text-center">
           <h2 className="mx-auto max-w-[1100px] text-balance text-[clamp(1.75rem,3.5vw,2.75rem)] font-semibold tracking-[-0.02em]">
             <span className="bg-[linear-gradient(100deg,#57d9fa,#9f66ff)] bg-clip-text text-transparent">
@@ -389,8 +393,9 @@ export function MagiCoreHomePage() {
         </div>
       </section>
 
-      {/* Get Inspired */}
-      <section className="relative px-5 py-16 sm:px-8 sm:py-24 lg:px-12">
+      {/* Get Inspired
+          Figma: showcase Group bottom y≈2193, “Get Inspired” y=2352 → gap ≈159. */}
+      <section className="relative px-5 pb-16 pt-[calc(159/1920*100vw)] sm:px-8 sm:pb-24 lg:px-12">
         <div className="mx-auto max-w-[1200px] text-center">
           <h2 className="text-[clamp(1.75rem,3.5vw,2.75rem)] font-semibold tracking-[-0.02em] text-white">
             {t("home.mc.inspire.title")}
