@@ -350,20 +350,32 @@ export function MagiCoreHomePage() {
             {t("home.mc.product.description")}
           </p>
           <div className="relative mx-auto mt-10 w-full">
+            {/* Figma img-magicoreai 282×78.85 — vector paths; CSS shadow (no SVG filter / crispEdges) */}
             <img
-              src={`${ASSET}/product-pill.svg?v=1`}
+              src={`${ASSET}/pill-magicoreai.svg?v=3`}
               alt=""
               width={282}
               height={79}
-              className="mx-auto mb-1 h-auto w-[min(282px,42vw)] select-none"
+              className="mx-auto mb-0 h-auto w-[min(282px,42vw)] select-none [filter:drop-shadow(0_10px_7.5px_rgba(89,212,250,0.25))]"
               draggable={false}
               loading="lazy"
             />
+            {/* Figma Vector 12 — separate centered stem (was baked off-center in showcase PNG) */}
+            <div className="mx-auto flex h-[98.5px] w-px justify-center" aria-hidden>
+              <img
+                src={`${ASSET}/product-connector.svg?v=1`}
+                alt=""
+                width={1}
+                height={99}
+                className="h-full w-px max-w-none select-none"
+                draggable={false}
+              />
+            </div>
             <img
-              src={`${ASSET}/product-showcase.png?v=2`}
+              src={`${ASSET}/product-showcase.png?v=4`}
               alt={t("home.mc.product.imageAlt")}
               width={2756}
-              height={1792}
+              height={1596}
               className="mx-auto h-auto w-full select-none"
               draggable={false}
               loading="lazy"
@@ -383,41 +395,51 @@ export function MagiCoreHomePage() {
             {t("home.mc.inspire.description")}
           </p>
 
-          {/* Fan cards only — clip leftover CTA dome baked into inspire-fan-clean.png (Figma CTA is separate) */}
+          {/* Figma Group 18 cards (177:5767) — 5 frame exports, no hidden Group 16 dome */}
           <div
-            className="relative mx-auto mt-12 w-full max-w-[1180px] overflow-hidden"
-            style={{ aspectRatio: "1208 / 450" }}
+            className="relative mx-auto mt-12 w-full max-w-[1180px]"
+            style={{ aspectRatio: "1547.82 / 620" }}
           >
             <img
-              src={`${ASSET}/inspire-fan-clean.png?v=9`}
+              src={`${ASSET}/inspire-fan.png?v=1`}
               alt={t("home.mc.inspire.title")}
-              width={1208}
-              height={472}
-              className="absolute inset-x-0 top-0 h-auto w-full select-none"
+              width={1548}
+              height={1084}
+              className="absolute left-0 top-0 h-auto w-full select-none"
               draggable={false}
               loading="lazy"
             />
-          </div>
-
-          <div className="mt-8 flex flex-col items-center gap-3 sm:mt-10">
-            <button
-              type="button"
-              onClick={() => startCreating("/dashboard/inspiration")}
-              aria-label={t("home.mc.inspire.more")}
-              className="flex h-[84px] w-[84px] items-center justify-center rounded-full bg-[linear-gradient(135deg,#57d9fa,#9f66ff)] shadow-[0_0_40px_rgba(87,217,250,0.35)] transition-transform hover:scale-105"
-            >
-              <img
-                src={`${ASSET}/inspire-cta-arrow.svg?v=1`}
-                alt=""
-                width={28}
-                height={18}
-                className="h-[18px] w-[28px] brightness-0 invert"
-                draggable={false}
-              />
-            </button>
-            <p className="text-[12px] font-medium uppercase tracking-[0.22em] text-white/55">
-              {t("home.mc.inspire.more")}
-            </p>
+            {/* Figma Group 17 CTA — Ellipse 30 + arrow; top ≈ 479/620 of plate */}
+            <div className="absolute left-1/2 top-[77.25%] flex w-[322px] -translate-x-1/2 flex-col items-center gap-[32px]">
+              <button
+                type="button"
+                onClick={() => startCreating("/dashboard/inspiration")}
+                aria-label={t("home.mc.inspire.more")}
+                className="relative size-[84px] transition-transform hover:scale-105"
+              >
+                <span className="absolute inset-[-5.95%_-17.86%_-29.76%_-17.86%]">
+                  <img
+                    src={`${ASSET}/inspire-cta-ellipse.svg?v=1`}
+                    alt=""
+                    className="block size-full max-w-none select-none"
+                    draggable={false}
+                  />
+                </span>
+                <span className="absolute left-1/2 top-1/2 size-9 -translate-x-1/2 -translate-y-1/2 overflow-hidden">
+                  <span className="absolute inset-[29.2%_14.14%_29.2%_16.67%]">
+                    <img
+                      src={`${ASSET}/inspire-cta-arrow.svg?v=2`}
+                      alt=""
+                      className="block size-full max-w-none select-none"
+                      draggable={false}
+                    />
+                  </span>
+                </span>
+              </button>
+              <p className="text-[16px] font-medium uppercase leading-[25px] tracking-[1.92px] text-white">
+                {t("home.mc.inspire.more")}
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -438,19 +460,24 @@ export function MagiCoreHomePage() {
             {FEATURES.map(({ key, icon }) => (
               <article
                 key={key}
-                className="relative flex min-h-[280px] flex-col overflow-hidden rounded-2xl border border-[#26272c] bg-gradient-to-b from-[#1b1c21] to-[#0e0e10] p-6 sm:min-h-[320px]"
+                className="relative flex h-[320px] flex-col overflow-hidden rounded-2xl border border-[#26272c] bg-gradient-to-b from-[#1b1c21] to-[#0e0e10] px-6 pb-8 pt-10"
               >
+                {/* Figma Ellipse 34 glow — sits behind icon */}
                 <div
                   aria-hidden
                   className="pointer-events-none absolute -right-10 -top-24 h-[280px] w-[280px] rounded-full bg-[radial-gradient(circle,rgba(90,150,255,0.18),transparent_70%)]"
                 />
+                {/* Figma icon 64×64 @ left 24 / top 40 */}
                 <img
                   src={icon}
                   alt=""
-                  className="relative h-16 w-16 select-none"
+                  width={64}
+                  height={64}
+                  className="relative size-16 select-none"
                   draggable={false}
                 />
-                <div className="relative mt-auto pt-10">
+                {/* Figma Frame 101 @ top 207 */}
+                <div className="relative mt-auto">
                   <h3 className="text-[15px] font-medium uppercase tracking-[1.92px] text-white sm:text-[16px]">
                     {t(`home.feature.${key}.title` as TranslationKey)}
                   </h3>

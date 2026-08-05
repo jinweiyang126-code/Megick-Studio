@@ -9,8 +9,8 @@
 <feGaussianBlur stdDeviation="100" result="effect1_foregroundBlur_0_4"/>
 </filter>
 <linearGradient id="paint0_linear_0_4" x1="333.736" y1="858.485" x2="167.555" y2="1135.53" gradientUnits="userSpaceOnUse">
-<stop stop-color="#4DB8FF" stop-opacity="0.15"/>
-<stop offset="1" stop-color="#E8FFFF" stop-opacity="0.95"/>
+<stop stop-color="#008CFF" stop-opacity="0"/>
+<stop offset="1" stop-color="#CDF8FF"/>
 </linearGradient>
 </defs>
 </svg>
