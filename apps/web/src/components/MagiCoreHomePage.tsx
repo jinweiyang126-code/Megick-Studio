@@ -283,6 +283,46 @@ function MagiCoreHomeNav({ onStart }: { onStart: () => void }) {
   );
 }
 
+function MagiCoreHeroPromptMobile({ placeholder }: { placeholder: string }) {
+  return (
+    <div
+      aria-hidden
+      data-name="hero-prompt-glow"
+      className="relative mt-8 w-full max-w-[min(354px,92vw)] md:hidden"
+    >
+      {/* Figma Group 5 / Group 2 — cyan→purple bloom sits WITH the bar (not behind title) */}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[170%] w-[165%] -translate-x-1/2 -translate-y-1/2">
+        <img
+          src={`${ASSET}/hero-glow-main.svg?v=1`}
+          alt=""
+          className="absolute inset-0 size-full select-none object-contain opacity-90"
+          draggable={false}
+        />
+        <div className="absolute inset-[18%_8%] rounded-full bg-[linear-gradient(90deg,rgba(87,217,250,0.35)_0%,rgba(114,174,252,0.18)_45%,rgba(159,102,255,0.38)_100%)] opacity-80 blur-[22px]" />
+        <img
+          src={`${ASSET}/hero-glow-dots.svg?v=1`}
+          alt=""
+          className="absolute left-1/2 top-1/2 w-[72%] max-w-none -translate-x-1/2 -translate-y-1/2 select-none object-contain opacity-35 mix-blend-screen"
+          draggable={false}
+        />
+      </div>
+
+      {/* Figma prompt pill — Rectangle 3 + Describe + icon-search */}
+      <div className="relative z-[1] flex h-12 w-full items-center gap-3 overflow-hidden rounded-full border border-white/18 bg-[#0c0d12]/78 px-4 shadow-[0_0_28px_rgba(87,217,250,0.22)] backdrop-blur-[6px]">
+        <span className="min-w-0 flex-1 truncate text-left text-[13px] leading-none text-white/50">
+          {placeholder}
+        </span>
+        <img
+          src={`${ASSET}/hero-icon-search.svg?v=1`}
+          alt=""
+          className="size-4 shrink-0 opacity-75"
+          draggable={false}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function MagiCoreHomePage() {
   const { t } = useI18n();
   const { user } = useAuth();
@@ -302,37 +342,38 @@ export function MagiCoreHomePage() {
       <MagiCoreHomeNav onStart={() => startCreating()} />
 
       {/*
-        Hero — Figma homepage frame is 1920×1080 (title @ y=254, CTA @ y=797).
-        Keep aspect-[1920/1080] at ALL widths so bg-top / title / CTA stay aligned.
-        Do NOT use a taller min-height on narrow screens: that breaks the ratio and
-        object-cover crops the decorative prompt into a thin strip.
+        Hero
+        - md+: Figma 1920×1080 absolute layout (title 23.5%, CTA 73.8%).
+        - <md: content-flow mobile layout (nav clearance + readable type). No Figma phone artboard.
       */}
       <section className="relative isolate overflow-hidden bg-[#0a0a0a]">
-        <div className="relative mx-auto w-full max-w-[1920px] aspect-[1920/1080]">
+        <div className="relative mx-auto flex w-full max-w-[1920px] flex-col md:block md:aspect-[1920/1080]">
           <MagiCoreBgTop />
           <MagiCoreImgTopLeft />
 
-          {/* Title — Figma Frame 116 @ y=254 / 1080 ≈ 23.5% */}
-          <div className="absolute inset-x-0 top-[23.5%] z-10 flex flex-col items-center px-[4%] text-center">
-            <p className="text-[clamp(10px,calc(16/1920*100vw),16px)] font-normal uppercase tracking-[0.64px] text-white/60">
+          {/* Title — mobile: below nav; md+: Figma Frame 116 @ y=254 / 1080 ≈ 23.5% */}
+          <div className="relative z-10 flex flex-col items-center px-5 pt-28 text-center md:absolute md:inset-x-0 md:top-[23.5%] md:px-[4%] md:pt-0">
+            <p className="text-[12px] font-normal uppercase tracking-[0.64px] text-white/60 md:text-[clamp(10px,calc(16/1920*100vw),16px)]">
               {t("home.mc.hero.eyebrow")}
             </p>
-            <h1 className="mt-[clamp(0.75rem,calc(28/1920*100vw),1.75rem)] max-w-[780px] bg-gradient-to-b from-white to-[#999] bg-clip-text text-balance text-[clamp(1.25rem,calc(80/1920*100vw),5rem)] font-bold leading-[1.08] tracking-[-0.02em] text-transparent">
+            <h1 className="mt-4 max-w-[780px] bg-gradient-to-b from-white to-[#999] bg-clip-text text-balance text-[clamp(1.75rem,8vw,2.5rem)] font-bold leading-[1.12] tracking-[-0.02em] text-transparent md:mt-[clamp(0.75rem,calc(28/1920*100vw),1.75rem)] md:text-[clamp(1.25rem,calc(80/1920*100vw),5rem)] md:leading-[1.08]">
               <span className="block">{t("home.mc.hero.title1")}</span>
               <span className="mt-[0.12em] block">{t("home.mc.hero.title2")}</span>
             </h1>
+
+            <MagiCoreHeroPromptMobile placeholder={t("home.mc.hero.promptPlaceholder")} />
           </div>
 
-          {/* Free Start — Figma Frame 7 @ y=797 / 1080 ≈ 73.8% */}
-          <div className="absolute inset-x-0 top-[73.8%] z-10 flex justify-center px-[4%]">
+          {/* Free Start — mobile: after title; md+: Figma Frame 7 @ y=797 / 1080 ≈ 73.8% */}
+          <div className="relative z-10 mt-8 flex justify-center px-5 pb-8 md:absolute md:inset-x-0 md:top-[73.8%] md:mt-0 md:px-[4%] md:pb-0 md:pt-0">
             <GradientCta
-              className="!h-[clamp(36px,calc(52/1920*100vw),52px)] !w-[clamp(140px,calc(200/1920*100vw),200px)] !gap-[clamp(6px,calc(11/1920*100vw),11px)] !text-[clamp(13px,calc(19/1920*100vw),19px)]"
+              className="!h-12 !w-[180px] !gap-2.5 !text-[16px] md:!h-[clamp(36px,calc(52/1920*100vw),52px)] md:!w-[clamp(140px,calc(200/1920*100vw),200px)] md:!gap-[clamp(6px,calc(11/1920*100vw),11px)] md:!text-[clamp(13px,calc(19/1920*100vw),19px)]"
               onClick={() => startCreating()}
             >
               <img
                 src={`${ASSET}/hero-icon-points.svg?v=1`}
                 alt=""
-                className="h-[clamp(14px,calc(19/1920*100vw),19px)] w-[clamp(12px,calc(16/1920*100vw),16px)]"
+                className="h-[18px] w-[15px] md:h-[clamp(14px,calc(19/1920*100vw),19px)] md:w-[clamp(12px,calc(16/1920*100vw),16px)]"
                 draggable={false}
               />
               {t("home.mc.cta.freeStart")}
@@ -342,24 +383,22 @@ export function MagiCoreHomePage() {
       </section>
 
       {/* Product showcase
-          Figma: CTA bottom y=849, “30s” Group 11 y=1019 → gap 170.
-          Hero stage is 1080 tall so CTA→hero-end = 231; pull section up by 61
-          (scales with viewport) and drop extra top padding so gap ≈ 170. */}
-      {/* pb-0: gap to Get Inspired is owned by the next section (Figma ≈159). */}
-      <section className="relative -mt-[calc(61/1920*100vw)] max-w-[100%] px-5 pb-0 pt-0 sm:px-8 lg:px-12">
+          md+: Figma gaps (CTA→30s ≈170 via -mt 61/1920).
+          <md: tight section padding — no desktop pull-up / no forced hero min-height gap. */}
+      <section className="relative mt-0 max-w-[100%] px-5 pb-0 pt-8 md:-mt-[calc(61/1920*100vw)] md:pt-0 sm:px-8 lg:px-12">
         <div className="mx-auto max-w-[1378px] text-center">
-          <h2 className="mx-auto max-w-[1100px] text-balance text-[clamp(1.75rem,3.5vw,2.75rem)] font-semibold tracking-[-0.02em]">
+          <h2 className="mx-auto max-w-[1100px] text-balance text-[clamp(1.5rem,6vw,2.75rem)] font-semibold tracking-[-0.02em] md:text-[clamp(1.75rem,3.5vw,2.75rem)]">
             <span className="bg-[linear-gradient(100deg,#57d9fa,#9f66ff)] bg-clip-text text-transparent">
               {t("home.mc.product.highlight")}
             </span>{" "}
             <span className="text-white">{t("home.mc.product.title")}</span>
           </h2>
-          <p className="mx-auto mt-5 max-w-[940px] text-[14px] leading-[30px] tracking-[0.32px] text-[#8b8e94] sm:text-[16px]">
+          <p className="mx-auto mt-4 max-w-[940px] text-[14px] leading-[22px] tracking-[0.32px] text-[#8b8e94] sm:mt-5 sm:text-[16px] sm:leading-[30px]">
             {t("home.mc.product.description")}
           </p>
-          <div className="relative mx-auto mt-10 w-full">
+          <div className="relative mx-auto mt-8 w-full md:mt-10">
             {/* Figma img-magicoreai 282×78.851 — official SVG filter shadow + overflow inset */}
-            <div className="relative mx-auto mb-0 aspect-[282/78.851] w-[min(282px,42vw)]">
+            <div className="relative mx-auto mb-0 aspect-[282/78.851] w-[min(200px,48vw)] md:w-[min(282px,42vw)]">
               <div className="absolute inset-[-6.34%_-5.32%_-31.71%_-5.32%]">
                 <img
                   src={`${ASSET}/pill-magicoreai.svg?v=4`}
@@ -370,8 +409,8 @@ export function MagiCoreHomePage() {
                 />
               </div>
             </div>
-            {/* Figma Vector 12 — separate centered stem (was baked off-center in showcase PNG) */}
-            <div className="mx-auto flex h-[98.5px] w-px justify-center" aria-hidden>
+            {/* Figma Vector 12 — shorter stem on phone */}
+            <div className="mx-auto flex h-12 w-px justify-center md:h-[98.5px]" aria-hidden>
               <img
                 src={`${ASSET}/product-connector.svg?v=2`}
                 alt=""
@@ -386,7 +425,7 @@ export function MagiCoreHomePage() {
               alt={t("home.mc.product.imageAlt")}
               width={2756}
               height={1596}
-              className="mx-auto h-auto w-full select-none"
+              className="mx-auto h-auto w-full max-w-full select-none"
               draggable={false}
               loading="lazy"
               decoding="async"
@@ -395,20 +434,19 @@ export function MagiCoreHomePage() {
         </div>
       </section>
 
-      {/* Get Inspired
-          Figma: showcase Group bottom y≈2193, “Get Inspired” y=2352 → gap ≈159. */}
-      <section className="relative px-5 pb-16 pt-[calc(159/1920*100vw)] sm:px-8 sm:pb-24 lg:px-12">
+      {/* Get Inspired — mobile uses fixed padding; md+ Figma ≈159 gap */}
+      <section className="relative px-5 pb-14 pt-12 sm:px-8 sm:pb-24 md:pt-[calc(159/1920*100vw)] lg:px-12">
         <div className="mx-auto max-w-[1200px] text-center">
-          <h2 className="text-[clamp(1.75rem,3.5vw,2.75rem)] font-semibold tracking-[-0.02em] text-white">
+          <h2 className="text-[clamp(1.5rem,6vw,2.75rem)] font-semibold tracking-[-0.02em] text-white md:text-[clamp(1.75rem,3.5vw,2.75rem)]">
             {t("home.mc.inspire.title")}
           </h2>
-          <p className="mx-auto mt-4 max-w-[640px] text-[14px] text-white/55 sm:text-[15px]">
+          <p className="mx-auto mt-3 max-w-[640px] text-[14px] leading-[22px] text-white/55 sm:mt-4 sm:text-[15px]">
             {t("home.mc.inspire.description")}
           </p>
 
-          {/* Figma Group 18 cards (177:5767) — official composite; title/CTA handled in HTML */}
+          {/* Figma Group 18 cards — scale CTA for narrow widths */}
           <div
-            className="relative mx-auto mt-12 w-full max-w-[1180px]"
+            className="relative mx-auto mt-8 w-full max-w-[1180px] md:mt-12"
             style={{ aspectRatio: "1547.82 / 620" }}
           >
             <img
@@ -421,12 +459,12 @@ export function MagiCoreHomePage() {
               loading="lazy"
             />
             {/* Figma Group 17 CTA — Ellipse 30 + arrow; top ≈ 479/620 of plate */}
-            <div className="absolute left-1/2 top-[77.25%] flex w-[322px] -translate-x-1/2 flex-col items-center gap-[32px]">
+            <div className="absolute left-1/2 top-[77.25%] flex w-[min(322px,72vw)] -translate-x-1/2 flex-col items-center gap-4 md:gap-[32px]">
               <button
                 type="button"
                 onClick={() => startCreating("/dashboard/inspiration")}
                 aria-label={t("home.mc.inspire.more")}
-                className="relative size-[84px] transition-transform hover:scale-105"
+                className="relative size-14 transition-transform hover:scale-105 md:size-[84px]"
               >
                 <span className="absolute inset-[-5.95%_-17.86%_-29.76%_-17.86%]">
                   <img
@@ -436,7 +474,7 @@ export function MagiCoreHomePage() {
                     draggable={false}
                   />
                 </span>
-                <span className="absolute left-1/2 top-1/2 size-9 -translate-x-1/2 -translate-y-1/2 overflow-hidden">
+                <span className="absolute left-1/2 top-1/2 size-7 -translate-x-1/2 -translate-y-1/2 overflow-hidden md:size-9">
                   <span className="absolute inset-[29.2%_14.14%_29.2%_16.67%]">
                     <img
                       src={`${ASSET}/inspire-cta-arrow.svg?v=2`}
@@ -447,7 +485,7 @@ export function MagiCoreHomePage() {
                   </span>
                 </span>
               </button>
-              <p className="text-[16px] font-medium uppercase leading-[25px] tracking-[1.92px] text-white">
+              <p className="text-[12px] font-medium uppercase leading-[18px] tracking-[1.5px] text-white md:text-[16px] md:leading-[25px] md:tracking-[1.92px]">
                 {t("home.mc.inspire.more")}
               </p>
             </div>
@@ -455,23 +493,23 @@ export function MagiCoreHomePage() {
         </div>
       </section>
 
-      {/* Key Features — Figma Frame 105 / 2×3 cards */}
-      <section className="px-5 py-16 sm:px-8 sm:py-24 lg:px-12">
+      {/* Key Features — Figma Frame 105 / 2×3 cards; phone = auto-height stack */}
+      <section className="px-5 py-12 sm:px-8 sm:py-24 lg:px-12">
         <div className="mx-auto max-w-[1440px]">
           <div className="mx-auto max-w-[820px] text-center">
-            <h2 className="text-[clamp(1.75rem,3.5vw,2.75rem)] font-semibold tracking-[-0.02em] text-white">
+            <h2 className="text-[clamp(1.5rem,6vw,2.75rem)] font-semibold tracking-[-0.02em] text-white md:text-[clamp(1.75rem,3.5vw,2.75rem)]">
               {t("home.mc.features.title")}
             </h2>
-            <p className="mt-4 text-[14px] leading-[30px] tracking-[0.32px] text-[#8b8e94] sm:text-[16px]">
+            <p className="mt-3 text-[14px] leading-[22px] tracking-[0.32px] text-[#8b8e94] sm:mt-4 sm:text-[16px] sm:leading-[30px]">
               {t("home.mc.features.description")}
             </p>
           </div>
 
-          <div className="mx-auto mt-14 grid max-w-[1440px] gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mx-auto mt-8 grid max-w-[1440px] gap-5 sm:mt-14 sm:grid-cols-2 sm:gap-8 lg:grid-cols-3">
             {FEATURES.map(({ key, icon }) => (
               <article
                 key={key}
-                className="relative flex h-[320px] flex-col overflow-hidden rounded-2xl border border-[#26272c] bg-gradient-to-b from-[#1b1c21] to-[#0e0e10] px-6 pb-8 pt-10"
+                className="relative flex min-h-[260px] flex-col overflow-hidden rounded-2xl border border-[#26272c] bg-gradient-to-b from-[#1b1c21] to-[#0e0e10] px-5 pb-7 pt-8 sm:h-[320px] sm:px-6 sm:pb-8 sm:pt-10"
               >
                 {/* Figma Ellipse 34 glow — sits behind icon */}
                 <div
@@ -484,15 +522,15 @@ export function MagiCoreHomePage() {
                   alt=""
                   width={64}
                   height={64}
-                  className="relative size-16 select-none"
+                  className="relative size-12 select-none sm:size-16"
                   draggable={false}
                 />
                 {/* Figma Frame 101 @ top 207 */}
-                <div className="relative mt-auto">
-                  <h3 className="text-[15px] font-medium uppercase tracking-[1.92px] text-white sm:text-[16px]">
+                <div className="relative mt-6 sm:mt-auto">
+                  <h3 className="text-[14px] font-medium uppercase tracking-[1.5px] text-white sm:text-[15px] sm:tracking-[1.92px] md:text-[16px]">
                     {t(`home.feature.${key}.title` as TranslationKey)}
                   </h3>
-                  <p className="mt-4 text-[14px] leading-[23px] tracking-[0.28px] text-[#8b8e94]">
+                  <p className="mt-3 text-[13px] leading-[20px] tracking-[0.28px] text-[#8b8e94] sm:mt-4 sm:text-[14px] sm:leading-[23px]">
                     {t(`home.mc.feature.${key}.desc` as TranslationKey)}
                   </p>
                 </div>
@@ -503,27 +541,27 @@ export function MagiCoreHomePage() {
       </section>
 
       {/* Bottom CTA — Figma 238:6439 bg-bottom + Ready / Start Now */}
-      <section className="relative min-h-[280px] overflow-hidden px-5 py-20 sm:min-h-[320px] sm:px-8 lg:min-h-[348px] lg:px-12">
+      <section className="relative min-h-[240px] overflow-hidden px-5 py-14 sm:min-h-[320px] sm:px-8 sm:py-20 lg:min-h-[348px] lg:px-12">
         <MagiCoreBgBottom />
-        <div className="relative z-10 mx-auto flex max-w-[1440px] flex-col items-start justify-between gap-8 lg:flex-row lg:items-center">
+        <div className="relative z-10 mx-auto flex max-w-[1440px] flex-col items-start justify-between gap-6 sm:gap-8 lg:flex-row lg:items-center">
           <div className="max-w-[618px]">
-            <h2 className="text-[clamp(1.75rem,3.5vw,2.5rem)] font-semibold capitalize leading-[1.1] tracking-[0.8px] text-white">
+            <h2 className="text-[clamp(1.5rem,6vw,2.5rem)] font-semibold capitalize leading-[1.1] tracking-[0.8px] text-white">
               {t("home.mc.ready.title")}
             </h2>
-            <p className="mt-6 text-[14px] leading-[30px] tracking-[0.32px] text-white/60 sm:text-[16px]">
+            <p className="mt-4 text-[14px] leading-[22px] tracking-[0.32px] text-white/60 sm:mt-6 sm:text-[16px] sm:leading-[30px]">
               {t("home.mc.ready.description")}
             </p>
           </div>
-          <GradientCta className="!h-[52px] !w-[180px] !gap-[11px] !text-[18px] !font-semibold" onClick={() => startCreating()}>
+          <GradientCta className="!h-12 !w-[168px] !gap-2.5 !text-[16px] !font-semibold sm:!h-[52px] sm:!w-[180px] sm:!gap-[11px] sm:!text-[18px]" onClick={() => startCreating()}>
             {t("home.mc.cta.startNow")}
-            <ArrowRight className="h-6 w-6" strokeWidth={2} />
+            <ArrowRight className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2} />
           </GradientCta>
         </div>
       </section>
 
       {/* Footer — Figma Container 181:5992 */}
-      <footer className="bg-[#121212] px-5 pt-16 sm:px-8 lg:px-12">
-        <div className="mx-auto grid max-w-[1440px] gap-12 lg:grid-cols-[300px_1fr] lg:gap-20">
+      <footer className="bg-[#121212] px-5 pt-12 sm:px-8 sm:pt-16 lg:px-12">
+        <div className="mx-auto grid max-w-[1440px] gap-10 lg:grid-cols-[300px_1fr] lg:gap-20">
           <div>
             <Link to="/" className="inline-flex items-center gap-2.5" aria-label="MagiCoreAI">
               <img src={LOGO_MARK} alt="" className="h-6 w-auto" draggable={false} />
@@ -561,13 +599,13 @@ export function MagiCoreHomePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 lg:gap-[120px]">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4 sm:gap-8 lg:gap-[120px]">
             {FOOTER_COLS.map((col) => (
               <div key={col.title}>
-                <h4 className="text-[14px] font-medium uppercase tracking-normal text-white">
+                <h4 className="text-[13px] font-medium uppercase tracking-normal text-white sm:text-[14px]">
                   {t(col.title)}
                 </h4>
-                <ul className="mt-6 space-y-[18px] text-[14px] text-[#8b8e94]">
+                <ul className="mt-4 space-y-3 text-[13px] text-[#8b8e94] sm:mt-6 sm:space-y-[18px] sm:text-[14px]">
                   {col.links.map((link) => (
                     <li key={link}>
                       {link === "home.mc.footer.legal.terms" ? (
@@ -596,8 +634,8 @@ export function MagiCoreHomePage() {
         </div>
 
         {/* Bottom bar: copyright + mail on the left (Figma Frame 219:1774) */}
-        <div className="mx-auto flex h-[100px] max-w-[1440px] items-center border-t border-[#26272c]">
-          <div className="flex flex-wrap items-center gap-x-[26px] gap-y-2 text-[13px] leading-[19.5px] text-[#8b8e94]">
+        <div className="mx-auto flex min-h-[72px] max-w-[1440px] items-center border-t border-[#26272c] py-5 sm:h-[100px] sm:min-h-0 sm:py-0">
+          <div className="flex flex-wrap items-center gap-x-[26px] gap-y-2 text-[12px] leading-[18px] text-[#8b8e94] sm:text-[13px] sm:leading-[19.5px]">
             <p>{t("home.mc.footer.copyright")}</p>
             <a
               href="mailto:support@magicoreai.com"
