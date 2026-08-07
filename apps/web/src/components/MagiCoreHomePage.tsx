@@ -323,6 +323,75 @@ function MagiCoreHeroPromptMobile({ placeholder }: { placeholder: string }) {
   );
 }
 
+function MagiCoreProductPillMobile() {
+  return (
+    <div
+      aria-hidden
+      className="relative mx-auto mb-0 flex h-14 w-[min(200px,48vw)] items-center justify-center rounded-full p-[1.5px] shadow-[0_8px_28px_rgba(87,217,250,0.28)] md:hidden"
+      style={{ backgroundImage: CTA_GRADIENT }}
+    >
+      <div className="flex size-full items-center justify-center rounded-full bg-[#0a0a0a]">
+        <span
+          className="bg-clip-text text-[15px] font-semibold tracking-[-0.01em] text-transparent"
+          style={{ backgroundImage: CTA_GRADIENT }}
+        >
+          MagiCoreAI
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function MagiCoreInspireCtaButton({
+  onClick,
+  label,
+}: {
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <>
+      {/* Mobile — CSS circle (no SVG feGaussianBlur; stays sharp on Retina) */}
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={label}
+        className="flex size-14 items-center justify-center rounded-full shadow-[0_8px_28px_rgba(87,217,250,0.32)] transition-transform hover:scale-105 md:hidden"
+        style={{ backgroundImage: CTA_GRADIENT }}
+      >
+        <ArrowRight className="size-6 text-[#0a0a0a]" strokeWidth={2.75} />
+      </button>
+
+      {/* Desktop — Figma Ellipse 30 + arrow SVGs unchanged */}
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={label}
+        className="relative hidden size-[84px] transition-transform hover:scale-105 md:block"
+      >
+        <span className="absolute inset-[-5.95%_-17.86%_-29.76%_-17.86%]">
+          <img
+            src={`${ASSET}/inspire-cta-ellipse.svg?v=1`}
+            alt=""
+            className="block size-full max-w-none select-none"
+            draggable={false}
+          />
+        </span>
+        <span className="absolute left-1/2 top-1/2 size-9 -translate-x-1/2 -translate-y-1/2 overflow-hidden">
+          <span className="absolute inset-[29.2%_14.14%_29.2%_16.67%]">
+            <img
+              src={`${ASSET}/inspire-cta-arrow.svg?v=2`}
+              alt=""
+              className="block size-full max-w-none select-none"
+              draggable={false}
+            />
+          </span>
+        </span>
+      </button>
+    </>
+  );
+}
+
 export function MagiCoreHomePage() {
   const { t } = useI18n();
   const { user } = useAuth();
@@ -397,8 +466,9 @@ export function MagiCoreHomePage() {
             {t("home.mc.product.description")}
           </p>
           <div className="relative mx-auto mt-8 w-full md:mt-10">
-            {/* Figma img-magicoreai 282×78.851 — official SVG filter shadow + overflow inset */}
-            <div className="relative mx-auto mb-0 aspect-[282/78.851] w-[min(200px,48vw)] md:w-[min(282px,42vw)]">
+            {/* Mobile — crisp CSS pill (no filtered SVG). Desktop — Figma SVG unchanged. */}
+            <MagiCoreProductPillMobile />
+            <div className="relative mx-auto mb-0 hidden aspect-[282/78.851] w-[min(282px,42vw)] md:block">
               <div className="absolute inset-[-6.34%_-5.32%_-31.71%_-5.32%]">
                 <img
                   src={`${ASSET}/pill-magicoreai.svg?v=4`}
@@ -460,31 +530,10 @@ export function MagiCoreHomePage() {
             />
             {/* Figma Group 17 CTA — Ellipse 30 + arrow; top ≈ 479/620 of plate */}
             <div className="absolute left-1/2 top-[77.25%] flex w-[min(322px,72vw)] -translate-x-1/2 flex-col items-center gap-4 md:gap-[32px]">
-              <button
-                type="button"
+              <MagiCoreInspireCtaButton
                 onClick={() => startCreating("/dashboard/inspiration")}
-                aria-label={t("home.mc.inspire.more")}
-                className="relative size-14 transition-transform hover:scale-105 md:size-[84px]"
-              >
-                <span className="absolute inset-[-5.95%_-17.86%_-29.76%_-17.86%]">
-                  <img
-                    src={`${ASSET}/inspire-cta-ellipse.svg?v=1`}
-                    alt=""
-                    className="block size-full max-w-none select-none"
-                    draggable={false}
-                  />
-                </span>
-                <span className="absolute left-1/2 top-1/2 size-7 -translate-x-1/2 -translate-y-1/2 overflow-hidden md:size-9">
-                  <span className="absolute inset-[29.2%_14.14%_29.2%_16.67%]">
-                    <img
-                      src={`${ASSET}/inspire-cta-arrow.svg?v=2`}
-                      alt=""
-                      className="block size-full max-w-none select-none"
-                      draggable={false}
-                    />
-                  </span>
-                </span>
-              </button>
+                label={t("home.mc.inspire.more")}
+              />
               <p className="text-[12px] font-medium uppercase leading-[18px] tracking-[1.5px] text-white md:text-[16px] md:leading-[25px] md:tracking-[1.92px]">
                 {t("home.mc.inspire.more")}
               </p>
